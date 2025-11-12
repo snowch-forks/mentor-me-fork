@@ -1,0 +1,77 @@
+name: mentor_me
+description: AI-powered mentor and coach for goal tracking and habit building
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Internationalization support
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  provider: ^6.1.1
+  
+  # Local storage
+  shared_preferences: ^2.2.2
+
+  # Date/time utilities (pinned to 0.19.0 by flutter_localizations)
+  intl: ^0.19.0
+  
+  # HTTP for API calls
+  http: ^1.2.0
+  
+  # JSON serialization
+  json_annotation: ^4.8.1
+  
+  # UUID generation
+  uuid: ^4.3.3
+
+  # File system access
+  path_provider: ^2.1.2
+
+  # Sharing files
+  share_plus: ^7.2.2
+
+  # File picker
+  file_picker: ^8.1.2
+
+  # Universal I/O for cross-platform File support
+  universal_io: ^2.2.2
+
+  # Alarm scheduling using android_alarm_manager_plus
+  android_alarm_manager_plus: ^4.0.3
+  # Notification display using flutter_local_notifications
+  flutter_local_notifications: ^17.2.3
+  timezone: ^0.9.4
+
+  # Open system settings
+  app_settings: ^5.1.1
+
+  # Wake lock to prevent sleep during downloads
+  wakelock_plus: ^1.2.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.8
+  json_serializable: ^6.7.1
+  flutter_launcher_icons: "^0.13.1"
+
+flutter:
+  uses-material-design: true
+
+# --- Flutter Launcher Icons Configuration ---
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/app_icon.png" # Fallback for non-adaptive launchers
+
+  # Android Adaptive Icons - prevents white border on dark themes
+  adaptive_icon_background: "#A8D5BA" # Sage green to match app theme
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png" # Outlined psychology icon

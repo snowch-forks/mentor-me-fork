@@ -1,0 +1,684 @@
+/// AI Service for MentorMe application.
+///
+/// Provides integration with Claude AI API for coaching, guidance, and analysis.
+/// Supports both web (via proxy) and mobile (direct API) platforms.
+///
+/// Key features:
+/// - Dynamic model selection (Opus 4, Sonnet 4.5, Sonnet 4, etc.)
+/// - Platform-aware API routing (proxy for web, direct for mobile)
+/// - Structured debug logging
+/// - Local and cloud AI provider support
+///
+/// Usage:
+/// ```dart
+/// final aiService = AIService();
+/// await aiService.initialize();
+/// final response = await aiService.getCoachingResponse(
+///   prompt: 'How can I improve my productivity?',
+/// );
+/// ```
+library;
+
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+import '../models/goal.dart';
+import '../models/journal_entry.dart';
+import '../models/ai_provider.dart';
+import 'storage_service.dart';
+import 'debug_service.dart';
+import 'local_ai_service.dart';
+import 'model_download_service.dart';
+
+/// Singleton service for AI-powered coaching and analysis.
+///
+/// Manages Claude API integration with support for multiple models,
+/// platform-specific routing, and comprehensive error handling.
+class AIService {
+  // Direct API for mobile
+  static const String _apiUrl = 'https://api.anthropic.com/v1/messages';
+
+  // Proxy server for web (run locally during development)
+  static const String _proxyUrl = 'http://localhost:3000/api/claude/messages';
+
+  // Default model (can be overridden by user settings)
+  static const String _defaultModel = 'claude-sonnet-4-20250514';
+
+  static final AIService _instance = AIService._internal();
+  factory AIService() => _instance;
+  AIService._internal();
+
+  String? _apiKey;
+  String _selectedModel = _defaultModel;
+  AIProvider _selectedProvider = AIProvider.cloud; // Default to cloud
+  final StorageService _storage = StorageService();
+  final DebugService _debug = DebugService();
+
+  /// Initializes the AI service.
+  ///
+  /// Loads configuration from storage including:
+  /// - Selected AI model
+  /// - API key
+  /// - AI provider preference (cloud/local)
+  ///
+  /// Must be called before using any other methods.
+  /// Typically called from `main()` during app initialization.
+  ///
+  /// Throws [StorageException] if settings cannot be loaded.
+  Future<void> initialize() async {
+    // Load settings
+    final settings = await _storage.loadSettings();
+    _selectedModel = settings['selectedModel'] as String? ?? _defaultModel;
+
+    // Load API key from settings
+    _apiKey = settings['claudeApiKey'] as String?;
+
+    // Load AI provider preference (default to cloud)
+    final providerString = settings['aiProvider'] as String?;
+    if (providerString != null) {
+      _selectedProvider = AIProviderExtension.fromJson(providerString);
+    }
+
+    await _debug.info('AIService', 'AI Service initialized', metadata: {
+      'platform': kIsWeb ? 'web' : 'mobile',
+      'endpoint': kIsWeb ? _proxyUrl : _apiUrl,
+      'model': _selectedModel,
+      'provider': _selectedProvider.name,
+      'hasApiKey': hasApiKey(),
+    });
+
+    if (kIsWeb) {
+      debugPrint('🌐 Running on web - using proxy server at $_proxyUrl');
+    } else {
+      debugPrint('📱 Running on mobile - using direct API');
+    }
+    debugPrint('🤖 Using model: $_selectedModel');
+    debugPrint('📍 AI Provider: ${_selectedProvider.displayName}');
+  }
+
+  /// Sets the AI model to use for requests.
+  ///
+  /// [model] should be a valid Claude model ID (e.g., 'claude-sonnet-4-20250514').
+  ///
+  /// Available models:
+  /// - claude-opus-4-20250514 (most capable)
+  /// - claude-sonnet-4-5-20250429 (balanced)
+  /// - claude-sonnet-4-20250514 (faster)
+  /// - claude-haiku-4-20250529 (fastest)
+  void setModel(String model) {
+    _selectedModel = model;
+    _debug.info('AIService', 'Model changed to: $_selectedModel', metadata: {
+      'previousModel': _selectedModel,
+      'newModel': model,
+    });
+    debugPrint('🤖 Model changed to: $_selectedModel');
+  }
+
+  /// Sets the AI provider (cloud or local).
+  ///
+  /// [provider] determines whether to use Claude API (cloud) or local AI.
+  ///
+  /// Cloud provider uses Anthropic's API, local provider uses locally-run models.
+  void setProvider(AIProvider provider) {
+    _selectedProvider = provider;
+    _debug.info('AIService', 'AI Provider changed', metadata: {
+      'provider': provider.name,
+    });
+    debugPrint('📍 AI Provider changed to: ${provider.displayName}');
+  }
+
+  /// Sets the Claude API key.
+  ///
+  /// [apiKey] should be a valid Anthropic API key.
+  /// Required for cloud provider, not used for local provider.
+  ///
+  /// API keys are stored securely in SharedPreferences.
+  void setApiKey(String apiKey) {
+    _apiKey = apiKey;
+    _debug.info('AIService', 'API key updated', metadata: {
+      'hasApiKey': hasApiKey(),
+      'keyLength': apiKey.length,
+    });
+    debugPrint('🔑 API key updated (${apiKey.length} chars)');
+  }
+
+  /// Returns the currently selected AI provider.
+  AIProvider getProvider() => _selectedProvider;
+
+  /// Checks if an API key has been configured.
+  ///
+  /// Returns `true` if a non-empty API key is set, `false` otherwise.
+  bool hasApiKey() {
+    return _apiKey != null && _apiKey!.isNotEmpty;
+  }
+
+  /// Returns the currently selected AI model ID.
+  String getSelectedModel() {
+    return _selectedModel;
+  }
+
+  /// Check if the currently selected AI provider is available and ready to use.
+  ///
+  /// - Cloud provider: checks if API key is set
+  /// - Local provider: checks if model is downloaded
+  ///
+  /// This is a synchronous check that may not reflect the latest state.
+  /// Use [isAvailableAsync] for an up-to-date check.
+  bool isAvailable() {
+    if (_selectedProvider == AIProvider.local) {
+      // For local AI, check if model is downloaded
+      // Note: This uses cached status from ModelDownloadService
+      final downloadService = ModelDownloadService();
+      return downloadService.status == ModelDownloadStatus.downloaded;
+    }
+    // Cloud provider requires API key
+    return hasApiKey();
+  }
+
+  /// Async version that checks actual model file existence for local AI.
+  ///
+  /// More accurate than [isAvailable] but requires async/await.
+  /// Use this when you need to verify the current state before showing UI.
+  Future<bool> isAvailableAsync() async {
+    if (_selectedProvider == AIProvider.local) {
+      // For local AI, verify model file actually exists
+      final downloadService = ModelDownloadService();
+      return await downloadService.isModelDownloaded();
+    }
+    // Cloud provider requires API key
+    return hasApiKey();
+  }
+
+  /// Extract text content from a journal entry regardless of type
+  String _extractEntryText(JournalEntry entry) {
+    if (entry.type == JournalEntryType.quickNote) {
+      return entry.content ?? '';
+    } else if (entry.type == JournalEntryType.guidedJournal && entry.qaPairs != null) {
+      return entry.qaPairs!
+          .map((pair) => '${pair.question}\n${pair.answer}')
+          .join('\n\n');
+    }
+    return '';
+  }
+
+  Future<String> getCoachingResponse({
+    required String prompt,
+    List<Goal>? goals,
+    List<JournalEntry>? recentEntries,
+  }) async {
+    // Route to local or cloud based on provider selection
+    if (_selectedProvider == AIProvider.local) {
+      return _getLocalResponse(prompt, goals, recentEntries);
+    }
+
+    // Cloud provider requires API key
+    if (_apiKey == null || _apiKey!.isEmpty) {
+      throw Exception("AI features are currently unavailable. Please set your Claude API key in Settings.");
+    }
+
+    return _getCloudResponse(prompt, goals, recentEntries);
+  }
+
+  /// Get response from local on-device AI (Phi-3 Mini)
+  Future<String> _getLocalResponse(
+    String prompt,
+    List<Goal>? goals,
+    List<JournalEntry>? recentEntries,
+  ) async {
+    final localAI = LocalAIService();
+
+    final context = _buildContext(goals, recentEntries);
+    final fullPrompt = '''You are an empathetic AI mentor and coach helping someone achieve their goals and build better habits.
+
+Context:
+$context
+
+User message: $prompt
+
+Provide supportive, actionable guidance. Be warm but concise. Focus on specific next steps.''';
+
+    await _debug.info('AIService', 'Local AI inference requested', metadata: {
+      'promptLength': prompt.length,
+      'contextLength': context.length,
+    });
+
+    try {
+      // Run inference with local model
+      final response = await localAI.runInference(fullPrompt);
+
+      await _debug.info('AIService', 'Local AI response received', metadata: {
+        'responseLength': response.length,
+      });
+
+      return response;
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'AIService',
+        'Local AI error: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+
+      // Re-throw the exception instead of converting to error string
+      rethrow;
+    }
+  }
+
+  /// Get response from cloud API (Claude)
+  Future<String> _getCloudResponse(
+    String prompt,
+    List<Goal>? goals,
+    List<JournalEntry>? recentEntries,
+  ) async {
+    try {
+      final context = _buildContext(goals, recentEntries);
+      final fullPrompt = '''You are an empathetic AI mentor and coach helping someone achieve their goals and build better habits.
+
+Context:
+$context
+
+User message: $prompt
+
+Provide supportive, actionable guidance. Be warm but concise. Focus on specific next steps.''';
+
+      // Use proxy for web, direct API for mobile
+      final url = kIsWeb ? _proxyUrl : _apiUrl;
+
+      debugPrint('Making request to: $url');
+      debugPrint('Using model: $_selectedModel');
+
+      // Log the API request
+      final requestBody = {
+        'model': _selectedModel,
+        'max_tokens': 1024,
+        'messages': [
+          {
+            'role': 'user',
+            'content': fullPrompt.substring(0, fullPrompt.length > 200 ? 200 : fullPrompt.length) + '...',
+          }
+        ],
+      };
+
+      await _debug.logApiRequest(
+        endpoint: url,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01',
+        },
+        body: requestBody,
+      );
+
+      final startTime = DateTime.now();
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': _apiKey!,
+          'anthropic-version': '2023-06-01',
+        },
+        body: json.encode({
+          'model': _selectedModel, // Use selected model
+          'max_tokens': 1024,
+          'messages': [
+            {
+              'role': 'user',
+              'content': fullPrompt,
+            }
+          ],
+        }),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Request timed out after 30 seconds');
+        },
+      );
+
+      final duration = DateTime.now().difference(startTime);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final responseText = data['content'][0]['text'] as String;
+
+        // Log successful response
+        await _debug.logApiResponse(
+          endpoint: url,
+          statusCode: response.statusCode,
+          body: {
+            'response_length': responseText.length,
+            'response_preview': responseText.substring(0, responseText.length > 100 ? 100 : responseText.length) + '...',
+            'model': _selectedModel,
+          },
+          duration: duration,
+        );
+
+        debugPrint('✓ AI response received');
+        return responseText;
+      } else {
+        debugPrint('API Error: ${response.statusCode} - ${response.body}');
+
+        // Log error response
+        await _debug.logApiResponse(
+          endpoint: url,
+          statusCode: response.statusCode,
+          body: {
+            'error': response.body.substring(0, response.body.length > 500 ? 500 : response.body.length),
+          },
+          duration: duration,
+        );
+
+        // Check for specific model errors
+        if (response.statusCode == 404) {
+          final errorData = json.decode(response.body);
+          if (errorData['error']?['message']?.toString().contains('model') == true) {
+            return "The selected model ($_selectedModel) is not available. Please check Settings and select a valid model.";
+          }
+        }
+
+        if (kIsWeb && response.statusCode == 0) {
+          return "Cannot connect to proxy server. Make sure it's running:\n"
+                 "cd proxy && npm start\n\n"
+                 "See documentation for setup instructions.";
+        }
+
+        return "I'm having trouble connecting right now. Status: ${response.statusCode}";
+      }
+    } catch (e, stackTrace) {
+      debugPrint('AI Service Error: $e');
+
+      // Log the error
+      await _debug.error(
+        'AIService',
+        'API request failed: ${e.toString()}',
+        metadata: {
+          'prompt_preview': prompt.substring(0, prompt.length > 100 ? 100 : prompt.length),
+          'model': _selectedModel,
+          'platform': kIsWeb ? 'web' : 'mobile',
+        },
+        stackTrace: stackTrace.toString(),
+      );
+
+      // Better error messages for common issues
+      final errorStr = e.toString();
+
+      if (errorStr.contains('Failed host lookup') ||
+          errorStr.contains('Connection refused')) {
+        if (kIsWeb) {
+          return "Cannot connect to proxy server at localhost:3000.\n\n"
+                 "Please start the proxy server:\n"
+                 "1. cd proxy\n"
+                 "2. npm start\n\n"
+                 "Then refresh this page.";
+        }
+        return "Cannot connect to Claude API. Please check your internet connection.";
+      }
+
+      if (errorStr.contains('timeout')) {
+        return "Request timed out. Please try again.";
+      }
+
+      if (errorStr.contains('CORS')) {
+        return "CORS error detected. Make sure proxy server is running.";
+      }
+
+      return "Error: ${e.toString()}";
+    }
+  }
+
+  String _buildContext(List<Goal>? goals, List<JournalEntry>? recentEntries) {
+    final buffer = StringBuffer();
+    
+    if (goals != null && goals.isNotEmpty) {
+      buffer.writeln('Active Goals:');
+      for (final goal in goals.where((g) => g.isActive).take(5)) {
+        buffer.writeln('- ${goal.title} (${goal.category.displayName}) - ${goal.currentProgress}% complete');
+      }
+      buffer.writeln();
+    }
+    
+    if (recentEntries != null && recentEntries.isNotEmpty) {
+      buffer.writeln('Recent Journal Entries:');
+      for (final entry in recentEntries.take(3)) {
+        buffer.writeln('${entry.createdAt.toString().substring(0, 10)}');
+      }
+    }
+    
+    return buffer.toString();
+  }
+
+  Future<Map<String, String>> analyzeJournalEntry(
+    JournalEntry entry,
+    List<Goal> goals,
+  ) async {
+    final entryText = _extractEntryText(entry);
+    final prompt = '''Analyze this journal entry and identify:
+1. Any blockers or challenges mentioned
+2. Patterns or insights
+3. Suggestions for the user
+
+Entry: $entryText
+
+Keep your response structured and brief.''';
+
+    final response = await getCoachingResponse(
+      prompt: prompt,
+      goals: goals,
+    );
+
+    return {
+      'analysis': response,
+      'timestamp': DateTime.now().toIso8601String(),
+      'model': _selectedModel,
+    };
+  }
+
+  Future<String> generateJournalPrompt(List<Goal>? goals) async {
+    final prompt = '''Generate a thoughtful journal prompt for someone working on their goals. 
+Make it open-ended and reflective. One sentence only.''';
+
+    return await getCoachingResponse(prompt: prompt, goals: goals);
+  }
+
+  Future<String> getGoalGuidance(Goal goal, List<JournalEntry>? entries) async {
+    final prompt = '''Provide specific, actionable advice for this goal:
+Goal: ${goal.title}
+Description: ${goal.description}
+Current Progress: ${goal.currentProgress}%
+Category: ${goal.category.displayName}
+
+What should they focus on next?''';
+
+    return await getCoachingResponse(
+      prompt: prompt,
+      recentEntries: entries,
+    );
+  }
+
+  /// Analyze journal entries to extract the main theme/focus area
+  /// Returns a concise theme (1-3 words) like "fitness", "career growth", "relationships"
+  Future<String?> analyzeJournalTheme(List<JournalEntry> recentEntries) async {
+    if (!hasApiKey() || recentEntries.isEmpty) {
+      return null; // Fallback to hard-coded logic
+    }
+
+    try {
+      // Take up to 5 most recent entries
+      final entries = recentEntries.take(5).toList();
+      final entriesText = entries.map((e) {
+        final text = _extractEntryText(e);
+        final truncated = text.length > 200 ? text.substring(0, 200) : text;
+        return '- $truncated';
+      }).join('\n');
+
+      final prompt = '''Analyze these recent journal entries and identify the main theme or area of focus.
+
+Recent reflections:
+$entriesText
+
+Respond with ONLY 1-3 words describing the primary theme. Examples:
+- "fitness"
+- "career growth"
+- "relationships"
+- "personal growth"
+- "health and wellness"
+- "learning"
+
+Theme:''';
+
+      final response = await getCoachingResponse(prompt: prompt);
+
+      // Clean up the response (remove extra quotes, whitespace, etc.)
+      final theme = response.trim()
+          .toLowerCase()
+          .replaceAll('"', '')
+          .replaceAll("'", '')
+          .replaceAll('.', '');
+
+      await _debug.info('AIService', 'Theme extracted from journals', metadata: {
+        'entryCount': entries.length,
+        'theme': theme,
+      });
+
+      return theme;
+    } catch (e, stackTrace) {
+      await _debug.warning(
+        'AIService',
+        'Failed to analyze journal theme, falling back to keyword matching',
+        metadata: {'error': e.toString()},
+      );
+      return null; // Fallback to hard-coded logic
+    }
+  }
+
+  /// Generate personalized journaling insight based on metrics and content
+  /// Returns a supportive, specific insight about the user's journaling practice
+  Future<String?> generateJournalingInsight({
+    required int entriesLast7Days,
+    required double averageWordCount,
+    required bool isConsistent,
+    List<JournalEntry>? recentEntries,
+  }) async {
+    if (!hasApiKey()) {
+      return null; // Fallback to hard-coded logic
+    }
+
+    try {
+      String contentSample = '';
+      if (recentEntries != null && recentEntries.isNotEmpty) {
+        // Include a snippet from the most recent entry for personalization
+        final recent = recentEntries.first;
+        final content = recent.content;
+        if (content != null && content.isNotEmpty) {
+          final maxLength = content.length > 150 ? 150 : content.length;
+          contentSample = '\n\nMost recent reflection: "${content.substring(0, maxLength)}..."';
+        }
+      }
+
+      final prompt = '''You're an empathetic mentor reviewing someone's journaling practice.
+
+Journaling metrics:
+- Entries this week: $entriesLast7Days
+- Average length: ${averageWordCount.toStringAsFixed(0)} words
+- Consistency: ${isConsistent ? 'spread across multiple days' : 'irregular'}$contentSample
+
+Provide ONE sentence of supportive, personalized feedback. Be specific, warm, and encouraging. Focus on what they're doing well OR a gentle nudge to improve.
+
+Examples:
+- "Your 5 thoughtful entries this week show real commitment to self-awareness."
+- "You're building a journaling habit! Try exploring your thoughts a bit deeper to gain more insights."
+- "I notice your journaling is inconsistent. Even brief daily entries help you understand your patterns."
+
+Insight:''';
+
+      final response = await getCoachingResponse(prompt: prompt);
+
+      // Clean up the response
+      final insight = response.trim().replaceAll('"', '');
+
+      await _debug.info('AIService', 'Generated personalized journaling insight', metadata: {
+        'entriesLast7Days': entriesLast7Days,
+        'averageWordCount': averageWordCount,
+        'hasContent': recentEntries != null && recentEntries.isNotEmpty,
+      });
+
+      return insight;
+    } catch (e, stackTrace) {
+      await _debug.warning(
+        'AIService',
+        'Failed to generate journaling insight, falling back to templates',
+        metadata: {'error': e.toString()},
+      );
+      return null; // Fallback to hard-coded logic
+    }
+  }
+
+  /// Suggest goals based on journal reflections
+  /// Returns a list of goal suggestions (1-3) or null if unavailable
+  Future<List<String>?> suggestGoalsFromJournals(List<JournalEntry> recentEntries) async {
+    if (!hasApiKey() || recentEntries.isEmpty) {
+      return null; // Fallback to hard-coded logic
+    }
+
+    try {
+      // Take up to 5 most recent entries
+      final entries = recentEntries.take(5).toList();
+      final entriesText = entries
+          .where((e) => e.content != null && e.content!.isNotEmpty)
+          .map((e) {
+            final content = e.content!;
+            final maxLength = content.length > 300 ? 300 : content.length;
+            return '- ${content.substring(0, maxLength)}';
+          })
+          .join('\n');
+
+      final prompt = '''Analyze these journal reflections and suggest 2-3 concrete, actionable goals.
+
+Recent reflections:
+$entriesText
+
+Based on these reflections, suggest 2-3 specific goals that would help this person. Each goal should be:
+- Concrete and measurable
+- Based on themes/challenges mentioned in the journals
+- Actionable (something they can make progress on)
+
+Format: One goal per line, no numbering or bullets. Keep each under 8 words.
+
+Examples:
+- "Build a consistent morning exercise routine"
+- "Spend quality time with family weekly"
+- "Learn Python fundamentals"
+
+Goals:''';
+
+      final response = await getCoachingResponse(prompt: prompt);
+
+      // Parse response into list of goals
+      final goals = response
+          .split('\n')
+          .where((line) => line.trim().isNotEmpty)
+          .where((line) => !line.trim().startsWith('-')) // Remove if LLM added bullets
+          .where((line) => !line.toLowerCase().contains('goal')) // Remove header-like lines
+          .map((line) => line.trim().replaceAll(RegExp(r'^[-•*]\s*'), '')) // Clean up
+          .take(3)
+          .toList();
+
+      if (goals.isEmpty) {
+        return null; // Fallback if parsing failed
+      }
+
+      await _debug.info('AIService', 'Generated goal suggestions from journals', metadata: {
+        'entryCount': entries.length,
+        'suggestedGoals': goals.length,
+      });
+
+      return goals;
+    } catch (e, stackTrace) {
+      await _debug.warning(
+        'AIService',
+        'Failed to suggest goals from journals',
+        metadata: {'error': e.toString()},
+      );
+      return null; // Fallback
+    }
+  }
+}
