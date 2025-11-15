@@ -86,14 +86,14 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
         _currentSession!.currentStep ?? 0,
       );
 
-      final response = await AIService.instance.generateCoachingResponse(
+      final response = await AIService().generateCoachingResponse(
         prompt: 'Start the journaling session. Greet the user warmly and ask the first question.',
         context: {'systemPrompt': systemPrompt},
       );
 
       final aiMessage = ChatMessage(
         content: response,
-        sender: MessageSender.ai,
+        sender: MessageSender.mentor,
         timestamp: DateTime.now(),
       );
 
@@ -113,8 +113,8 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
       await _debug.error(
         'StructuredJournalingScreen',
         'Failed to send initial message',
-        error: e,
-        stackTrace: stackTrace,
+        
+        stackTrace: stackTrace.toString(),
       );
 
       if (mounted) {
@@ -191,14 +191,14 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
           ? 'The user has completed all fields. Provide a warm summary and closing message.'
           : 'Continue the conversation. Move to the next question.';
 
-      final response = await AIService.instance.generateCoachingResponse(
+      final response = await AIService().generateCoachingResponse(
         prompt: '$prompt\n\nConversation so far:\n$conversationContext',
         context: {'systemPrompt': systemPrompt},
       );
 
       final aiMessage = ChatMessage(
         content: response,
-        sender: MessageSender.ai,
+        sender: MessageSender.mentor,
         timestamp: DateTime.now(),
       );
 
@@ -224,8 +224,8 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
       await _debug.error(
         'StructuredJournalingScreen',
         'Failed to generate AI response',
-        error: e,
-        stackTrace: stackTrace,
+        
+        stackTrace: stackTrace.toString(),
       );
 
       if (mounted) {
@@ -293,8 +293,8 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
       await _debug.error(
         'StructuredJournalingScreen',
         'Failed to save session',
-        error: e,
-        stackTrace: stackTrace,
+        
+        stackTrace: stackTrace.toString(),
       );
 
       if (mounted) {

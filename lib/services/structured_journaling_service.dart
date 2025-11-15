@@ -153,7 +153,7 @@ class StructuredJournalingService {
       );
 
       // Call AI to extract data
-      final response = await AIService.instance.generateCoachingResponse(
+      final response = await AIService().generateCoachingResponse(
         prompt: extractionPrompt.toString(),
         context: {},
       );
@@ -174,8 +174,7 @@ class StructuredJournalingService {
       await _debug.error(
         'StructuredJournalingService',
         'Failed to extract structured data',
-        error: e,
-        stackTrace: stackTrace,
+        stackTrace: stackTrace.toString(),
       );
       return {};
     }

@@ -41,7 +41,7 @@ class JournalTemplateProvider with ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      final data = await _storage.getData('journal_templates_custom');
+      final data = await _storage.loadTemplates();
       if (data != null) {
         final List<dynamic> jsonList = jsonDecode(data);
         _customTemplates = jsonList
@@ -57,8 +57,7 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to load custom templates',
-        error: e,
-        stackTrace: stackTrace,
+        stackTrace: stackTrace.toString(),
       );
     } finally {
       _isLoading = false;
@@ -69,7 +68,7 @@ class JournalTemplateProvider with ChangeNotifier {
   /// Load sessions from storage
   Future<void> _loadSessions() async {
     try {
-      final data = await _storage.getData('structured_journaling_sessions');
+      final data = await _storage.loadSessions();
       if (data != null) {
         final List<dynamic> jsonList = jsonDecode(data);
         _sessions = jsonList
@@ -85,8 +84,7 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to load sessions',
-        error: e,
-        stackTrace: stackTrace,
+        stackTrace: stackTrace.toString(),
       );
     }
   }
@@ -95,7 +93,7 @@ class JournalTemplateProvider with ChangeNotifier {
   Future<void> _saveTemplates() async {
     try {
       final jsonList = _customTemplates.map((t) => t.toJson()).toList();
-      await _storage.saveData('journal_templates_custom', jsonEncode(jsonList));
+      await _storage.saveTemplates(jsonEncode(jsonList));
 
       await _debug.info(
         'JournalTemplateProvider',
@@ -105,8 +103,7 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to save custom templates',
-        error: e,
-        stackTrace: stackTrace,
+        stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -116,7 +113,7 @@ class JournalTemplateProvider with ChangeNotifier {
   Future<void> _saveSessions() async {
     try {
       final jsonList = _sessions.map((s) => s.toJson()).toList();
-      await _storage.saveData('structured_journaling_sessions', jsonEncode(jsonList));
+      await _storage.saveSessions(jsonEncode(jsonList));
 
       await _debug.info(
         'JournalTemplateProvider',
@@ -126,8 +123,7 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to save sessions',
-        error: e,
-        stackTrace: stackTrace,
+        stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -155,8 +151,8 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to add template',
-        error: e,
-        stackTrace: stackTrace,
+        
+        stackTrace: stackTrace.toString(),
         metadata: {'templateId': template.id},
       );
       rethrow;
@@ -184,8 +180,8 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to update template',
-        error: e,
-        stackTrace: stackTrace,
+        
+        stackTrace: stackTrace.toString(),
         metadata: {'templateId': template.id},
       );
       rethrow;
@@ -214,8 +210,8 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to delete template',
-        error: e,
-        stackTrace: stackTrace,
+        
+        stackTrace: stackTrace.toString(),
         metadata: {'templateId': templateId},
       );
       rethrow;
@@ -266,8 +262,8 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to start session',
-        error: e,
-        stackTrace: stackTrace,
+        
+        stackTrace: stackTrace.toString(),
         metadata: {'templateId': template.id},
       );
       rethrow;
@@ -295,8 +291,8 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to update session',
-        error: e,
-        stackTrace: stackTrace,
+        
+        stackTrace: stackTrace.toString(),
         metadata: {'sessionId': session.id},
       );
       rethrow;
@@ -328,8 +324,8 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to delete session',
-        error: e,
-        stackTrace: stackTrace,
+        
+        stackTrace: stackTrace.toString(),
         metadata: {'sessionId': sessionId},
       );
       rethrow;
@@ -363,8 +359,8 @@ class JournalTemplateProvider with ChangeNotifier {
       await _debug.error(
         'JournalTemplateProvider',
         'Failed to duplicate template',
-        error: e,
-        stackTrace: stackTrace,
+        
+        stackTrace: stackTrace.toString(),
         metadata: {'templateId': templateId},
       );
       rethrow;

@@ -20,6 +20,8 @@ class StorageService {
   static const String _pulseTypesKey = 'pulse_types';
   static const String _settingsKey = 'settings';
   static const String _conversationsKey = 'conversations';
+  static const String _templatesKey = 'journal_templates_custom';
+  static const String _sessionsKey = 'structured_journaling_sessions';
 
   // Save/Load Goals
   Future<void> saveGoals(List<Goal> goals) async {
@@ -311,5 +313,27 @@ class StorageService {
 
     final List<dynamic> jsonList = json.decode(jsonString);
     return jsonList.cast<Map<String, dynamic>>();
+  }
+
+  // Save/Load Journal Templates
+  Future<void> saveTemplates(String data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_templatesKey, data);
+  }
+
+  Future<String?> loadTemplates() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_templatesKey);
+  }
+
+  // Save/Load Structured Journaling Sessions
+  Future<void> saveSessions(String data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_sessionsKey, data);
+  }
+
+  Future<String?> loadSessions() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_sessionsKey);
   }
 }
