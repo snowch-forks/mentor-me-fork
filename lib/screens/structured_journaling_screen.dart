@@ -10,7 +10,9 @@ import 'package:mentor_me/providers/journal_provider.dart';
 import 'package:mentor_me/services/structured_journaling_service.dart';
 import 'package:mentor_me/services/ai_service.dart';
 import 'package:mentor_me/services/debug_service.dart';
+import 'package:mentor_me/services/storage_service.dart';
 import 'package:mentor_me/theme/app_spacing.dart';
+import 'package:mentor_me/screens/template_settings_screen.dart';
 
 class StructuredJournalingScreen extends StatefulWidget {
   final JournalTemplate? template;
@@ -483,77 +485,186 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
   Widget _buildTemplateSelection() {
     final aiService = AIService();
     final hasAI = aiService.hasApiKey();
+    final storage = StorageService();
 
     return Consumer<JournalTemplateProvider>(
       builder: (context, provider, child) {
-        final templates = provider.allTemplates;
+        final allTemplates = provider.allTemplates;
 
-        if (templates.isEmpty) {
+        if (allTemplates.isEmpty) {
           return const Center(
             child: Text('No templates available'),
           );
         }
 
-        return Column(
-          children: [
-            // AI availability warning
-            if (!hasAI)
-              Container(
-                color: Theme.of(context).colorScheme.errorContainer,
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.warning_amber_rounded,
-                      color: Theme.of(context).colorScheme.error,
+        // Load enabled templates and filter
+        return FutureBuilder<List<String>>(
+          future: storage.getEnabledTemplates(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final enabledIds = snapshot.data!;
+            final templates = allTemplates
+                .where((t) => enabledIds.contains(t.id))
+                .toList();
+
+            return Column(
+              children: [
+                // AI availability warning
+                if (!hasAI)
+                  Container(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        AppSpacing.gapHorizontalSm,
+                        Expanded(
+                          child: Text(
+                            'AI is not available. Please set up your Claude API key in Settings to use 1-to-1 Mentor Sessions.',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onErrorContainer,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    AppSpacing.gapHorizontalSm,
-                    Expanded(
-                      child: Text(
-                        'AI is not available. Please set up your Claude API key in Settings to use 1-to-1 Mentor Sessions.',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onErrorContainer,
-                          fontSize: 13,
+                  ),
+
+                // Info banner about enabled templates
+                Container(
+                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg,
+                    vertical: AppSpacing.md,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      AppSpacing.gapHorizontalSm,
+                      Expanded(
+                        child: Text(
+                          'Showing ${templates.length} of ${allTemplates.length} templates',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
                       ),
-                    ),
-                  ],
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const TemplateSettingsScreen(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.settings, size: 16),
+                        label: const Text('Manage'),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: 4,
+                          ),
+                          minimumSize: const Size(0, 0),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-            // Template list
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                itemCount: templates.length,
-                itemBuilder: (context, index) {
-                  final template = templates[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: ListTile(
-                      enabled: hasAI, // Disable if no AI
-                      leading: template.emoji != null
-                          ? Text(template.emoji!, style: const TextStyle(fontSize: 32))
-                          : const Icon(Icons.article),
-                      title: Text(template.name),
-                      subtitle: Text(template.description),
-                      trailing: hasAI
-                          ? const Icon(Icons.arrow_forward)
-                          : Icon(Icons.lock, color: Theme.of(context).colorScheme.outline),
-                      onTap: hasAI
-                          ? () {
-                              setState(() {
-                                _selectedTemplate = template;
-                              });
-                              _startNewSession();
-                            }
-                          : null,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+                // Template list
+                Expanded(
+                  child: templates.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.xl),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.article_outlined,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                AppSpacing.gapLg,
+                                Text(
+                                  'No templates enabled',
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                                AppSpacing.gapSm,
+                                Text(
+                                  'Enable templates in Settings to start journaling',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: Colors.grey[600],
+                                      ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                AppSpacing.gapLg,
+                                FilledButton.icon(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const TemplateSettingsScreen(),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.settings),
+                                  label: const Text('Manage Templates'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          itemCount: templates.length,
+                          itemBuilder: (context, index) {
+                            final template = templates[index];
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                              child: ListTile(
+                                enabled: hasAI, // Disable if no AI
+                                leading: template.emoji != null
+                                    ? Text(template.emoji!,
+                                        style: const TextStyle(fontSize: 32))
+                                    : const Icon(Icons.article),
+                                title: Text(template.name),
+                                subtitle: Text(template.description),
+                                trailing: hasAI
+                                    ? const Icon(Icons.arrow_forward)
+                                    : Icon(Icons.lock,
+                                        color: Theme.of(context).colorScheme.outline),
+                                onTap: hasAI
+                                    ? () {
+                                        setState(() {
+                                          _selectedTemplate = template;
+                                        });
+                                        _startNewSession();
+                                      }
+                                    : null,
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          },
         );
       },
     );

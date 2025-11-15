@@ -336,4 +336,51 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_sessionsKey);
   }
+
+  // ============================================================================
+  // TEMPLATE SETTINGS
+  // ============================================================================
+
+  // Default enabled templates (4 of 8)
+  static const List<String> defaultEnabledTemplates = [
+    'cbt_thought_record',      // CBT Thought Record
+    'gratitude_journal',        // Gratitude Journal
+    'goal_progress',            // Goal Progress Check-in
+    'meditation_log',           // Meditation Log
+  ];
+
+  /// Get enabled template IDs (returns default if not set)
+  Future<List<String>> getEnabledTemplates() async {
+    final settings = await loadSettings();
+    final enabled = settings['enabled_templates'] as List<dynamic>?;
+    if (enabled == null) {
+      return List.from(defaultEnabledTemplates);
+    }
+    return enabled.cast<String>();
+  }
+
+  /// Set enabled template IDs
+  Future<void> setEnabledTemplates(List<String> templateIds) async {
+    final settings = await loadSettings();
+    settings['enabled_templates'] = templateIds;
+    await saveSettings(settings);
+  }
+
+  /// Check if a template is enabled
+  Future<bool> isTemplateEnabled(String templateId) async {
+    final enabled = await getEnabledTemplates();
+    return enabled.contains(templateId);
+  }
+
+  /// Toggle a template on/off and return the new enabled list
+  Future<List<String>> toggleTemplate(String templateId) async {
+    final enabled = await getEnabledTemplates();
+    if (enabled.contains(templateId)) {
+      enabled.remove(templateId);
+    } else {
+      enabled.add(templateId);
+    }
+    await setEnabledTemplates(enabled);
+    return enabled;
+  }
 }
