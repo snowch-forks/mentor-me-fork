@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:mentor_me/models/journal_template.dart';
 import 'package:mentor_me/models/structured_journaling_session.dart';
 import 'package:mentor_me/models/chat_message.dart';
@@ -597,14 +598,32 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
                   bottomRight: Radius.circular(isUser ? 4 : AppRadius.lg),
                 ),
               ),
-              child: Text(
-                message.content,
-                style: TextStyle(
-                  color: isUser
-                      ? Theme.of(context).colorScheme.onPrimaryContainer
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
+              child: isUser
+                  ? Text(
+                      message.content,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                    )
+                  : MarkdownBody(
+                      data: message.content,
+                      styleSheet: MarkdownStyleSheet(
+                        p: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        strong: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        em: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
+                        listBullet: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
             ),
           ),
           if (isUser) ...[

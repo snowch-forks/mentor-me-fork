@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/journal_entry.dart';
 import '../providers/journal_provider.dart';
 import '../providers/checkin_provider.dart';
@@ -753,11 +754,20 @@ Keep your tone warm, encouraging, and focused on growth. Be specific and referen
                       children: [
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          child: Text(
-                            _mentorFeedback!,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  height: 1.6,
-                                ),
+                          child: MarkdownBody(
+                            data: _mentorFeedback!,
+                            styleSheet: MarkdownStyleSheet(
+                              p: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.6),
+                              strong: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    height: 1.6,
+                                  ),
+                              em: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontStyle: FontStyle.italic,
+                                    height: 1.6,
+                                  ),
+                              listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.6),
+                            ),
                           ),
                         ),
                       ],

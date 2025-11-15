@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:mentor_me/constants/app_strings.dart';
 import '../models/goal.dart';
 import '../models/milestone.dart';
@@ -327,9 +328,18 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
                                                   ),
                                             ),
                                             const SizedBox(height: 2),
-                                            Text(
-                                              milestone.description,
-                                              style: Theme.of(context).textTheme.bodySmall,
+                                            MarkdownBody(
+                                              data: milestone.description,
+                                              styleSheet: MarkdownStyleSheet(
+                                                p: Theme.of(context).textTheme.bodySmall,
+                                                strong: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                em: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                      fontStyle: FontStyle.italic,
+                                                    ),
+                                                listBullet: Theme.of(context).textTheme.bodySmall,
+                                              ),
                                             ),
                                             if (milestone.targetDate != null) ...[
                                               const SizedBox(height: 4),
