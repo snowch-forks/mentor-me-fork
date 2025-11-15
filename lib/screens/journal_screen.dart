@@ -306,14 +306,17 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
               AppSpacing.gapXl,
 
-              // Pulse Check option
+              // Goals & Habits Journal (formerly Guided Reflection) - RECOMMENDED
               Card(
+                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
                 child: InkWell(
                   onTap: () {
                     Navigator.pop(context);
-                    showDialog(
-                      context: context,
-                      builder: (context) => const AddPulseDialog(),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const GuidedJournalingScreen(isCheckIn: true),
+                      ),
                     );
                   },
                   borderRadius: AppRadius.radiusLg,
@@ -324,12 +327,90 @@ class _JournalScreenState extends State<JournalScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.secondaryContainer,
+                            color: Theme.of(context).colorScheme.primary,
+                            borderRadius: AppRadius.radiusLg,
+                          ),
+                          child: const Icon(
+                            Icons.psychology,
+                            color: Colors.white,
+                          ),
+                        ),
+                        AppSpacing.gapHorizontalLg,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'Goals & Habits Journal',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      borderRadius: AppRadius.radiusLg,
+                                    ),
+                                    child: const Text(
+                                      AppStrings.recommended,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Reflect on your goals and habits with AI-guided prompts',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              AppSpacing.gapMd,
+
+              // 1-to-1 Mentor Session (formerly Structured Journaling)
+              Card(
+                child: InkWell(
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const StructuredJournalingScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: AppRadius.radiusLg,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.sm + AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.tertiaryContainer,
                             borderRadius: AppRadius.radiusLg,
                           ),
                           child: Icon(
-                            Icons.favorite_outline,
-                            color: Theme.of(context).colorScheme.secondary,
+                            Icons.chat_bubble_outline,
+                            color: Theme.of(context).colorScheme.tertiary,
                           ),
                         ),
                         AppSpacing.gapHorizontalLg,
@@ -338,14 +419,14 @@ class _JournalScreenState extends State<JournalScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                AppStrings.pulseCheck,
+                                '1-to-1 Mentor Session',
                                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                AppStrings.justLogHowYouFeel,
+                                'Deep dive using therapeutic frameworks (CBT, Gratitude, etc.)',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                     ),
@@ -418,17 +499,14 @@ class _JournalScreenState extends State<JournalScreen> {
 
               AppSpacing.gapMd,
 
-              // Guided Reflection option
+              // Pulse Check option
               Card(
-                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
                 child: InkWell(
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const GuidedJournalingScreen(isCheckIn: true),
-                      ),
+                    showDialog(
+                      context: context,
+                      builder: (context) => const AddPulseDialog(),
                     );
                   },
                   borderRadius: AppRadius.radiusLg,
@@ -439,90 +517,12 @@ class _JournalScreenState extends State<JournalScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary,
-                            borderRadius: AppRadius.radiusLg,
-                          ),
-                          child: const Icon(
-                            Icons.psychology,
-                            color: Colors.white,
-                          ),
-                        ),
-                        AppSpacing.gapHorizontalLg,
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    AppStrings.guidedReflection,
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      borderRadius: AppRadius.radiusLg,
-                                    ),
-                                    child: const Text(
-                                      AppStrings.recommended,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                AppStrings.stepByStepPrompts,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              AppSpacing.gapMd,
-
-              // Structured Journaling option
-              Card(
-                child: InkWell(
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const StructuredJournalingScreen(),
-                      ),
-                    );
-                  },
-                  borderRadius: AppRadius.radiusLg,
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.sm + AppSpacing.md),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.tertiaryContainer,
+                            color: Theme.of(context).colorScheme.secondaryContainer,
                             borderRadius: AppRadius.radiusLg,
                           ),
                           child: Icon(
-                            Icons.article_outlined,
-                            color: Theme.of(context).colorScheme.tertiary,
+                            Icons.favorite_outline,
+                            color: Theme.of(context).colorScheme.secondary,
                           ),
                         ),
                         AppSpacing.gapHorizontalLg,
@@ -531,14 +531,14 @@ class _JournalScreenState extends State<JournalScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Structured Journaling',
+                                AppStrings.pulseCheck,
                                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                                       fontWeight: FontWeight.bold,
                                     ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Use therapeutic frameworks (CBT, Gratitude, etc.)',
+                                AppStrings.justLogHowYouFeel,
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                     ),
@@ -552,6 +552,9 @@ class _JournalScreenState extends State<JournalScreen> {
                   ),
                 ),
               ),
+
+              // Add extra bottom padding to prevent overlap with bottom nav bar
+              const SizedBox(height: 16),
             ],
           ),
         ),
