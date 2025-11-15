@@ -455,6 +455,9 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
   }
 
   Widget _buildTemplateSelection() {
+    final aiService = AIService();
+    final hasAI = aiService.hasApiKey();
+
     return Consumer<JournalTemplateProvider>(
       builder: (context, provider, child) {
         final templates = provider.allTemplates;
@@ -465,29 +468,66 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          itemCount: templates.length,
-          itemBuilder: (context, index) {
-            final template = templates[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: ListTile(
-                leading: template.emoji != null
-                    ? Text(template.emoji!, style: const TextStyle(fontSize: 32))
-                    : const Icon(Icons.article),
-                title: Text(template.name),
-                subtitle: Text(template.description),
-                trailing: const Icon(Icons.arrow_forward),
-                onTap: () {
-                  setState(() {
-                    _selectedTemplate = template;
-                  });
-                  _startNewSession();
+        return Column(
+          children: [
+            // AI availability warning
+            if (!hasAI)
+              Container(
+                color: Theme.of(context).colorScheme.errorContainer,
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    AppSpacing.gapHorizontalSm,
+                    Expanded(
+                      child: Text(
+                        'AI is not available. Please set up your Claude API key in Settings to use 1-to-1 Mentor Sessions.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Template list
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                itemCount: templates.length,
+                itemBuilder: (context, index) {
+                  final template = templates[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: ListTile(
+                      enabled: hasAI, // Disable if no AI
+                      leading: template.emoji != null
+                          ? Text(template.emoji!, style: const TextStyle(fontSize: 32))
+                          : const Icon(Icons.article),
+                      title: Text(template.name),
+                      subtitle: Text(template.description),
+                      trailing: hasAI
+                          ? const Icon(Icons.arrow_forward)
+                          : Icon(Icons.lock, color: Theme.of(context).colorScheme.outline),
+                      onTap: hasAI
+                          ? () {
+                              setState(() {
+                                _selectedTemplate = template;
+                              });
+                              _startNewSession();
+                            }
+                          : null,
+                    ),
+                  );
                 },
               ),
-            );
-          },
+            ),
+          ],
         );
       },
     );

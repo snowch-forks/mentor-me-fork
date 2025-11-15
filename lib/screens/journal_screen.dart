@@ -290,8 +290,9 @@ class _JournalScreenState extends State<JournalScreen> {
 
   void _showJournalChoice(BuildContext context) {
     // Add extra padding for bottom nav bar (typically 56-80px) plus safe area
+    // Using 100px to ensure clearance on all devices
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom +
-                          MediaQuery.of(context).padding.bottom + 80;
+                          MediaQuery.of(context).padding.bottom + 100;
 
     showModalBottomSheet(
       context: context,
