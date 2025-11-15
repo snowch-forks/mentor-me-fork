@@ -289,15 +289,22 @@ class _JournalScreenState extends State<JournalScreen> {
   }
 
   void _showJournalChoice(BuildContext context) {
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom +
+                          MediaQuery.of(context).padding.bottom + 16;
+
     showModalBottomSheet(
       context: context,
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: AppSpacing.paddingXl,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: bottomPadding,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
               Text(
                 AppStrings.howWouldYouLikeToReflect,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -553,8 +560,6 @@ class _JournalScreenState extends State<JournalScreen> {
                 ),
               ),
 
-              // Add extra bottom padding to prevent overlap with bottom nav bar
-              const SizedBox(height: 16),
             ],
           ),
         ),
