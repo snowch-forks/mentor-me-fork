@@ -315,7 +315,7 @@ Please provide:
 Keep your tone warm, encouraging, and focused on growth. Be specific and reference their actual words where possible.''';
 
       final aiService = AIService();
-      final response = await aiService.getCoachingResponse(prompt);
+      final response = await aiService.getCoachingResponse(prompt: prompt);
 
       setState(() {
         _mentorFeedback = response;
