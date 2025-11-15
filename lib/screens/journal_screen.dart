@@ -289,24 +289,16 @@ class _JournalScreenState extends State<JournalScreen> {
   }
 
   void _showJournalChoice(BuildContext context) {
-    // Add extra padding for bottom nav bar
-    // Using 120px to ensure clearance on all devices including gesture navigation
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom +
-                          MediaQuery.of(context).padding.bottom + 120;
-
     showModalBottomSheet(
       context: context,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: bottomPadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 100), // 100px bottom padding for nav bar
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Text(
                 AppStrings.howWouldYouLikeToReflect,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -565,6 +557,7 @@ class _JournalScreenState extends State<JournalScreen> {
             ],
           ),
         ),
+      ),
     );
   }
 
