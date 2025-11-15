@@ -269,12 +269,15 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
 
       await context.read<JournalTemplateProvider>().updateSession(finalSession);
 
-      // Create journal entry
+      // Generate a summary of the conversation for the journal entry content
+      final conversationSummary = _generateConversationSummary();
+
+      // Create journal entry with summary content
       final journalEntry = JournalEntry(
         type: JournalEntryType.structuredJournal,
         structuredSessionId: finalSession.id,
         structuredData: structuredData,
-        content: null, // Content is in the session conversation
+        content: conversationSummary, // Summary for journal list view and mentor context
         createdAt: finalSession.createdAt,
       );
 
@@ -300,7 +303,7 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
       await _debug.error(
         'StructuredJournalingScreen',
         'Failed to save session',
-        
+
         stackTrace: stackTrace.toString(),
       );
 
@@ -314,6 +317,44 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
         _isSaving = false;
       });
     }
+  }
+
+  /// Generate a readable summary of the conversation for journal list view and mentor context
+  String _generateConversationSummary() {
+    if (_currentSession == null || _selectedTemplate == null) {
+      return '';
+    }
+
+    final buffer = StringBuffer();
+
+    // Add template name as header
+    buffer.writeln('${_selectedTemplate!.emoji ?? ''} ${_selectedTemplate!.name}'.trim());
+    buffer.writeln();
+
+    // Get user messages only (these contain the actual journal content)
+    final userMessages = _currentSession!.conversation
+        .where((msg) => msg.sender == MessageSender.user)
+        .toList();
+
+    // Create a readable summary of user responses
+    for (int i = 0; i < userMessages.length; i++) {
+      final message = userMessages[i];
+
+      // Try to match with template fields to add context
+      if (i < _selectedTemplate!.fields.length) {
+        final field = _selectedTemplate!.fields[i];
+        buffer.writeln('${field.label}: ${message.content}');
+      } else {
+        // Fallback if we have more messages than fields
+        buffer.writeln(message.content);
+      }
+
+      if (i < userMessages.length - 1) {
+        buffer.writeln();
+      }
+    }
+
+    return buffer.toString().trim();
   }
 
   void _showSaveDialog() {
