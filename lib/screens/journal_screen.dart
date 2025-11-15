@@ -294,7 +294,7 @@ class _JournalScreenState extends State<JournalScreen> {
       isScrollControlled: true,
       builder: (context) => SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 24, 24, 100), // 100px bottom padding for nav bar
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

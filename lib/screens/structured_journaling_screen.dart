@@ -429,7 +429,32 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
           // Messages list
           Expanded(
             child: _currentSession == null
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 24),
+                          Text(
+                            'Starting your session...',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Your AI mentor is preparing personalized questions',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Colors.grey[600],
+                                ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
                 : ListView.builder(
                     controller: _scrollController,
                     padding: const EdgeInsets.all(AppSpacing.lg),
