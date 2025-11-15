@@ -17,6 +17,7 @@ import '../theme/app_text_styles.dart';
 import '../constants/app_strings.dart';
 import '../utils/icon_mapper.dart';
 import 'guided_journaling_screen.dart';
+import 'structured_journaling_screen.dart';
 import '../widgets/add_journal_dialog.dart';
 import '../widgets/add_pulse_dialog.dart';
 
@@ -480,6 +481,64 @@ class _JournalScreenState extends State<JournalScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 AppStrings.stepByStepPrompts,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              AppSpacing.gapMd,
+
+              // Structured Journaling option
+              Card(
+                child: InkWell(
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const StructuredJournalingScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: AppRadius.radiusLg,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.sm + AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.tertiaryContainer,
+                            borderRadius: AppRadius.radiusLg,
+                          ),
+                          child: Icon(
+                            Icons.article_outlined,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
+                        ),
+                        AppSpacing.gapHorizontalLg,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Structured Journaling',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Use therapeutic frameworks (CBT, Gratitude, etc.)',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                     ),
