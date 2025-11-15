@@ -20,6 +20,7 @@ class StructuredJournalingService {
       _createEnergyTrackingTemplate(),
       _createDreamJournalTemplate(),
       _createExerciseLogTemplate(),
+      _createFoodLogTemplate(),
     ];
   }
 
@@ -643,6 +644,93 @@ class StructuredJournalingService {
           'Be encouraging about challenges and help the user track their fitness journey.',
       completionMessage:
           'Great job logging your workout! Consistency is key to building healthy habits.',
+      createdAt: DateTime.now(),
+      showProgressIndicator: true,
+      allowSkipFields: true,
+    );
+  }
+
+  JournalTemplate _createFoodLogTemplate() {
+    return JournalTemplate(
+      id: 'food_log',
+      name: 'Food Log',
+      description: 'Track meals and eating patterns mindfully',
+      emoji: '🍎',
+      isSystemDefined: true,
+      category: TemplateCategory.wellness,
+      fields: [
+        TemplateField(
+          id: 'meal_type',
+          label: 'Meal Type',
+          prompt: 'What meal is this?',
+          type: FieldType.multipleChoice,
+          validation: {
+            'options': ['Breakfast', 'Lunch', 'Dinner', 'Snack', 'Other']
+          },
+        ),
+        TemplateField(
+          id: 'what_you_ate',
+          label: 'What You Ate',
+          prompt: 'What did you eat and drink?',
+          type: FieldType.longText,
+          helpText: 'Be as detailed as you like',
+          aiCoaching: 'Be non-judgmental and curious',
+        ),
+        TemplateField(
+          id: 'hunger_before',
+          label: 'Hunger Before Eating',
+          prompt: 'How hungry were you before eating?',
+          type: FieldType.scale,
+          validation: {'min': 1, 'max': 10},
+          helpText: '1 = Not hungry at all, 10 = Extremely hungry',
+        ),
+        TemplateField(
+          id: 'fullness_after',
+          label: 'Fullness After Eating',
+          prompt: 'How full do you feel after eating?',
+          type: FieldType.scale,
+          validation: {'min': 1, 'max': 10},
+          helpText: '1 = Still hungry, 10 = Uncomfortably full',
+        ),
+        TemplateField(
+          id: 'how_you_felt',
+          label: 'How You Felt',
+          prompt: 'How did you feel while eating and after?',
+          type: FieldType.text,
+          required: false,
+          helpText: 'Rushed, relaxed, satisfied, guilty, energized, etc.',
+          aiCoaching: 'Help them notice patterns without judgment',
+        ),
+        TemplateField(
+          id: 'eating_context',
+          label: 'Eating Context',
+          prompt: 'Where and with whom did you eat?',
+          type: FieldType.text,
+          required: false,
+          helpText: 'Alone at desk, with family at table, standing in kitchen, etc.',
+        ),
+        TemplateField(
+          id: 'intentions_or_goals',
+          label: 'Intentions or Goals',
+          prompt: 'Are you working towards any nutrition or wellness goals?',
+          type: FieldType.text,
+          required: false,
+          aiCoaching: 'Support their goals without being prescriptive',
+        ),
+        TemplateField(
+          id: 'linked_goal',
+          label: 'Related Goal',
+          prompt: 'Is this related to any of your goals?',
+          type: FieldType.linkedGoal,
+          required: false,
+        ),
+      ],
+      aiGuidance:
+          'You are a compassionate and non-judgmental wellness coach. '
+          'Help the user track their eating patterns mindfully without shame or strict rules. '
+          'Focus on awareness, patterns, and how food makes them feel rather than rigid nutrition advice.',
+      completionMessage:
+          'Thank you for logging this meal! Mindful eating is about awareness, not perfection.',
       createdAt: DateTime.now(),
       showProgressIndicator: true,
       allowSkipFields: true,
