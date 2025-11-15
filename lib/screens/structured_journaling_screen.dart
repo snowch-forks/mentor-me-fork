@@ -86,9 +86,11 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
         _currentSession!.currentStep ?? 0,
       );
 
-      final response = await AIService().generateCoachingResponse(
-        prompt: 'Start the journaling session. Greet the user warmly and ask the first question.',
-        context: {'systemPrompt': systemPrompt},
+      // Combine system prompt with user prompt
+      final fullPrompt = '$systemPrompt\n\nStart the journaling session. Greet the user warmly and ask the first question.';
+
+      final response = await AIService().getCoachingResponse(
+        prompt: fullPrompt,
       );
 
       final aiMessage = ChatMessage(
@@ -191,9 +193,11 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
           ? 'The user has completed all fields. Provide a warm summary and closing message.'
           : 'Continue the conversation. Move to the next question.';
 
-      final response = await AIService().generateCoachingResponse(
-        prompt: '$prompt\n\nConversation so far:\n$conversationContext',
-        context: {'systemPrompt': systemPrompt},
+      // Combine system prompt with conversation context
+      final fullPrompt = '$systemPrompt\n\n$prompt\n\nConversation so far:\n$conversationContext';
+
+      final response = await AIService().getCoachingResponse(
+        prompt: fullPrompt,
       );
 
       final aiMessage = ChatMessage(

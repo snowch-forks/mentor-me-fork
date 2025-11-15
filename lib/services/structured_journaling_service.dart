@@ -153,9 +153,8 @@ class StructuredJournalingService {
       );
 
       // Call AI to extract data
-      final response = await AIService().generateCoachingResponse(
+      final response = await AIService().getCoachingResponse(
         prompt: extractionPrompt.toString(),
-        context: {},
       );
 
       // Parse JSON response
