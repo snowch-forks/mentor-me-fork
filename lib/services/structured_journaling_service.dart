@@ -19,6 +19,7 @@ class StructuredJournalingService {
       _createGoalProgressTemplate(),
       _createEnergyTrackingTemplate(),
       _createDreamJournalTemplate(),
+      _createExerciseLogTemplate(),
     ];
   }
 
@@ -568,6 +569,82 @@ class StructuredJournalingService {
           'Thanks for recording your dream! Regular dream journaling can improve dream recall.',
       createdAt: DateTime.now(),
       showProgressIndicator: false,
+      allowSkipFields: true,
+    );
+  }
+
+  JournalTemplate _createExerciseLogTemplate() {
+    return JournalTemplate(
+      id: 'exercise_log',
+      name: 'Exercise Log',
+      description: 'Track workouts and physical activity',
+      emoji: '💪',
+      isSystemDefined: true,
+      category: TemplateCategory.wellness,
+      fields: [
+        TemplateField(
+          id: 'exercise_type',
+          label: 'Exercise Type',
+          prompt: 'What type of exercise did you do today?',
+          type: FieldType.text,
+          helpText: 'e.g., Running, Yoga, Strength training, Swimming, etc.',
+          aiCoaching: 'Be enthusiastic and supportive about any form of movement',
+        ),
+        TemplateField(
+          id: 'duration',
+          label: 'Duration',
+          prompt: 'How long did you exercise?',
+          type: FieldType.duration,
+          helpText: 'e.g., 30 minutes, 1 hour',
+        ),
+        TemplateField(
+          id: 'intensity',
+          label: 'Intensity',
+          prompt: 'How intense was your workout?',
+          type: FieldType.scale,
+          validation: {'min': 1, 'max': 10},
+          helpText: '1 = Very light, 10 = Maximum effort',
+        ),
+        TemplateField(
+          id: 'highlights',
+          label: 'Highlights',
+          prompt: 'What were the highlights or achievements?',
+          type: FieldType.text,
+          required: false,
+          helpText: 'New personal record, felt strong, enjoyed the session, etc.',
+          aiCoaching: 'Celebrate wins big and small',
+        ),
+        TemplateField(
+          id: 'challenges',
+          label: 'Challenges',
+          prompt: 'Were there any challenges or struggles?',
+          type: FieldType.text,
+          required: false,
+          aiCoaching: 'Normalize challenges as part of the journey',
+        ),
+        TemplateField(
+          id: 'how_body_feels',
+          label: 'How Your Body Feels',
+          prompt: 'How does your body feel after this workout?',
+          type: FieldType.text,
+          helpText: 'Energized, tired, sore, strong, etc.',
+        ),
+        TemplateField(
+          id: 'linked_goal',
+          label: 'Related Goal',
+          prompt: 'Is this workout related to any of your goals?',
+          type: FieldType.linkedGoal,
+          required: false,
+        ),
+      ],
+      aiGuidance:
+          'You are an enthusiastic and supportive fitness coach. '
+          'Celebrate all forms of movement and progress. '
+          'Be encouraging about challenges and help the user track their fitness journey.',
+      completionMessage:
+          'Great job logging your workout! Consistency is key to building healthy habits.',
+      createdAt: DateTime.now(),
+      showProgressIndicator: true,
       allowSkipFields: true,
     );
   }

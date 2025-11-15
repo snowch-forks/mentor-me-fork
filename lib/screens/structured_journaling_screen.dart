@@ -374,7 +374,7 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
   Widget build(BuildContext context) {
     if (_selectedTemplate == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Structured Journaling')),
+        appBar: AppBar(title: const Text('1-to-1 Mentor Session')),
         body: _buildTemplateSelection(),
       );
     }
