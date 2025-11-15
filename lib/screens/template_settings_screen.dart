@@ -311,20 +311,22 @@ class _TemplateSettingsScreenState extends State<TemplateSettingsScreen> {
                               fontSize: 11,
                             ),
                       ),
-                      AppSpacing.gapHorizontalMd,
-                      Icon(
-                        _getCategoryIcon(template.category),
-                        size: 14,
-                        color: Colors.grey[600],
-                      ),
-                      AppSpacing.gapHorizontalXs,
-                      Text(
-                        template.category.name,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                              fontSize: 11,
-                            ),
-                      ),
+                      if (template.category != null) ...[
+                        AppSpacing.gapHorizontalMd,
+                        Icon(
+                          _getCategoryIcon(template.category!),
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        AppSpacing.gapHorizontalXs,
+                        Text(
+                          template.category!.name,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Colors.grey[600],
+                                fontSize: 11,
+                              ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
