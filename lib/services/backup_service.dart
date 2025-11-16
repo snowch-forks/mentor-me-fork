@@ -7,6 +7,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:universal_io/io.dart';
 import 'storage_service.dart';
 import 'debug_service.dart';
+import 'migration_service.dart';
+import 'schema_validator.dart';
 import '../models/goal.dart';
 import '../models/journal_entry.dart';
 import '../models/checkin.dart';
@@ -22,10 +24,12 @@ import 'web_download_helper_stub.dart'
 class BackupService {
   final StorageService _storage = StorageService();
   final DebugService _debug = DebugService();
+  final MigrationService _migrationService = MigrationService();
+  final SchemaValidator _schemaValidator = SchemaValidator();
 
   /// Export all user data to a JSON file
   Future<String> _createBackupJson() async {
-    // Load all data
+    // Load all data in raw format (strings) - same format used by migrations
     final goals = await _storage.loadGoals();
     final journalEntries = await _storage.loadJournalEntries();
     final checkin = await _storage.loadCheckin();
@@ -34,31 +38,45 @@ class BackupService {
     final pulseTypes = await _storage.loadPulseTypes();
     final conversations = await _storage.getConversations();
     final settings = await _storage.loadSettings();
+    final customTemplates = await _storage.loadTemplates();
+    final sessions = await _storage.loadSessions();
+    final enabledTemplates = await _storage.getEnabledTemplates();
 
     // Remove sensitive data (API key, HF token) from export
     final exportSettings = Map<String, dynamic>.from(settings);
     exportSettings.remove('claudeApiKey');
     exportSettings.remove('hfToken');
 
-    // Create backup data structure
+    // Create backup data structure (matches migration format)
+    // Using string values (JSON-encoded) for data fields to match storage format
     final backupData = {
-      'version': '1.0.0',
-      'exportedAt': DateTime.now().toIso8601String(),
+      // Schema metadata
+      'schemaVersion': _migrationService.getCurrentVersion(),
+      'exportDate': DateTime.now().toIso8601String(),
+      'appVersion': '1.0.0', // TODO: Get from package_info
+      'buildNumber': BuildInfo.gitCommitShort,
+
+      // Build info for debugging
       'buildInfo': {
         'gitCommit': BuildInfo.gitCommitHash,
         'gitCommitShort': BuildInfo.gitCommitShort,
         'buildTimestamp': BuildInfo.buildTimestamp,
       },
-      'data': {
-        'goals': goals.map((g) => g.toJson()).toList(),
-        'journalEntries': journalEntries.map((e) => e.toJson()).toList(),
-        'checkin': checkin?.toJson(),
-        'habits': habits.map((h) => h.toJson()).toList(),
-        'pulseEntries': pulseEntries.map((m) => m.toJson()).toList(),
-        'pulseTypes': pulseTypes.map((t) => t.toJson()).toList(),
-        'conversations': conversations ?? [],
-        'settings': exportSettings,
-      },
+
+      // Data (JSON-encoded strings - same format as StorageService)
+      'journal_entries': json.encode(journalEntries.map((e) => e.toJson()).toList()),
+      'goals': json.encode(goals.map((g) => g.toJson()).toList()),
+      'habits': json.encode(habits.map((h) => h.toJson()).toList()),
+      'checkins': checkin != null ? json.encode(checkin.toJson()) : null,
+      'pulse_entries': json.encode(pulseEntries.map((m) => m.toJson()).toList()),
+      'pulse_types': json.encode(pulseTypes.map((t) => t.toJson()).toList()),
+      'conversations': json.encode(conversations ?? []),
+      'custom_templates': customTemplates,
+      'sessions': sessions,
+      'enabled_templates': json.encode(enabledTemplates),
+      'settings': json.encode(exportSettings),
+
+      // Statistics for UI display
       'statistics': {
         'totalGoals': goals.length,
         'totalJournalEntries': journalEntries.length,
@@ -244,15 +262,69 @@ class BackupService {
 
       final backupData = json.decode(jsonString) as Map<String, dynamic>;
 
-      // Validate backup structure
-      if (!backupData.containsKey('version') || !backupData.containsKey('data')) {
+      // Validate import file structure
+      if (!await _schemaValidator.validateImportFile(backupData)) {
         return ImportResult(
           success: false,
-          message: 'Invalid backup file format',
+          message: 'Invalid backup file format. File may be corrupted or from an incompatible app version.',
         );
       }
 
-      final data = backupData['data'] as Map<String, dynamic>;
+      final importVersion = backupData['schemaVersion'] as int? ?? 1;
+      final currentVersion = _migrationService.getCurrentVersion();
+
+      await _debug.info(
+        'BackupService',
+        'Importing backup: v$importVersion (current app: v$currentVersion)',
+      );
+
+      // Check if backup is from a newer app version
+      if (importVersion > currentVersion) {
+        return ImportResult(
+          success: false,
+          message: 'This backup is from a newer version of the app (v$importVersion). '
+              'Please update the app to v$importVersion or later before importing.',
+        );
+      }
+
+      // Run migrations if needed (brings old backups up to current version)
+      Map<String, dynamic> data;
+      if (importVersion < currentVersion) {
+        await _debug.info(
+          'BackupService',
+          'Migrating backup from v$importVersion to v$currentVersion...',
+        );
+
+        try {
+          data = await _migrationService.migrate(backupData);
+
+          await _debug.info(
+            'BackupService',
+            'Successfully migrated backup to v$currentVersion',
+          );
+        } catch (e, stackTrace) {
+          await _debug.error(
+            'BackupService',
+            'Migration failed during import',
+            stackTrace: stackTrace.toString(),
+          );
+          return ImportResult(
+            success: false,
+            message: 'Failed to migrate backup data: ${e.toString()}',
+          );
+        }
+      } else {
+        // Already at current version
+        data = backupData;
+      }
+
+      // Validate migrated data
+      if (!await _schemaValidator.validateStructure(data)) {
+        return ImportResult(
+          success: false,
+          message: 'Backup validation failed after migration. Data may be corrupted.',
+        );
+      }
 
       // Import data with detailed tracking (resilient - continues on errors)
       final detailedResults = await _importData(data);
@@ -263,7 +335,7 @@ class BackupService {
       final hasFailures = failures.isNotEmpty;
       final hasSuccesses = successes.isNotEmpty;
 
-      final stats = backupData['statistics'] as Map<String, dynamic>?;
+      final stats = data['statistics'] as Map<String, dynamic>?;
 
       // Build result message
       String message;
@@ -279,7 +351,11 @@ class BackupService {
         overallSuccess = true; // Still success if we got some data
       } else {
         // Complete success
-        message = 'Backup restored successfully!';
+        if (importVersion < currentVersion) {
+          message = 'Backup restored successfully! (Migrated from v$importVersion to v$currentVersion)';
+        } else {
+          message = 'Backup restored successfully!';
+        }
         overallSuccess = true;
       }
 
@@ -287,8 +363,9 @@ class BackupService {
         'BackupService',
         'Import completed',
         metadata: {
-          'version': backupData['version'],
-          'exported_at': backupData['exportedAt'],
+          'importVersion': importVersion,
+          'currentVersion': currentVersion,
+          'exportDate': data['exportDate'],
           'successes': successes.length,
           'failures': failures.length,
           'total_types': detailedResults.length,
@@ -321,8 +398,9 @@ class BackupService {
 
     // Import goals
     try {
-      if (data.containsKey('goals')) {
-        final goalsJson = data['goals'] as List;
+      if (data.containsKey('goals') && data['goals'] != null) {
+        // Data is JSON-encoded string
+        final goalsJson = json.decode(data['goals'] as String) as List;
         final goals = goalsJson.map((json) => Goal.fromJson(json)).toList();
         await _storage.saveGoals(goals);
         await _debug.info('BackupService', 'Imported ${goals.length} goals');
@@ -354,8 +432,9 @@ class BackupService {
 
     // Import journal entries
     try {
-      if (data.containsKey('journalEntries')) {
-        final entriesJson = data['journalEntries'] as List;
+      if (data.containsKey('journal_entries') && data['journal_entries'] != null) {
+        // Data is JSON-encoded string
+        final entriesJson = json.decode(data['journal_entries'] as String) as List;
         final entries = entriesJson.map((json) => JournalEntry.fromJson(json)).toList();
         await _storage.saveJournalEntries(entries);
         await _debug.info('BackupService', 'Imported ${entries.length} journal entries');
@@ -387,8 +466,8 @@ class BackupService {
 
     // Import check-in
     try {
-      if (data.containsKey('checkin') && data['checkin'] != null) {
-        final checkin = Checkin.fromJson(data['checkin']);
+      if (data.containsKey('checkins') && data['checkins'] != null) {
+        final checkin = Checkin.fromJson(json.decode(data['checkins']));
         await _storage.saveCheckin(checkin);
         await _debug.info('BackupService', 'Imported check-in');
         results.add(ImportItemResult(
@@ -419,8 +498,8 @@ class BackupService {
 
     // Import habits
     try {
-      if (data.containsKey('habits')) {
-        final habitsJson = data['habits'] as List;
+      if (data.containsKey('habits') && data['habits'] != null) {
+        final habitsJson = json.decode(data['habits'] as String) as List;
         final habits = habitsJson.map((json) => Habit.fromJson(json)).toList();
         await _storage.saveHabits(habits);
         await _debug.info('BackupService', 'Imported ${habits.length} habits');
@@ -450,24 +529,13 @@ class BackupService {
       ));
     }
 
-    // Import pulse entries (support both new and old key names)
+    // Import pulse entries
     try {
-      if (data.containsKey('pulseEntries')) {
-        final pulseEntriesJson = data['pulseEntries'] as List;
+      if (data.containsKey('pulse_entries') && data['pulse_entries'] != null) {
+        final pulseEntriesJson = json.decode(data['pulse_entries'] as String) as List;
         final pulseEntries = pulseEntriesJson.map((json) => PulseEntry.fromJson(json)).toList();
         await _storage.savePulseEntries(pulseEntries);
         await _debug.info('BackupService', 'Imported ${pulseEntries.length} pulse entries');
-        results.add(ImportItemResult(
-          dataType: 'Pulse Entries',
-          success: true,
-          count: pulseEntries.length,
-        ));
-      } else if (data.containsKey('moodEntries')) {
-        // Backward compatibility: support old exports
-        final pulseEntriesJson = data['moodEntries'] as List;
-        final pulseEntries = pulseEntriesJson.map((json) => PulseEntry.fromJson(json)).toList();
-        await _storage.savePulseEntries(pulseEntries);
-        await _debug.info('BackupService', 'Imported ${pulseEntries.length} pulse entries (legacy format)');
         results.add(ImportItemResult(
           dataType: 'Pulse Entries',
           success: true,
@@ -496,8 +564,8 @@ class BackupService {
 
     // Import pulse types
     try {
-      if (data.containsKey('pulseTypes')) {
-        final pulseTypesJson = data['pulseTypes'] as List;
+      if (data.containsKey('pulse_types') && data['pulse_types'] != null) {
+        final pulseTypesJson = json.decode(data['pulse_types'] as String) as List;
         final pulseTypes = pulseTypesJson.map((json) => PulseType.fromJson(json)).toList();
         await _storage.savePulseTypes(pulseTypes);
         await _debug.info('BackupService', 'Imported ${pulseTypes.length} pulse types');
@@ -529,8 +597,8 @@ class BackupService {
 
     // Import conversations
     try {
-      if (data.containsKey('conversations')) {
-        final conversationsJson = data['conversations'] as List;
+      if (data.containsKey('conversations') && data['conversations'] != null) {
+        final conversationsJson = json.decode(data['conversations'] as String) as List;
         final conversations = conversationsJson.cast<Map<String, dynamic>>();
         await _storage.saveConversations(conversations);
         await _debug.info('BackupService', 'Imported ${conversations.length} conversations');
@@ -562,8 +630,8 @@ class BackupService {
 
     // Import settings (excluding API key which should not be in export)
     try {
-      if (data.containsKey('settings')) {
-        final exportedSettings = data['settings'] as Map<String, dynamic>;
+      if (data.containsKey('settings') && data['settings'] != null) {
+        final exportedSettings = json.decode(data['settings'] as String) as Map<String, dynamic>;
         final currentSettings = await _storage.loadSettings();
 
         // Merge: keep current API key and HF token, import other settings
