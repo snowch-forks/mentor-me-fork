@@ -231,20 +231,87 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
       await _debug.error(
         'StructuredJournalingScreen',
         'Failed to generate AI response',
-        
+
         stackTrace: stackTrace.toString(),
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to get response. Please try again.')),
-        );
+        // Check if session should be complete (even though AI failed)
+        final currentStep = _currentSession!.currentStep ?? 0;
+        final nextStep = currentStep + 1;
+        final shouldBeComplete = nextStep >= _selectedTemplate!.fields.length;
+
+        if (shouldBeComplete) {
+          // Mark session as complete even though AI failed
+          final completedSession = updatedSession.copyWith(isComplete: true);
+          await context.read<JournalTemplateProvider>().updateSession(completedSession);
+
+          setState(() {
+            _currentSession = completedSession;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Session complete! AI response failed but you can still save.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+
+          // Show save dialog anyway
+          _showSaveDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Failed to get response. Please try again.'),
+              action: SnackBarAction(
+                label: 'Complete Anyway',
+                onPressed: _canManuallyComplete() ? _manuallyCompleteSession : null,
+              ),
+            ),
+          );
+        }
       }
     } finally {
       setState(() {
         _isTyping = false;
       });
     }
+  }
+
+  /// Check if the session has answered enough required fields to allow manual completion
+  bool _canManuallyComplete() {
+    if (_currentSession == null || _selectedTemplate == null) return false;
+    if (_currentSession!.isComplete) return false;
+
+    // Count user messages (responses to questions)
+    final userMessageCount = _currentSession!.conversation
+        .where((msg) => msg.sender == MessageSender.user)
+        .length;
+
+    // Count required fields
+    final requiredFieldCount = _selectedTemplate!.fields
+        .where((field) => field.required)
+        .length;
+
+    // Can complete if user has answered at least all required fields
+    return userMessageCount >= requiredFieldCount;
+  }
+
+  /// Manually mark session as complete and show save dialog
+  Future<void> _manuallyCompleteSession() async {
+    if (_currentSession == null) return;
+
+    final updatedSession = _currentSession!.copyWith(
+      isComplete: true,
+    );
+
+    await context.read<JournalTemplateProvider>().updateSession(updatedSession);
+
+    setState(() {
+      _currentSession = updatedSession;
+    });
+
+    _showSaveDialog();
   }
 
   Future<void> _saveSession() async {
@@ -454,12 +521,21 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
           ],
         ),
         actions: [
-          if (_currentSession != null && !_currentSession!.isComplete)
+          if (_currentSession != null && !_currentSession!.isComplete) ...[
+            // Show manual complete button when user has answered enough fields
+            if (_canManuallyComplete())
+              IconButton(
+                icon: const Icon(Icons.check_circle_outline),
+                onPressed: _manuallyCompleteSession,
+                tooltip: 'Complete Session',
+                color: Theme.of(context).colorScheme.primary,
+              ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               onPressed: _showDiscardDialog,
               tooltip: 'Discard',
             ),
+          ],
           if (_currentSession != null && _currentSession!.isComplete)
             IconButton(
               icon: const Icon(Icons.save),
