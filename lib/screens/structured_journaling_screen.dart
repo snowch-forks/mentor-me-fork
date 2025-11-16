@@ -263,10 +263,12 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Failed to get response. Please try again.'),
-              action: SnackBarAction(
-                label: 'Complete Anyway',
-                onPressed: _canManuallyComplete() ? _manuallyCompleteSession : null,
-              ),
+              action: _canManuallyComplete()
+                  ? SnackBarAction(
+                      label: 'Complete Anyway',
+                      onPressed: () => _manuallyCompleteSession(),
+                    )
+                  : null,
             ),
           );
         }
