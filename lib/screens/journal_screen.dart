@@ -929,6 +929,24 @@ class _JournalScreenState extends State<JournalScreen> {
       if (entry.qaPairs!.isNotEmpty) {
         return entry.qaPairs!.first.answer;
       }
+    } else if (entry.type == JournalEntryType.structuredJournal) {
+      // For structured journals (1-to-1 sessions), use content if available
+      if (entry.content != null && entry.content!.isNotEmpty) {
+        return entry.content!;
+      }
+      // Fallback: generate preview from structured data for old entries
+      if (entry.structuredData != null && entry.structuredData!.isNotEmpty) {
+        final buffer = StringBuffer();
+        int count = 0;
+        for (var fieldEntry in entry.structuredData!.entries) {
+          if (count >= 2) break; // Show first 2 fields
+          if (fieldEntry.value != null && fieldEntry.value.toString().isNotEmpty) {
+            buffer.writeln('${fieldEntry.key}: ${fieldEntry.value}');
+            count++;
+          }
+        }
+        return buffer.toString().trim();
+      }
     }
     return '';
   }
