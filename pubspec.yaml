@@ -31,6 +31,9 @@ dependencies:
   # UUID generation
   uuid: ^4.3.3
 
+  # Markdown rendering for AI-generated text
+  flutter_markdown: ^0.7.4+1
+
   # File system access
   path_provider: ^2.1.2
 

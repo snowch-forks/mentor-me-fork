@@ -32,7 +32,7 @@ class JournalProvider extends ChangeNotifier {
     notifyListeners();
 
     _entries = await _storage.loadJournalEntries();
-    
+
     _isLoading = false;
     notifyListeners();
   }

@@ -10,6 +10,8 @@ import '../models/checkin.dart';
 import '../models/habit.dart';
 import '../models/pulse_entry.dart';
 import '../models/pulse_type.dart';
+import 'package:mentor_me/services/migration_service.dart';
+import 'package:mentor_me/services/debug_service.dart';
 
 class StorageService {
   static const String _goalsKey = 'goals';
@@ -20,6 +22,13 @@ class StorageService {
   static const String _pulseTypesKey = 'pulse_types';
   static const String _settingsKey = 'settings';
   static const String _conversationsKey = 'conversations';
+  static const String _templatesKey = 'journal_templates_custom';
+  static const String _sessionsKey = 'structured_journaling_sessions';
+  static const String _schemaVersionKey = 'schema_version';
+
+  final _migrationService = MigrationService();
+  final _debug = DebugService();
+  bool _hasMigrated = false;
 
   // Save/Load Goals
   Future<void> saveGoals(List<Goal> goals) async {
@@ -311,5 +320,218 @@ class StorageService {
 
     final List<dynamic> jsonList = json.decode(jsonString);
     return jsonList.cast<Map<String, dynamic>>();
+  }
+
+  // Save/Load Journal Templates
+  Future<void> saveTemplates(String data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_templatesKey, data);
+  }
+
+  Future<String?> loadTemplates() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_templatesKey);
+  }
+
+  // Save/Load Structured Journaling Sessions
+  Future<void> saveSessions(String data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_sessionsKey, data);
+  }
+
+  Future<String?> loadSessions() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_sessionsKey);
+  }
+
+  // ============================================================================
+  // MIGRATION SUPPORT
+  // ============================================================================
+
+  /// Run migrations on app startup if needed
+  ///
+  /// This should be called once during app initialization, before any
+  /// providers load data. It will:
+  /// - Load all raw data from SharedPreferences
+  /// - Check the schema version
+  /// - Run migrations if needed
+  /// - Save migrated data back to storage
+  Future<void> runMigrationsIfNeeded() async {
+    if (_hasMigrated) {
+      return; // Already migrated this session
+    }
+
+    try {
+      await _debug.info('StorageService', 'Checking for pending migrations...');
+
+      // Load current schema version
+      final prefs = await SharedPreferences.getInstance();
+      final currentVersion = prefs.getInt(_schemaVersionKey) ?? 1;
+      final targetVersion = _migrationService.getCurrentVersion();
+
+      await _debug.info(
+        'StorageService',
+        'Current schema version: v$currentVersion, Target version: v$targetVersion',
+      );
+
+      // No migration needed
+      if (currentVersion == targetVersion) {
+        await _debug.info('StorageService', 'No migration needed');
+        _hasMigrated = true;
+        return;
+      }
+
+      // Load all data in raw format (strings, not models)
+      final rawData = await _loadRawData();
+      rawData['schemaVersion'] = currentVersion;
+
+      // Run migrations
+      await _debug.info(
+        'StorageService',
+        'Running migrations from v$currentVersion to v$targetVersion...',
+      );
+
+      final migratedData = await _migrationService.migrate(rawData);
+
+      // Save migrated data back to storage
+      await _saveRawData(migratedData);
+
+      // Update schema version
+      await prefs.setInt(_schemaVersionKey, targetVersion);
+
+      await _debug.info(
+        'StorageService',
+        'Migration complete! Data is now at v$targetVersion',
+      );
+
+      _hasMigrated = true;
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'StorageService',
+        'Migration failed',
+        stackTrace: stackTrace.toString(),
+      );
+      // Don't throw - let app continue with potentially outdated data
+      // This prevents migration failures from bricking the app
+    }
+  }
+
+  /// Load all data from SharedPreferences in raw format (strings)
+  ///
+  /// This is the format used by BackupService and needed by migrations.
+  /// Returns a map with string values (JSON-encoded data).
+  Future<Map<String, dynamic>> _loadRawData() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    return {
+      'journal_entries': prefs.getString(_journalEntriesKey),
+      'goals': prefs.getString(_goalsKey),
+      'habits': prefs.getString(_habitsKey),
+      'checkins': prefs.getString(_checkinKey),
+      'pulse_entries': prefs.getString(_pulseEntriesKey),
+      'pulse_types': prefs.getString(_pulseTypesKey),
+      'conversations': prefs.getString(_conversationsKey),
+      'custom_templates': prefs.getString(_templatesKey),
+      'sessions': prefs.getString(_sessionsKey),
+      'enabled_templates': json.encode(await getEnabledTemplates()),
+      'settings': json.encode(await loadSettings()),
+    };
+  }
+
+  /// Save raw data back to SharedPreferences
+  ///
+  /// Takes the output of migrations and writes it back to storage.
+  Future<void> _saveRawData(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Save each field if it exists in the migrated data
+    if (data['journal_entries'] != null) {
+      await prefs.setString(_journalEntriesKey, data['journal_entries']);
+    }
+    if (data['goals'] != null) {
+      await prefs.setString(_goalsKey, data['goals']);
+    }
+    if (data['habits'] != null) {
+      await prefs.setString(_habitsKey, data['habits']);
+    }
+    if (data['checkins'] != null) {
+      await prefs.setString(_checkinKey, data['checkins']);
+    }
+    if (data['pulse_entries'] != null) {
+      await prefs.setString(_pulseEntriesKey, data['pulse_entries']);
+    }
+    if (data['pulse_types'] != null) {
+      await prefs.setString(_pulseTypesKey, data['pulse_types']);
+    }
+    if (data['conversations'] != null) {
+      await prefs.setString(_conversationsKey, data['conversations']);
+    }
+    if (data['custom_templates'] != null) {
+      await prefs.setString(_templatesKey, data['custom_templates']);
+    }
+    if (data['sessions'] != null) {
+      await prefs.setString(_sessionsKey, data['sessions']);
+    }
+    if (data['enabled_templates'] != null) {
+      final templateIds = (json.decode(data['enabled_templates']) as List).cast<String>();
+      await setEnabledTemplates(templateIds);
+    }
+    if (data['settings'] != null) {
+      final settings = json.decode(data['settings']) as Map<String, dynamic>;
+      await saveSettings(settings);
+    }
+  }
+
+  /// Get the current schema version
+  Future<int> getSchemaVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_schemaVersionKey) ?? 1;
+  }
+
+  // ============================================================================
+  // TEMPLATE SETTINGS
+  // ============================================================================
+
+  // Default enabled templates (4 of 8)
+  static const List<String> defaultEnabledTemplates = [
+    'cbt_thought_record',      // CBT Thought Record
+    'gratitude_journal',        // Gratitude Journal
+    'goal_progress',            // Goal Progress Check-in
+    'meditation_log',           // Meditation Log
+  ];
+
+  /// Get enabled template IDs (returns default if not set)
+  Future<List<String>> getEnabledTemplates() async {
+    final settings = await loadSettings();
+    final enabled = settings['enabled_templates'] as List<dynamic>?;
+    if (enabled == null) {
+      return List.from(defaultEnabledTemplates);
+    }
+    return enabled.cast<String>();
+  }
+
+  /// Set enabled template IDs
+  Future<void> setEnabledTemplates(List<String> templateIds) async {
+    final settings = await loadSettings();
+    settings['enabled_templates'] = templateIds;
+    await saveSettings(settings);
+  }
+
+  /// Check if a template is enabled
+  Future<bool> isTemplateEnabled(String templateId) async {
+    final enabled = await getEnabledTemplates();
+    return enabled.contains(templateId);
+  }
+
+  /// Toggle a template on/off and return the new enabled list
+  Future<List<String>> toggleTemplate(String templateId) async {
+    final enabled = await getEnabledTemplates();
+    if (enabled.contains(templateId)) {
+      enabled.remove(templateId);
+    } else {
+      enabled.add(templateId);
+    }
+    await setEnabledTemplates(enabled);
+    return enabled;
   }
 }

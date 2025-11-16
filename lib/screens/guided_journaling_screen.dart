@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/journal_entry.dart';
 import '../providers/journal_provider.dart';
 import '../providers/checkin_provider.dart';
@@ -32,6 +33,9 @@ class _GuidedJournalingScreenState extends State<GuidedJournalingScreen> {
   final List<TextEditingController> _controllers = [];
   final List<String> _responses = [];
   bool _isAnalyzing = false;
+  bool _showCompletionScreen = false;
+  String? _mentorFeedback;
+  bool _isFetchingFeedback = false;
 
   // Prompts for initial onboarding (discovering goals)
   final List<ReflectionPrompt> _onboardingPrompts = [
@@ -253,14 +257,78 @@ class _GuidedJournalingScreenState extends State<GuidedJournalingScreen> {
     if (_currentPromptIndex < _prompts.length - 1) {
       setState(() => _currentPromptIndex++);
     } else {
-      // Finish reflection immediately
-      await _finishReflection();
+      // Show completion screen for check-ins, finish immediately for onboarding
+      if (widget.isCheckIn) {
+        setState(() => _showCompletionScreen = true);
+      } else {
+        await _finishReflection();
+      }
     }
   }
 
   void _previousPrompt() {
     if (_currentPromptIndex > 0) {
       setState(() => _currentPromptIndex--);
+    }
+  }
+
+  Future<void> _getMentorFeedback() async {
+    setState(() => _isFetchingFeedback = true);
+
+    try {
+      final goalProvider = Provider.of<GoalProvider>(context, listen: false);
+      final habitProvider = Provider.of<HabitProvider>(context, listen: false);
+
+      // Build context for AI analysis
+      final goalsContext = goalProvider.goals.isNotEmpty
+          ? goalProvider.goals.map((g) => '- ${g.title}').join('\n')
+          : 'No goals set yet';
+
+      final habitsContext = habitProvider.habits.isNotEmpty
+          ? habitProvider.habits.map((h) => '- ${h.title}').join('\n')
+          : 'No habits set yet';
+
+      // Build Q&A pairs for context
+      final reflectionText = StringBuffer();
+      for (int i = 0; i < _prompts.length; i++) {
+        reflectionText.writeln('Q: ${_prompts[i].title}');
+        reflectionText.writeln('A: ${_responses[i]}');
+        reflectionText.writeln();
+      }
+
+      // Create prompt for AI
+      final prompt = '''You are a supportive mentor reviewing a user's journal reflection. Analyze their responses and provide constructive, empathetic feedback.
+
+User's Current Goals:
+$goalsContext
+
+User's Current Habits:
+$habitsContext
+
+Their Journal Reflection:
+$reflectionText
+
+Please provide:
+1. A brief acknowledgment of what they shared (1-2 sentences)
+2. 2-3 specific insights or observations about their progress, challenges, or patterns
+3. 1-2 actionable suggestions or questions to help them move forward
+
+Keep your tone warm, encouraging, and focused on growth. Be specific and reference their actual words where possible.''';
+
+      final aiService = AIService();
+      final response = await aiService.getCoachingResponse(prompt: prompt);
+
+      setState(() {
+        _mentorFeedback = response;
+        _isFetchingFeedback = false;
+      });
+    } catch (e) {
+      setState(() => _isFetchingFeedback = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to get mentor feedback: $e')),
+        );
+      }
     }
   }
 
@@ -286,10 +354,16 @@ class _GuidedJournalingScreenState extends State<GuidedJournalingScreen> {
         final reflectionType = widget.isCheckIn ? 'checkin' :
             (journalProvider.entries.isEmpty ? 'onboarding' : 'general');
 
+        // Include AI insights if mentor feedback was fetched
+        final aiInsights = _mentorFeedback != null
+            ? {'mentorFeedback': _mentorFeedback!}
+            : null;
+
         final entry = JournalEntry(
           type: JournalEntryType.guidedJournal,
           reflectionType: reflectionType,
           qaPairs: qaPairs,
+          aiInsights: aiInsights,
         );
         await journalProvider.addEntry(entry);
 
@@ -343,6 +417,21 @@ class _GuidedJournalingScreenState extends State<GuidedJournalingScreen> {
           automaticallyImplyLeading: false,
         ),
         body: _buildAnalyzingView(),
+      );
+    }
+
+    if (_showCompletionScreen) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Reflection Complete'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              setState(() => _showCompletionScreen = false);
+            },
+          ),
+        ),
+        body: _buildCompletionScreen(),
       );
     }
 
@@ -495,6 +584,227 @@ class _GuidedJournalingScreenState extends State<GuidedJournalingScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildCompletionScreen() {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Success icon
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.check_circle_outline,
+                      size: 60,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Title
+                Text(
+                  'Great work!',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 12),
+
+                Text(
+                  'You\'ve completed your reflection. Here\'s what you shared:',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 32),
+
+                // Summary of responses
+                ...List.generate(_prompts.length, (index) {
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _prompts[index].icon,
+                                size: 20,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _prompts[index].title,
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _responses[index],
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(height: 24),
+
+                // Mentor feedback section
+                if (_mentorFeedback == null && !_isFetchingFeedback)
+                  Card(
+                    color: Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.3),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.psychology_outlined,
+                                color: Theme.of(context).colorScheme.tertiary,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Want personalized feedback?',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Get AI-powered insights on your reflection, including patterns, observations, and actionable suggestions.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                ),
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.tonalIcon(
+                            onPressed: _getMentorFeedback,
+                            icon: const Icon(Icons.auto_awesome),
+                            label: const Text('Get Mentor Feedback'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                if (_isFetchingFeedback)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Analyzing your reflection...',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                if (_mentorFeedback != null)
+                  Card(
+                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.2),
+                    child: ExpansionTile(
+                      initiallyExpanded: true,
+                      leading: Icon(
+                        Icons.psychology,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      title: Text(
+                        'Mentor Feedback',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          child: MarkdownBody(
+                            data: _mentorFeedback!,
+                            styleSheet: MarkdownStyleSheet(
+                              p: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.6),
+                              strong: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    height: 1.6,
+                                  ),
+                              em: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontStyle: FontStyle.italic,
+                                    height: 1.6,
+                                  ),
+                              listBullet: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.6),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+
+        // Save & Finish button
+        SafeArea(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: FilledButton.icon(
+              onPressed: _finishReflection,
+              icon: const Icon(Icons.check),
+              label: const Text('Save & Finish'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

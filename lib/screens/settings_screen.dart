@@ -22,6 +22,7 @@ import 'debug_settings_screen.dart';
 import 'ai_settings_screen.dart';
 import 'backup_restore_screen.dart';
 import 'profile_settings_screen.dart';
+import 'template_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -332,6 +333,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const AISettingsScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          AppSpacing.gapLg,
+
+          // 1-to-1 Template Settings
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.article_outlined),
+              title: const Text('1-to-1 Session Templates'),
+              subtitle: const Text('Choose which journal templates to show'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TemplateSettingsScreen(),
                   ),
                 );
               },

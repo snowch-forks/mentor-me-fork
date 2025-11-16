@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../providers/goal_provider.dart';
 import '../providers/journal_provider.dart';
 import '../providers/habit_provider.dart';
@@ -215,12 +216,21 @@ class _MentorScreenState extends State<MentorScreen> {
             ),
             AppSpacing.gapXl,
 
-            // Mentor message
-            Text(
-              coachingCard.message,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    height: 1.6,
-                  ),
+            // Mentor message (with markdown support)
+            MarkdownBody(
+              data: coachingCard.message,
+              styleSheet: MarkdownStyleSheet(
+                p: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
+                strong: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      height: 1.6,
+                    ),
+                em: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontStyle: FontStyle.italic,
+                      height: 1.6,
+                    ),
+                listBullet: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
+              ),
             ),
             AppSpacing.gapXl,
 

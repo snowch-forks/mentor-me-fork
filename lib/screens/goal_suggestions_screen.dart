@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/goal.dart';
 import '../providers/goal_provider.dart';
 import '../providers/habit_provider.dart';
@@ -786,9 +787,18 @@ Focus on goals that are:
                 ],
               ),
               const SizedBox(height: 12),
-              Text(
-                suggestion.description,
-                style: Theme.of(context).textTheme.bodyMedium,
+              MarkdownBody(
+                data: suggestion.description,
+                styleSheet: MarkdownStyleSheet(
+                  p: Theme.of(context).textTheme.bodyMedium,
+                  strong: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                  em: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontStyle: FontStyle.italic,
+                      ),
+                  listBullet: Theme.of(context).textTheme.bodyMedium,
+                ),
               ),
               const SizedBox(height: 12),
               Container(
@@ -807,12 +817,27 @@ Focus on goals that are:
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        suggestion.reasoning,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontStyle: FontStyle.italic,
-                              color: Colors.grey[700],
-                            ),
+                      child: MarkdownBody(
+                        data: suggestion.reasoning,
+                        styleSheet: MarkdownStyleSheet(
+                          p: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey[700],
+                              ),
+                          strong: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey[700],
+                              ),
+                          em: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey[700],
+                              ),
+                          listBullet: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey[700],
+                              ),
+                        ),
                       ),
                     ),
                   ],

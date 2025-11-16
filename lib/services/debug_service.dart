@@ -84,7 +84,10 @@ class DebugService {
   factory DebugService() => _instance;
   DebugService._internal();
 
-  final StorageService _storage = StorageService();
+  // Lazy-initialize to avoid circular dependency with StorageService/MigrationService
+  StorageService? _storage;
+  StorageService get storage => _storage ??= StorageService();
+
   final List<LogEntry> _logs = [];
   final List<Function(LogEntry)> _listeners = [];
 
@@ -392,7 +395,7 @@ class DebugService {
   // Persistence
   Future<void> _loadLogs() async {
     try {
-      final prefs = await _storage.loadSettings();
+      final prefs = await storage.loadSettings();
       final logsJson = prefs['debug_logs'] as String?;
 
       if (logsJson != null && logsJson.isNotEmpty) {
@@ -407,10 +410,10 @@ class DebugService {
 
   Future<void> _saveLogs() async {
     try {
-      final prefs = await _storage.loadSettings();
+      final prefs = await storage.loadSettings();
       final logsJson = json.encode(_logs.map((log) => log.toJson()).toList());
       prefs['debug_logs'] = logsJson;
-      await _storage.saveSettings(prefs);
+      await storage.saveSettings(prefs);
     } catch (e) {
       debugPrint('Error saving debug logs: $e');
     }

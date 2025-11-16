@@ -9,6 +9,17 @@ enum GoalStatus {
   abandoned,  // Decided not to pursue
 }
 
+/// Data model for user goals.
+///
+/// **JSON Schema:** lib/schemas/v2.json (goals field)
+/// **Schema Version:** 2 (current)
+/// **Export Format:** lib/services/backup_service.dart (goals field)
+///
+/// When modifying this model, ensure you update:
+/// 1. JSON Schema (lib/schemas/vX.json)
+/// 2. Migration (lib/migrations/) if needed
+/// 3. Schema validator (lib/services/schema_validator.dart)
+/// See CLAUDE.md "Data Schema Management" section for full checklist.
 class Goal {
   final String id;
   final String title;

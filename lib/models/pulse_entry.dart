@@ -1,7 +1,17 @@
 import 'package:uuid/uuid.dart';
 
-/// Represents a pulse/wellness check-in with extensible metrics
-/// All metrics are stored in customMetrics map with 1-5 scale
+/// Represents a pulse/wellness check-in with extensible metrics.
+/// All metrics are stored in customMetrics map with 1-5 scale.
+///
+/// **JSON Schema:** lib/schemas/v2.json (pulse_entries field)
+/// **Schema Version:** 2 (current)
+/// **Export Format:** lib/services/backup_service.dart (pulse_entries field)
+///
+/// When modifying this model, ensure you update:
+/// 1. JSON Schema (lib/schemas/vX.json)
+/// 2. Migration (lib/migrations/) if needed
+/// 3. Schema validator (lib/services/schema_validator.dart)
+/// See CLAUDE.md "Data Schema Management" section for full checklist.
 class PulseEntry {
   final String id;
   final DateTime timestamp;
