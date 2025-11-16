@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/goal.dart';
 import '../models/milestone.dart';
 import '../providers/goal_provider.dart';
@@ -314,12 +315,31 @@ class _GoalDetailSheetState extends State<GoalDetailSheet> {
                         children: [
                           if (milestone.description.isNotEmpty) ...[
                             const SizedBox(height: 4),
-                            Text(
-                              milestone.description,
-                              style: TextStyle(
-                                color: milestone.isCompleted 
-                                    ? Colors.grey 
-                                    : null,
+                            MarkdownBody(
+                              data: milestone.description,
+                              styleSheet: MarkdownStyleSheet(
+                                p: TextStyle(
+                                  color: milestone.isCompleted
+                                      ? Colors.grey
+                                      : null,
+                                ),
+                                strong: TextStyle(
+                                  color: milestone.isCompleted
+                                      ? Colors.grey
+                                      : null,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                em: TextStyle(
+                                  color: milestone.isCompleted
+                                      ? Colors.grey
+                                      : null,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                listBullet: TextStyle(
+                                  color: milestone.isCompleted
+                                      ? Colors.grey
+                                      : null,
+                                ),
                               ),
                             ),
                           ],
@@ -501,7 +521,19 @@ class _GoalDetailSheetState extends State<GoalDetailSheet> {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(milestone.description),
+                      MarkdownBody(
+                        data: milestone.description,
+                        styleSheet: MarkdownStyleSheet(
+                          p: Theme.of(context).textTheme.bodySmall,
+                          strong: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                          em: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontStyle: FontStyle.italic,
+                              ),
+                          listBullet: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
                       if (milestone.targetDate != null) ...[
                         const SizedBox(height: 4),
                         Row(

@@ -17,6 +17,7 @@ import '../theme/app_text_styles.dart';
 import '../constants/app_strings.dart';
 import '../utils/icon_mapper.dart';
 import 'guided_journaling_screen.dart';
+import 'structured_journaling_screen.dart';
 import '../widgets/add_journal_dialog.dart';
 import '../widgets/add_pulse_dialog.dart';
 
@@ -290,9 +291,10 @@ class _JournalScreenState extends State<JournalScreen> {
   void _showJournalChoice(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Padding(
-          padding: AppSpacing.paddingXl,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -305,14 +307,17 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
               AppSpacing.gapXl,
 
-              // Pulse Check option
+              // Goals & Habits Journal (formerly Guided Reflection) - RECOMMENDED
               Card(
+                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
                 child: InkWell(
                   onTap: () {
                     Navigator.pop(context);
-                    showDialog(
-                      context: context,
-                      builder: (context) => const AddPulseDialog(),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const GuidedJournalingScreen(isCheckIn: true),
+                      ),
                     );
                   },
                   borderRadius: AppRadius.radiusLg,
@@ -323,12 +328,12 @@ class _JournalScreenState extends State<JournalScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.secondaryContainer,
+                            color: Theme.of(context).colorScheme.primary,
                             borderRadius: AppRadius.radiusLg,
                           ),
-                          child: Icon(
-                            Icons.favorite_outline,
-                            color: Theme.of(context).colorScheme.secondary,
+                          child: const Icon(
+                            Icons.psychology,
+                            color: Colors.white,
                           ),
                         ),
                         AppSpacing.gapHorizontalLg,
@@ -336,15 +341,113 @@ class _JournalScreenState extends State<JournalScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                AppStrings.pulseCheck,
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
+                              Row(
+                                children: [
+                                  Text(
+                                    'Goals & Habits Journal',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      borderRadius: AppRadius.radiusLg,
                                     ),
+                                    child: const Text(
+                                      AppStrings.recommended,
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                AppStrings.justLogHowYouFeel,
+                                'Reflect on your goals and habits with AI-guided prompts',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              AppSpacing.gapMd,
+
+              // 1-to-1 Mentor Session (formerly Structured Journaling)
+              Card(
+                child: InkWell(
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const StructuredJournalingScreen(),
+                      ),
+                    );
+                  },
+                  borderRadius: AppRadius.radiusLg,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.sm + AppSpacing.md),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.tertiaryContainer,
+                            borderRadius: AppRadius.radiusLg,
+                          ),
+                          child: Icon(
+                            Icons.chat_bubble_outline,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
+                        ),
+                        AppSpacing.gapHorizontalLg,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    '1-to-1 Mentor Session',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange,
+                                      borderRadius: AppRadius.radiusLg,
+                                    ),
+                                    child: const Text(
+                                      'BETA',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Deep dive using therapeutic frameworks (CBT, Gratitude, etc.)',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                     ),
@@ -417,17 +520,14 @@ class _JournalScreenState extends State<JournalScreen> {
 
               AppSpacing.gapMd,
 
-              // Guided Reflection option
+              // Pulse Check option
               Card(
-                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
                 child: InkWell(
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const GuidedJournalingScreen(isCheckIn: true),
-                      ),
+                    showDialog(
+                      context: context,
+                      builder: (context) => const AddPulseDialog(),
                     );
                   },
                   borderRadius: AppRadius.radiusLg,
@@ -438,12 +538,12 @@ class _JournalScreenState extends State<JournalScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primary,
+                            color: Theme.of(context).colorScheme.secondaryContainer,
                             borderRadius: AppRadius.radiusLg,
                           ),
-                          child: const Icon(
-                            Icons.psychology,
-                            color: Colors.white,
+                          child: Icon(
+                            Icons.favorite_outline,
+                            color: Theme.of(context).colorScheme.secondary,
                           ),
                         ),
                         AppSpacing.gapHorizontalLg,
@@ -451,35 +551,15 @@ class _JournalScreenState extends State<JournalScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    AppStrings.guidedReflection,
-                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      borderRadius: AppRadius.radiusLg,
+                              Text(
+                                AppStrings.pulseCheck,
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                    child: const Text(
-                                      AppStrings.recommended,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                AppStrings.stepByStepPrompts,
+                                AppStrings.justLogHowYouFeel,
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                       color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                     ),
@@ -493,6 +573,7 @@ class _JournalScreenState extends State<JournalScreen> {
                   ),
                 ),
               ),
+
             ],
           ),
         ),
@@ -867,6 +948,24 @@ class _JournalScreenState extends State<JournalScreen> {
       // For guided journals, return the first answer as preview
       if (entry.qaPairs!.isNotEmpty) {
         return entry.qaPairs!.first.answer;
+      }
+    } else if (entry.type == JournalEntryType.structuredJournal) {
+      // For structured journals (1-to-1 sessions), use content if available
+      if (entry.content != null && entry.content!.isNotEmpty) {
+        return entry.content!;
+      }
+      // Fallback: generate preview from structured data for old entries
+      if (entry.structuredData != null && entry.structuredData!.isNotEmpty) {
+        final buffer = StringBuffer();
+        int count = 0;
+        for (var fieldEntry in entry.structuredData!.entries) {
+          if (count >= 2) break; // Show first 2 fields
+          if (fieldEntry.value != null && fieldEntry.value.toString().isNotEmpty) {
+            buffer.writeln('${fieldEntry.key}: ${fieldEntry.value}');
+            count++;
+          }
+        }
+        return buffer.toString().trim();
       }
     }
     return '';

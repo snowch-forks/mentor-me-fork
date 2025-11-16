@@ -1,5 +1,16 @@
 import 'package:uuid/uuid.dart';
 
+/// Data model for check-in tracking and scheduling.
+///
+/// **JSON Schema:** lib/schemas/v2.json (checkins field)
+/// **Schema Version:** 2 (current)
+/// **Export Format:** lib/services/backup_service.dart (checkins field)
+///
+/// When modifying this model, ensure you update:
+/// 1. JSON Schema (lib/schemas/vX.json)
+/// 2. Migration (lib/migrations/) if needed
+/// 3. Schema validator (lib/services/schema_validator.dart)
+/// See CLAUDE.md "Data Schema Management" section for full checklist.
 class Checkin {
   final String id;
   final DateTime? nextCheckinTime;

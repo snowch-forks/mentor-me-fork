@@ -12,6 +12,7 @@ import 'providers/habit_provider.dart';
 import 'providers/pulse_provider.dart';
 import 'providers/pulse_type_provider.dart';
 import 'providers/chat_provider.dart';
+import 'providers/journal_template_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/notification_service.dart';
@@ -19,6 +20,7 @@ import 'services/ai_service.dart';
 import 'services/debug_service.dart';
 import 'services/storage_service.dart';
 import 'services/feature_discovery_service.dart';
+import 'services/structured_journaling_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -63,6 +65,16 @@ void main() async {
       // Continue app launch even if feature discovery fails
     }
 
+    // Run data migrations if needed (BEFORE loading any data)
+    try {
+      final storage = StorageService();
+      await storage.runMigrationsIfNeeded();
+    } catch (e, stackTrace) {
+      debugPrint('Warning: Migration failed: $e');
+      debugPrint('Stack trace: $stackTrace');
+      // Continue app launch - providers will use potentially outdated data
+    }
+
     // Check if first launch
     final storage = StorageService();
     final settings = await storage.loadSettings();
@@ -76,6 +88,15 @@ void main() async {
     } catch (e) {
       debugPrint('Warning: Reminder scheduling failed: $e');
       // Continue app launch even if scheduling fails
+    }
+
+    // Initialize structured journaling templates
+    try {
+      final structuredJournalingService = StructuredJournalingService();
+      // Templates will be loaded in provider initialization
+    } catch (e) {
+      debugPrint('Warning: Structured journaling service initialization failed: $e');
+      // Continue app launch even if structured journaling fails
     }
 
     runApp(MyApp(showOnboarding: !hasCompletedOnboarding));
@@ -133,6 +154,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PulseProvider()),
         ChangeNotifierProvider(create: (_) => PulseTypeProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) {
+          final provider = JournalTemplateProvider();
+          // Initialize system templates
+          final service = StructuredJournalingService();
+          provider.setSystemTemplates(service.getDefaultTemplates());
+          return provider;
+        }),
       ],
       child: MaterialApp(
         title: 'MentorMe',

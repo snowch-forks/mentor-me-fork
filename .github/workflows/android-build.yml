@@ -73,6 +73,12 @@ jobs:
         run: flutter test
         continue-on-error: true  # Don't fail build if no tests exist
 
+      - name: Run schema validation test
+        run: flutter test test/schema_validation_test.dart
+        continue-on-error: false  # FAIL build if schema validation fails
+        # This test ensures Dart models and JSON schemas stay synchronized
+        # See CLAUDE.md "Data Schema Management" section
+
       - name: Build debug APK
         run: |
           # Build split APKs by architecture (matches release build script)

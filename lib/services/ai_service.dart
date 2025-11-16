@@ -219,7 +219,7 @@ class AIService {
     return _getCloudResponse(prompt, goals, recentEntries);
   }
 
-  /// Get response from local on-device AI (Phi-3 Mini)
+  /// Get response from local on-device AI (Gemma 3-1B)
   Future<String> _getLocalResponse(
     String prompt,
     List<Goal>? goals,
@@ -235,7 +235,14 @@ $context
 
 User message: $prompt
 
-Provide supportive, actionable guidance. Be warm but concise. Focus on specific next steps.''';
+Provide supportive, actionable guidance. Be warm but concise. Focus on specific next steps.
+
+IMPORTANT: Format your response using markdown:
+- Use **bold** for emphasis
+- Use *italic* for gentle emphasis
+- Use bullet points with - or * for lists
+- Use numbered lists with 1., 2., 3. for steps
+- Keep paragraphs short and readable''';
 
     await _debug.info('AIService', 'Local AI inference requested', metadata: {
       'promptLength': prompt.length,

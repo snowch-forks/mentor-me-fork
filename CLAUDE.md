@@ -1145,6 +1145,239 @@ linter:
 - Use `// ignore:` sparingly and with justification
 - Consider enabling additional pedantic or very_good_analysis rules
 
+### Data Schema Management
+
+**CRITICAL:** MentorMe uses versioned data schemas to support model evolution. Dart models and JSON schemas MUST stay synchronized.
+
+**Schema System Overview:**
+
+The app maintains two parallel representations of the data model:
+1. **Dart Models** (`lib/models/`) - Runtime data structures
+2. **JSON Schemas** (`lib/schemas/`) - Formal schema definitions for validation and debugging
+
+Both must be updated together when the data model changes.
+
+**When to Update Schema:**
+
+Update schema version when making any of these changes:
+- Adding a new field to a model
+- Removing a field from a model
+- Changing a field's type or validation rules
+- Adding a new required field
+- Changing data structure (e.g., string → object)
+
+**Schema Change Checklist:**
+
+When modifying data models, follow these steps IN ORDER:
+
+1. **Update Dart Model** (`lib/models/`)
+   - Add/modify fields with proper types
+   - Update `toJson()` method
+   - Update `fromJson()` method
+   - Update `copyWith()` method if applicable
+   - Add linking comment referencing JSON schema (see below)
+
+2. **Update JSON Schema** (`lib/schemas/`)
+   - Increment schema version (e.g., v2 → v3)
+   - Create new schema file: `vX.json`
+   - Update field definitions to match Dart model
+   - Add changelog entry documenting changes
+   - Add linking comment referencing Dart model (see below)
+
+3. **Create Migration** (`lib/migrations/`)
+   - Create migration file: `vX_to_vY_description.dart`
+   - Implement `Migration` class with `migrate()` method
+   - Handle data transformation from old to new format
+   - Test migration with real data
+
+4. **Update Migration Service** (`lib/services/migration_service.dart`)
+   - Increment `CURRENT_SCHEMA_VERSION` constant
+   - Register new migration in `_migrations` list
+
+5. **Update Schema Validator** (`lib/services/schema_validator.dart`)
+   - Add validation method for new version: `_validateVXStructure()`
+   - Update `validateStructure()` switch statement
+
+6. **Update Tests**
+   - Run schema validation test: `flutter test test/schema_validation_test.dart`
+   - Update test expectations if schema changed
+   - Test migration with sample data
+
+7. **Update Documentation**
+   - Update `lib/schemas/README.md` with new version info
+   - Update CLAUDE.md if significant architectural changes
+   - Add examples in schema's `examples` section
+
+**Linking Comments:**
+
+Add cross-reference comments to prevent schema drift:
+
+```dart
+// In lib/models/journal_entry.dart
+/// Data model for journal entries.
+///
+/// JSON Schema: lib/schemas/v2.json#definitions/journalEntry_v2
+class JournalEntry {
+  // ...
+}
+```
+
+```json
+// In lib/schemas/v2.json
+{
+  "definitions": {
+    "journalEntry_v2": {
+      "description": "Dart Model: lib/models/journal_entry.dart",
+      "type": "object",
+      // ...
+    }
+  }
+}
+```
+
+**Examples:**
+
+**Example 1: Adding a new optional field**
+
+```dart
+// 1. Update Dart model (lib/models/journal_entry.dart)
+class JournalEntry {
+  final String? tags;  // NEW FIELD
+
+  Map<String, dynamic> toJson() {
+    return {
+      'tags': tags,  // ADD HERE
+    };
+  }
+
+  factory JournalEntry.fromJson(Map<String, dynamic> json) {
+    return JournalEntry(
+      tags: json['tags'],  // ADD HERE
+    );
+  }
+}
+
+// 2. Update JSON schema (lib/schemas/v3.json)
+{
+  "schemaVersion": { "const": 3 },  // INCREMENT VERSION
+  "definitions": {
+    "journalEntry_v3": {
+      "properties": {
+        "tags": {
+          "type": ["string", "null"],
+          "description": "Comma-separated tags"
+        }
+      }
+    }
+  },
+  "changelog": {
+    "v2_to_v3": {
+      "date": "2025-11-16",
+      "changes": ["Added optional tags field"],
+      "migration": "v2_to_v3_add_tags"
+    }
+  }
+}
+
+// 3. Create migration (lib/migrations/v2_to_v3_add_tags.dart)
+class V2ToV3AddTagsMigration extends Migration {
+  @override
+  Future<Map<String, dynamic>> migrate(Map<String, dynamic> data) async {
+    // No transformation needed - field is optional
+    return data;
+  }
+}
+
+// 4. Update migration service
+class MigrationService {
+  static const int CURRENT_SCHEMA_VERSION = 3;  // INCREMENT
+
+  final List<Migration> _migrations = [
+    V1ToV2JournalContentMigration(),
+    V2ToV3AddTagsMigration(),  // ADD NEW MIGRATION
+  ];
+}
+```
+
+**Example 2: Changing field requirement (optional → required)**
+
+This requires a migration to populate the field for existing data:
+
+```dart
+// 1. Update schema (v4.json)
+{
+  "definitions": {
+    "journalEntry_v4": {
+      "required": ["content"],  // NOW REQUIRED
+      "properties": {
+        "content": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
+
+// 2. Create migration to backfill content
+class V3ToV4RequireContentMigration extends Migration {
+  @override
+  Future<Map<String, dynamic>> migrate(Map<String, dynamic> data) async {
+    final entries = json.decode(data['journal_entries']) as List;
+
+    for (final entry in entries) {
+      if (entry['content'] == null || entry['content'].isEmpty) {
+        // Generate default content
+        entry['content'] = 'Entry from ${entry['createdAt']}';
+      }
+    }
+
+    data['journal_entries'] = json.encode(entries);
+    return data;
+  }
+}
+```
+
+**Automated Validation:**
+
+Schema validation test runs automatically in GitHub Actions:
+- Validates export format matches current schema
+- Catches schema drift between Dart models and JSON schemas
+- Fails CI if schemas are out of sync
+
+**Testing Schema Changes:**
+
+```bash
+# Run schema validation test
+flutter test test/schema_validation_test.dart
+
+# Test with real data
+flutter run -d android
+# Create test data → Export → Validate against schema
+```
+
+**Common Mistakes:**
+
+❌ **DON'T:**
+- Update Dart model without updating JSON schema
+- Change field types without creating a migration
+- Increment version without documenting in changelog
+- Skip migration for "small" changes
+
+✅ **DO:**
+- Follow the checklist for every schema change
+- Test migrations with real user data
+- Document all changes in schema changelog
+- Run validation test before committing
+
+**Schema Files Reference:**
+
+- Current schemas: `lib/schemas/v1.json`, `lib/schemas/v2.json`
+- Migrations: `lib/migrations/v1_to_v2_journal_content.dart`
+- Services: `lib/services/migration_service.dart`, `lib/services/schema_validator.dart`
+- Tests: `test/schema_validation_test.dart`
+- Backup format: `lib/services/backup_service.dart` (uses schema versioning)
+
 ---
 
 ## Key Implementation Details

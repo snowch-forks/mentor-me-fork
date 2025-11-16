@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mentorme.app/schemas/v2.json",
+  "title": "MentorMe Data Schema v2",
+  "description": "Schema for MentorMe app data export/storage format version 2. This version requires structured journal entries to have content populated. IMPORTANT: When modifying this schema, ensure corresponding Dart models are updated. See lib/services/backup_service.dart for export format implementation. See CLAUDE.md 'Data Schema Management' section for full synchronization checklist.",
+  "type": "object",
+  "required": ["schemaVersion"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 2,
+      "description": "Data schema version - must be 2 for this schema"
+    },
+    "exportDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when backup was created"
+    },
+    "appVersion": {
+      "type": "string",
+      "description": "App version that created this backup"
+    },
+    "buildNumber": {
+      "type": "string",
+      "description": "Git commit or build identifier"
+    },
+    "journal_entries": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of journal entries",
+      "examples": ["[{\"id\":\"123\",\"type\":\"quickNote\",\"content\":\"...\"}]"]
+    },
+    "goals": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of goals"
+    },
+    "habits": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of habits"
+    },
+    "checkins": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of check-ins"
+    },
+    "pulse_entries": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of pulse/wellness entries"
+    },
+    "pulse_types": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of pulse type definitions"
+    },
+    "chat_conversations": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of AI chat conversations"
+    },
+    "mentor_messages": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of mentor coaching messages"
+    },
+    "custom_templates": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of custom journal templates"
+    },
+    "sessions": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of structured journaling sessions"
+    },
+    "enabled_templates": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of enabled template IDs"
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "schemaVersion": 2,
+      "exportDate": "2025-11-16T10:30:00Z",
+      "appVersion": "1.1.0",
+      "journal_entries": "[{\"id\":\"abc123\",\"type\":\"structuredJournal\",\"content\":\"🍎 Food Log\\n\\nMeal Type: Dinner\\nWhat You Ate: Pizza\",\"structuredData\":{\"Meal Type\":\"Dinner\",\"What You Ate\":\"Pizza\"},\"createdAt\":\"2025-11-16T09:00:00Z\"}]",
+      "goals": "[]",
+      "habits": "[]"
+    }
+  ],
+  "definitions": {
+    "journalEntry_v2": {
+      "description": "Structure of a journal entry in v2 (after structured journal content migration). Dart Model: lib/models/journal_entry.dart. Export: lib/services/backup_service.dart (journal_entries field).",
+      "type": "object",
+      "required": ["id", "type", "createdAt"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["quickNote", "guidedJournal", "structuredJournal"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "content": {
+          "type": ["string", "null"],
+          "description": "REQUIRED for all entry types in v2. For structuredJournal, this is auto-generated from structuredData."
+        },
+        "structuredData": {
+          "type": ["object", "null"],
+          "description": "For structuredJournal entries, contains the form data",
+          "additionalProperties": true
+        },
+        "structuredSessionId": {
+          "type": ["string", "null"]
+        },
+        "qaPairs": {
+          "type": ["array", "null"],
+          "description": "For guidedJournal entries"
+        },
+        "goalIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "type": {
+            "const": "structuredJournal"
+          }
+        }
+      },
+      "then": {
+        "required": ["content"],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "In v2, structured journals MUST have non-empty content"
+          }
+        }
+      }
+    }
+  },
+  "changelog": {
+    "v1_to_v2": {
+      "date": "2025-11-16",
+      "changes": [
+        "Added content field requirement for structuredJournal entries",
+        "Content is now auto-generated from structuredData during migration",
+        "Format: 'emoji name\\n\\nField: Value' for better display in journal list"
+      ],
+      "migration": "v1_to_v2_journal_content"
+    }
+  }
+}

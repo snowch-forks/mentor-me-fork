@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mentorme.app/schemas/v1.json",
+  "title": "MentorMe Data Schema v1",
+  "description": "Schema for MentorMe app data export/storage format version 1. Use this to validate backup files from older app versions. IMPORTANT: When modifying schemas, ensure corresponding Dart models are updated. See lib/services/backup_service.dart for export format implementation. See CLAUDE.md 'Data Schema Management' section for full synchronization checklist.",
+  "type": "object",
+  "required": ["schemaVersion"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Data schema version - must be 1 for this schema"
+    },
+    "exportDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when backup was created"
+    },
+    "appVersion": {
+      "type": "string",
+      "description": "App version that created this backup"
+    },
+    "buildNumber": {
+      "type": "string",
+      "description": "Git commit or build identifier"
+    },
+    "journal_entries": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of journal entries",
+      "examples": ["[{\"id\":\"123\",\"type\":\"quickNote\",\"content\":\"...\"}]"]
+    },
+    "goals": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of goals"
+    },
+    "habits": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of habits"
+    },
+    "checkins": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of check-ins"
+    },
+    "pulse_entries": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of pulse/wellness entries"
+    },
+    "pulse_types": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of pulse type definitions"
+    },
+    "chat_conversations": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of AI chat conversations"
+    },
+    "mentor_messages": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of mentor coaching messages"
+    },
+    "custom_templates": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of custom journal templates"
+    },
+    "sessions": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of structured journaling sessions"
+    },
+    "enabled_templates": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of enabled template IDs"
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "schemaVersion": 1,
+      "exportDate": "2025-11-16T10:30:00Z",
+      "appVersion": "1.0.0",
+      "journal_entries": "[{\"id\":\"abc123\",\"type\":\"quickNote\",\"content\":\"Today was good\",\"createdAt\":\"2025-11-16T09:00:00Z\"}]",
+      "goals": "[]",
+      "habits": "[]"
+    }
+  ],
+  "definitions": {
+    "journalEntry_v1": {
+      "description": "Structure of a journal entry in v1 (before structured journal content migration). Dart Model: lib/models/journal_entry.dart. Export: lib/services/backup_service.dart (journal_entries field).",
+      "type": "object",
+      "required": ["id", "type", "createdAt"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["quickNote", "guidedJournal", "structuredJournal"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "content": {
+          "type": ["string", "null"],
+          "description": "For quickNote, this is required. For structuredJournal in v1, this may be null."
+        },
+        "structuredData": {
+          "type": ["object", "null"],
+          "description": "For structuredJournal entries, contains the form data",
+          "additionalProperties": true
+        },
+        "structuredSessionId": {
+          "type": ["string", "null"]
+        },
+        "qaPairs": {
+          "type": ["array", "null"],
+          "description": "For guidedJournal entries"
+        },
+        "goalIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
