@@ -5,6 +5,7 @@ import 'package:mentor_me/models/journal_template.dart';
 import 'package:mentor_me/models/structured_journaling_session.dart';
 import 'package:mentor_me/models/chat_message.dart';
 import 'package:mentor_me/models/journal_entry.dart';
+import 'package:mentor_me/models/ai_provider.dart';
 import 'package:mentor_me/providers/journal_template_provider.dart';
 import 'package:mentor_me/providers/journal_provider.dart';
 import 'package:mentor_me/services/structured_journaling_service.dart';
@@ -603,7 +604,8 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
 
   Widget _buildTemplateSelection() {
     final aiService = AIService();
-    final hasAI = aiService.hasApiKey();
+    final hasAI = aiService.isAvailable(); // Check currently selected provider
+    final currentProvider = aiService.getProvider();
     final storage = StorageService();
 
     return Consumer<JournalTemplateProvider>(
@@ -645,7 +647,9 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
                         AppSpacing.gapHorizontalSm,
                         Expanded(
                           child: Text(
-                            'AI is not available. Please set up your Claude API key in Settings to use 1-to-1 Mentor Sessions.',
+                            currentProvider == AIProvider.cloud
+                                ? 'AI is not available. Please set up your Claude API key in Settings to use 1-to-1 Mentor Sessions.'
+                                : 'Local AI model not downloaded. Please download the model in Settings to use 1-to-1 Mentor Sessions.',
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.onErrorContainer,
                               fontSize: 13,
