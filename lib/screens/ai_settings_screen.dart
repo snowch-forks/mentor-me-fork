@@ -62,12 +62,11 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
 
   @override
   void dispose() {
+    // Cancel progress polling timer if active
     _progressTimer?.cancel();
     _hfTokenController.dispose();
     _claudeApiKeyController.dispose();
-    // Clear the progress callback to avoid calling setState on disposed widget
     // The download will continue in the background
-    _modelDownloadService.setProgressCallback(null);
     super.dispose();
   }
 
@@ -124,25 +123,19 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
 
   Future<void> _checkModelDownloaded() async {
     final isDownloaded = await _modelDownloadService.isModelDownloaded();
-    final isCurrentlyDownloading = _modelDownloadService.status == ModelDownloadStatus.downloading;
+    final status = _modelDownloadService.status;
+    final isCurrentlyDownloading = status == ModelDownloadStatus.downloading ||
+                                   status == ModelDownloadStatus.verifying;
 
     setState(() {
       _isModelDownloaded = isDownloaded;
       _isDownloading = isCurrentlyDownloading;
 
-      // If download is in progress, restore progress tracking
+      // If download/verification is in progress, restore progress tracking
       if (isCurrentlyDownloading) {
         _downloadProgress = _modelDownloadService.progress;
 
-        // Re-register the progress callback to get real-time updates
-        _modelDownloadService.setProgressCallback((progress) {
-          if (mounted) {
-            setState(() {
-              _downloadProgress = progress;
-            });
-          }
-        });
-
+        // Use polling only - no callback to avoid race conditions
         _startProgressPolling();
       }
     });
@@ -163,6 +156,11 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
 
       if (status == ModelDownloadStatus.downloading) {
         // Update progress
+        setState(() {
+          _downloadProgress = _modelDownloadService.progress;
+        });
+      } else if (status == ModelDownloadStatus.verifying) {
+        // Still working - verifying checksum, keep polling but show 100%
         setState(() {
           _downloadProgress = _modelDownloadService.progress;
         });
@@ -188,22 +186,16 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
     });
 
     // Start polling to track progress (works even if screen is disposed and recreated)
+    // We use polling instead of callbacks to avoid race conditions when multiple
+    // screens or reconnections happen during background downloads
     _startProgressPolling();
 
     // Start the download. The ModelDownloadService will keep the download running
     // in the background even if this screen is disposed (user navigates away).
     // When the user returns to this screen, _checkModelDownloaded() will detect
     // the ongoing download and restore progress tracking via _startProgressPolling().
-    final success = await _modelDownloadService.downloadModel(
-      onProgress: (progress) {
-        // Only update UI if widget is still mounted
-        if (mounted) {
-          setState(() {
-            _downloadProgress = progress;
-          });
-        }
-      },
-    );
+    // Progress updates happen via polling, not callbacks, to ensure consistency.
+    final success = await _modelDownloadService.downloadModel();
 
     // Stop polling
     _progressTimer?.cancel();
@@ -226,7 +218,9 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
           backgroundColor: Colors.green,
         ),
       );
-    } else {
+    } else if (_modelDownloadService.errorMessage != null &&
+               _modelDownloadService.errorMessage!.isNotEmpty) {
+      // Only show error if there's an actual error (not a user cancellation)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${AppStrings.downloadFailed}: ${_modelDownloadService.errorMessage}'),
@@ -235,6 +229,7 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
         ),
       );
     }
+    // If not success and no error message, it was cancelled by user - no message needed
   }
 
   Future<void> _deleteModel() async {
@@ -243,8 +238,10 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text(AppStrings.deleteModel),
-        content: const Text(
-          AppStrings.deleteModelConfirmation,
+        content: Text(
+          _isDownloading
+              ? 'This will cancel the ongoing download and delete the file. Continue?'
+              : AppStrings.deleteModelConfirmation,
         ),
         actions: [
           TextButton(
@@ -264,10 +261,16 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
 
     if (confirmed != true) return;
 
+    // Stop polling timer before deleting
+    _progressTimer?.cancel();
+    _progressTimer = null;
+
     final success = await _modelDownloadService.deleteModel();
 
     setState(() {
-      _isModelDownloaded = !success;
+      _isModelDownloaded = false;
+      _isDownloading = false;
+      _downloadProgress = null;
     });
 
     if (!mounted) return;
@@ -795,7 +798,9 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  AppStrings.downloadingModel,
+                                  _modelDownloadService.status == ModelDownloadStatus.verifying
+                                      ? 'Verifying file integrity...'
+                                      : AppStrings.downloadingModel,
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                               ],
@@ -805,12 +810,26 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                               LinearProgressIndicator(value: _downloadProgress!.progress),
                               const SizedBox(height: 8),
                               Text(
-                                '${_downloadProgress!.megabytesReceived} MB / ${_downloadProgress!.totalMegabytes} MB '
-                                '(${(_downloadProgress!.progress * 100).toStringAsFixed(1)}%)',
+                                _modelDownloadService.status == ModelDownloadStatus.verifying
+                                    ? 'Computing checksum (may take a moment)...'
+                                    : '${_downloadProgress!.megabytesReceived} MB / ${_downloadProgress!.totalMegabytes} MB '
+                                      '(${(_downloadProgress!.progress * 100).toStringAsFixed(1)}%)',
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ] else
                               const LinearProgressIndicator(),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: _modelDownloadService.status == ModelDownloadStatus.verifying
+                                  ? null  // Disable during verification
+                                  : _deleteModel,
+                              icon: const Icon(Icons.stop, size: 18),
+                              label: const Text('Stop Download'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red.shade700,
+                                side: BorderSide(color: Colors.red.shade300),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -866,7 +885,7 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                             ),
                             const SizedBox(height: 12),
                             OutlinedButton.icon(
-                              onPressed: _isDownloading ? null : _deleteModel,
+                              onPressed: _deleteModel,
                               icon: const Icon(Icons.delete_outline, size: 18),
                               label: const Text(AppStrings.deleteModel),
                               style: OutlinedButton.styleFrom(

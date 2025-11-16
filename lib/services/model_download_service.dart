@@ -5,12 +5,25 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
+import 'package:flutter/foundation.dart' show compute;
 import 'debug_service.dart';
 import 'storage_service.dart';
+
+/// Top-level function for computing SHA-256 checksum in background isolate
+/// This prevents UI freezing when processing large files (554 MB)
+String _computeChecksumInIsolate(String filePath) {
+  final file = File(filePath);
+  final bytes = file.readAsBytesSync();
+  final digest = sha256.convert(bytes);
+  return digest.toString();
+}
 
 enum ModelDownloadStatus {
   notDownloaded,
   downloading,
+  verifying,  // Verifying file integrity after download
   downloaded,
   failed,
 }
@@ -92,36 +105,50 @@ class ModelDownloadService {
 
   static const String _modelFileName = 'Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task';
 
+  // Expected SHA-256 checksum for model file verification
+  // This ensures the downloaded file matches the expected model exactly
+  // Verified checksum from official HuggingFace model file
+  // To verify: shasum -a 256 Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task
+  static const String? _expectedChecksum =
+      'ddfaf1210d8b4d1b812b5fadb6652999e852c8be6dd9abe353b9213a25262c10';
+
   ModelDownloadStatus _status = ModelDownloadStatus.notDownloaded;
   ModelDownloadProgress? _progress;
   String? _errorMessage;
   Future<bool>? _downloadFuture; // Keep download future alive
   Function(ModelDownloadProgress)? _currentProgressCallback; // Store current callback
+  http.Client? _activeClient; // HTTP client for canceling downloads
+  bool _isCancelling = false; // Track intentional cancellation
 
   ModelDownloadStatus get status => _status;
   ModelDownloadProgress? get progress => _progress;
   String? get errorMessage => _errorMessage;
 
   /// Check if model is already downloaded
+  ///
+  /// Returns true only if the model is fully downloaded and ready to use.
+  /// Returns false if download is in progress or file doesn't exist.
   Future<bool> isModelDownloaded() async {
     try {
       final modelFile = await _getModelFile();
       final exists = await modelFile.exists();
 
       // Update status based on file existence
-      if (exists) {
-        // File exists - mark as downloaded
+      // IMPORTANT: Don't change status if download is in progress
+      if (exists && _status != ModelDownloadStatus.downloading) {
+        // File exists and not currently downloading - mark as downloaded
         _status = ModelDownloadStatus.downloaded;
         await _debug.info('ModelDownloadService', 'Model found on device', metadata: {
           'path': modelFile.path,
           'size': await modelFile.length(),
         });
-      } else if (_status != ModelDownloadStatus.downloading) {
+      } else if (!exists && _status != ModelDownloadStatus.downloading) {
         // File doesn't exist and not currently downloading
         _status = ModelDownloadStatus.notDownloaded;
       }
 
-      return exists;
+      // Return true only if fully downloaded (not currently downloading)
+      return exists && _status != ModelDownloadStatus.downloading;
     } catch (e, stackTrace) {
       await _debug.error(
         'ModelDownloadService',
@@ -238,8 +265,9 @@ class ModelDownloadService {
         await modelFile.delete();
       }
 
-      // Create HTTP client
+      // Create HTTP client and store reference for potential cancellation
       final client = http.Client();
+      _activeClient = client;
 
       try {
         // Download the .task file with progress tracking
@@ -312,11 +340,26 @@ class ModelDownloadService {
           'sizeMB': (fileSize / (1024 * 1024)).round(),
         });
 
+        // Verify file integrity with checksum (runs in background isolate)
+        _status = ModelDownloadStatus.verifying;
+        await _debug.info('ModelDownloadService', 'Verifying file integrity...');
+        final checksumValid = await _verifyChecksum(modelFile);
+
+        if (!checksumValid) {
+          // Checksum failed - delete corrupted file
+          await modelFile.delete();
+          throw Exception(
+            'Downloaded file failed checksum verification. '
+            'The file may be corrupted. Please try downloading again.'
+          );
+        }
+
         _status = ModelDownloadStatus.downloaded;
 
         // Clear the future reference - allows new downloads to start
         _downloadFuture = null;
         _currentProgressCallback = null;
+        _activeClient = null;
 
         // Disable wake lock after successful download
         await WakelockPlus.disable();
@@ -325,38 +368,82 @@ class ModelDownloadService {
         return true;
       } finally {
         client.close();
+        _activeClient = null;
       }
     } catch (e, stackTrace) {
-      _status = ModelDownloadStatus.failed;
-      _errorMessage = e.toString();
-      // Clear the future reference on failure - allows retry attempts
+      // Check if this is an intentional cancellation
+      if (_isCancelling) {
+        await _debug.info('ModelDownloadService', 'Download cancelled by user');
+        _status = ModelDownloadStatus.notDownloaded;
+        _errorMessage = null; // Not an error - user cancelled
+      } else {
+        // Actual failure - not a cancellation
+        _status = ModelDownloadStatus.failed;
+        _errorMessage = e.toString();
+        await _debug.error(
+          'ModelDownloadService',
+          'Model download failed: ${e.toString()}',
+          stackTrace: stackTrace.toString(),
+        );
+      }
+
+      // Clear the future reference - allows retry attempts
       _downloadFuture = null;
       _currentProgressCallback = null;
+      _activeClient = null;
+      _isCancelling = false;
 
-      // Disable wake lock after failed download
+      // Disable wake lock after download ends
       try {
         await WakelockPlus.disable();
-        await _debug.info('ModelDownloadService', 'Wake lock disabled after download failure');
+        await _debug.info('ModelDownloadService', 'Wake lock disabled after download ended');
       } catch (wakeError) {
         await _debug.error('ModelDownloadService', 'Failed to disable wake lock: $wakeError');
       }
-
-      await _debug.error(
-        'ModelDownloadService',
-        'Model download failed: ${e.toString()}',
-        stackTrace: stackTrace.toString(),
-      );
 
       return false;
     }
   }
 
   /// Delete the downloaded model
+  ///
+  /// If a download is in progress, this will cancel it.
+  /// The download Future will complete with false, and the file will be deleted.
   Future<bool> deleteModel() async {
     try {
       final modelFile = await _getModelFile();
 
       bool deleted = false;
+
+      // If download is in progress, cancel it
+      if (_status == ModelDownloadStatus.downloading) {
+        await _debug.info('ModelDownloadService', 'Canceling ongoing download before delete');
+
+        // Set flag to indicate intentional cancellation (not a failure)
+        _isCancelling = true;
+
+        // Close the HTTP client to actually stop the download stream
+        if (_activeClient != null) {
+          _activeClient!.close();
+          await _debug.info('ModelDownloadService', 'HTTP client closed to stop download');
+        }
+
+        // Give the download Future a moment to complete with the cancellation
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        _status = ModelDownloadStatus.notDownloaded;
+        _downloadFuture = null;
+        _currentProgressCallback = null;
+        _activeClient = null;
+        _isCancelling = false;
+
+        // Disable wake lock if it was enabled
+        try {
+          await WakelockPlus.disable();
+        } catch (e) {
+          // Ignore errors if wake lock wasn't enabled
+        }
+      }
 
       if (await modelFile.exists()) {
         await modelFile.delete();
@@ -397,8 +484,95 @@ class ModelDownloadService {
 
   /// Cancel ongoing download
   void cancelDownload() {
-    // TODO: Implement download cancellation
-    _status = ModelDownloadStatus.notDownloaded;
-    _progress = null;
+    if (_status == ModelDownloadStatus.downloading) {
+      // Set flag to indicate intentional cancellation (not a failure)
+      _isCancelling = true;
+
+      // Close the HTTP client to actually stop the download stream
+      if (_activeClient != null) {
+        _activeClient!.close();
+      }
+
+      _status = ModelDownloadStatus.notDownloaded;
+      _progress = null;
+      _downloadFuture = null;
+      _currentProgressCallback = null;
+      _activeClient = null;
+
+      // Disable wake lock if it was enabled
+      try {
+        WakelockPlus.disable();
+      } catch (e) {
+        // Ignore errors if wake lock wasn't enabled
+      }
+
+      // Flag will be cleared by the download Future's catch block
+    }
+  }
+
+  /// Compute SHA-256 checksum of a file
+  ///
+  /// Runs in a background isolate to prevent UI freezing.
+  /// Reads the entire 554 MB file and computes SHA-256 hash without blocking the main thread.
+  ///
+  /// Returns the hexadecimal string representation of the SHA-256 hash.
+  Future<String> _computeChecksum(File file) async {
+    // Run checksum computation in background isolate to prevent UI freeze
+    return await compute(_computeChecksumInIsolate, file.path);
+  }
+
+  /// Verify downloaded model file integrity using SHA-256 checksum
+  ///
+  /// Returns true if:
+  /// - No expected checksum is defined (verification skipped), OR
+  /// - Computed checksum matches expected checksum
+  ///
+  /// Returns false if checksums don't match.
+  ///
+  /// Always logs the computed checksum for verification purposes.
+  Future<bool> _verifyChecksum(File file) async {
+    try {
+      await _debug.info('ModelDownloadService', 'Computing file checksum for verification...');
+
+      final computedChecksum = await _computeChecksum(file);
+
+      await _debug.info('ModelDownloadService', 'Checksum computed', metadata: {
+        'computed': computedChecksum,
+        'expected': _expectedChecksum ?? 'not set',
+      });
+
+      // If no expected checksum is defined, skip verification but log the hash
+      if (_expectedChecksum == null) {
+        await _debug.info(
+          'ModelDownloadService',
+          'No expected checksum defined - skipping verification. '
+          'Computed checksum: $computedChecksum',
+        );
+        return true;
+      }
+
+      // Verify checksum matches
+      if (computedChecksum != _expectedChecksum) {
+        await _debug.error(
+          'ModelDownloadService',
+          'Checksum mismatch! File may be corrupted.',
+          metadata: {
+            'expected': _expectedChecksum,
+            'computed': computedChecksum,
+          },
+        );
+        return false;
+      }
+
+      await _debug.info('ModelDownloadService', 'Checksum verification passed ✓');
+      return true;
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'ModelDownloadService',
+        'Failed to compute checksum: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      return false;
+    }
   }
 }

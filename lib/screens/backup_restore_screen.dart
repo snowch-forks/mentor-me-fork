@@ -457,9 +457,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       appBar: AppBar(
         title: const Text(AppStrings.backupAndRestore),
       ),
-      body: ListView(
-        padding: AppSpacing.screenPadding,
-        children: [
+      body: SafeArea(
+        child: ListView(
+          padding: AppSpacing.screenPadding,
+          children: [
           // Header info
           Card(
             child: Padding(
@@ -596,6 +597,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
