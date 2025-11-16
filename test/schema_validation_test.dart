@@ -185,8 +185,10 @@ void main() {
         category: GoalCategory.personal,
         milestonesDetailed: [
           Milestone(
+            goalId: 'test-goal-id',
             title: 'Test Milestone',
             description: 'Test milestone description',
+            order: 0,
           ),
         ],
       );
