@@ -65,6 +65,16 @@ void main() async {
       // Continue app launch even if feature discovery fails
     }
 
+    // Run data migrations if needed (BEFORE loading any data)
+    try {
+      final storage = StorageService();
+      await storage.runMigrationsIfNeeded();
+    } catch (e, stackTrace) {
+      debugPrint('Warning: Migration failed: $e');
+      debugPrint('Stack trace: $stackTrace');
+      // Continue app launch - providers will use potentially outdated data
+    }
+
     // Check if first launch
     final storage = StorageService();
     final settings = await storage.loadSettings();
