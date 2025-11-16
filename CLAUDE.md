@@ -44,6 +44,7 @@ uuid: 4.3.3
 intl: 0.20.2
 wakelock_plus: 1.2.5
 app_settings: 5.1.1
+crypto: 3.0.3
 
 # Code Generation (dev)
 build_runner: 2.4.8
@@ -419,13 +420,17 @@ final insights = await mentorService.analyzeUserState(
 - Progress tracking and status updates
 - Handles authentication tokens (gated models)
 - Uses wakelock to prevent sleep during download
+- **SHA-256 checksum verification** for file integrity
+- Background download continues even if user leaves screen
 - Comprehensive error handling (network errors, auth failures, storage issues)
 
 **Download Flow:**
 1. User provides HuggingFace token in settings
 2. Service validates token and checks model availability
 3. Downloads `.task` file to cache directory
-4. Notifies `LocalAIService` when complete
+4. Verifies file integrity with SHA-256 checksum
+5. Deletes and reports error if checksum fails
+6. Notifies `LocalAIService` when complete
 
 #### GoalDecompositionService (`lib/services/goal_decomposition_service.dart`)
 **Purpose:** AI-powered milestone generation for goals

@@ -58,6 +58,9 @@ dependencies:
   # Wake lock to prevent sleep during downloads
   wakelock_plus: ^1.2.5
 
+  # Cryptographic hashing for file verification
+  crypto: ^3.0.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
