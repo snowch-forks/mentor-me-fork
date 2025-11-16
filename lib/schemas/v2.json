@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://mentorme.app/schemas/v2.json",
   "title": "MentorMe Data Schema v2",
-  "description": "Schema for MentorMe app data export/storage format version 2. This version requires structured journal entries to have content populated.",
+  "description": "Schema for MentorMe app data export/storage format version 2. This version requires structured journal entries to have content populated. IMPORTANT: When modifying this schema, ensure corresponding Dart models are updated. See lib/services/backup_service.dart for export format implementation. See CLAUDE.md 'Data Schema Management' section for full synchronization checklist.",
   "type": "object",
   "required": ["schemaVersion"],
   "properties": {
@@ -83,7 +83,7 @@
   ],
   "definitions": {
     "journalEntry_v2": {
-      "description": "Structure of a journal entry in v2 (after structured journal content migration)",
+      "description": "Structure of a journal entry in v2 (after structured journal content migration). Dart Model: lib/models/journal_entry.dart. Export: lib/services/backup_service.dart (journal_entries field).",
       "type": "object",
       "required": ["id", "type", "createdAt"],
       "properties": {

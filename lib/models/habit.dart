@@ -7,6 +7,17 @@ enum HabitStatus {
   abandoned,  // Decided not to pursue
 }
 
+/// Data model for habits and habit tracking.
+///
+/// **JSON Schema:** lib/schemas/v2.json (habits field)
+/// **Schema Version:** 2 (current)
+/// **Export Format:** lib/services/backup_service.dart (habits field)
+///
+/// When modifying this model, ensure you update:
+/// 1. JSON Schema (lib/schemas/vX.json)
+/// 2. Migration (lib/migrations/) if needed
+/// 3. Schema validator (lib/services/schema_validator.dart)
+/// See CLAUDE.md "Data Schema Management" section for full checklist.
 class Habit {
   final String id;
   final String title;

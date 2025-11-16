@@ -6,6 +6,22 @@ enum JournalEntryType {
   structuredJournal,
 }
 
+/// Data model for journal entries.
+///
+/// Supports three types of journal entries:
+/// - Quick Notes: Simple text-based journal entries
+/// - Guided Journals: AI-guided reflection with Q&A pairs
+/// - Structured Journals: Template-based entries with structured data
+///
+/// **JSON Schema:** lib/schemas/v2.json#definitions/journalEntry_v2
+/// **Schema Version:** 2 (current)
+/// **Export Format:** lib/services/backup_service.dart (journal_entries field)
+///
+/// When modifying this model, ensure you update:
+/// 1. JSON Schema (lib/schemas/vX.json)
+/// 2. Migration (lib/migrations/) if needed
+/// 3. Schema validator (lib/services/schema_validator.dart)
+/// See CLAUDE.md "Data Schema Management" section for full checklist.
 class JournalEntry {
   final String id;
   final DateTime createdAt;

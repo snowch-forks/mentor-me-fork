@@ -134,4 +134,7 @@ class MigrationService {
         .map((m) => '${m.name}: v${m.fromVersion} → v${m.toVersion}')
         .toList();
   }
+
+  /// Get all registered migrations (for testing)
+  List<Migration> getMigrations() => _migrations;
 }

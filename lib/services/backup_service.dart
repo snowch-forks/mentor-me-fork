@@ -1,5 +1,19 @@
 // lib/services/backup_service.dart
 // Export/Import service for backing up and restoring user data
+//
+// Export format follows the versioned schema defined in lib/schemas/
+// All data fields are JSON-encoded strings to match StorageService format.
+// This ensures migrations work consistently whether running on app startup
+// or during import/restore operations.
+//
+// **JSON Schema:** lib/schemas/v2.json (root structure)
+// **Schema Version:** 2 (current) - see MigrationService.CURRENT_SCHEMA_VERSION
+//
+// When modifying export/import format:
+// 1. Update schema version if structure changes
+// 2. Create migration in lib/migrations/ if needed
+// 3. Update SchemaValidator to validate new version
+// See CLAUDE.md "Data Schema Management" section for full checklist.
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
