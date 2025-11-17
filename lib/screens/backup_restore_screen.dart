@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
 import '../services/backup_service.dart';
+import '../services/ai_service.dart';
 import '../providers/goal_provider.dart';
 import '../providers/journal_provider.dart';
 import '../providers/habit_provider.dart';
@@ -273,6 +274,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         context.read<PulseTypeProvider>().reload(),
         context.read<ChatProvider>().reload(),
       ]);
+
+      // Re-initialize AIService to pick up restored settings (AI provider, model, etc.)
+      await AIService().initialize();
     }
   }
 
