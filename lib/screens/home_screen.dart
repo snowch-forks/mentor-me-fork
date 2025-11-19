@@ -64,6 +64,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       _checkNotificationStatus();
       _checkAIStatus();
+
+      // Notify listeners immediately so mentor screen updates without waiting for periodic timer
+      _notificationService.notifyStatusChanged();
     }
   }
 
