@@ -419,7 +419,8 @@ class GivenIHaveBackupFileReady extends Given1<String> {
 class GivenIHaveConfiguredSettings extends Given1WithWorld<Table, FlutterWorld> {
   @override
   Future<void> executeStep(Table dataTable) async {
-    final prefs = await SharedPreferences.getInstance();
+    final storage = StorageService();
+    final settings = await storage.loadSettings();
 
     for (final row in dataTable.rows.skip(1)) {
       final setting = row.columns[0];
@@ -429,20 +430,53 @@ class GivenIHaveConfiguredSettings extends Given1WithWorld<Table, FlutterWorld> 
       final settingKeyMap = {
         'AI Provider': 'aiProvider',
         'Selected Model': 'selectedModel',
-        'Morning Reminder Time': 'morningReminderTime',
-        'Evening Reminder Time': 'eveningReminderTime',
         'Theme': 'theme',
       };
 
       final key = settingKeyMap[setting];
       if (key != null) {
-        await prefs.setString(key, value);
+        settings[key] = value;
       }
     }
+
+    await storage.saveSettings(settings);
   }
 
   @override
   RegExp get pattern => RegExp(r'I have configured the following settings:');
+}
+
+/// Given: I have configured the following mentor reminders:
+class GivenIHaveConfiguredMentorReminders extends Given1WithWorld<Table, FlutterWorld> {
+  @override
+  Future<void> executeStep(Table dataTable) async {
+    final storage = StorageService();
+    final settings = await storage.loadSettings();
+    final uuid = const Uuid();
+
+    final reminders = <Map<String, dynamic>>[];
+
+    for (final row in dataTable.rows.skip(1)) {
+      final label = row.columns[0];
+      final hour = int.parse(row.columns[1]);
+      final minute = int.parse(row.columns[2]);
+      final enabled = row.columns[3].toLowerCase() == 'true';
+
+      reminders.add({
+        'id': uuid.v4(),
+        'hour': hour,
+        'minute': minute,
+        'label': label,
+        'isEnabled': enabled,
+      });
+    }
+
+    settings['mentorReminders'] = reminders;
+    await storage.saveSettings(settings);
+  }
+
+  @override
+  RegExp get pattern => RegExp(r'I have configured the following mentor reminders:');
 }
 
 /// Given: I have a backup file from schema version X
@@ -1028,14 +1062,63 @@ class ThenJsonShouldPassSchemaValidation extends Then1<String> {
 class ThenAllSettingsShouldBePreserved extends Then1<String> {
   @override
   Future<void> executeStep(String input1) async {
-    final prefs = await SharedPreferences.getInstance();
+    final storage = StorageService();
+    final settings = await storage.loadSettings();
 
     // Verify settings exist (excluding sensitive data)
-    expect(prefs.getString('aiProvider'), isNotNull);
+    expect(settings['aiProvider'], isNotNull, reason: 'AI Provider should be preserved');
   }
 
   @override
   RegExp get pattern => RegExp(r'all settings should be preserved');
+}
+
+/// Then: all mentor reminders should be preserved
+class ThenAllMentorRemindersShouldBePreserved extends Then1<String> {
+  @override
+  Future<void> executeStep(String input1) async {
+    final storage = StorageService();
+    final settings = await storage.loadSettings();
+    final reminders = settings['mentorReminders'] as List?;
+
+    expect(reminders, isNotNull, reason: 'Mentor reminders should exist');
+    expect(reminders!.length, equals(3), reason: 'Should have 3 reminders');
+
+    // Verify reminder structure
+    for (final reminder in reminders) {
+      final reminderMap = reminder as Map<String, dynamic>;
+      expect(reminderMap['id'], isNotNull, reason: 'Reminder should have ID');
+      expect(reminderMap['hour'], isNotNull, reason: 'Reminder should have hour');
+      expect(reminderMap['minute'], isNotNull, reason: 'Reminder should have minute');
+      expect(reminderMap['label'], isNotNull, reason: 'Reminder should have label');
+      expect(reminderMap['isEnabled'], isNotNull, reason: 'Reminder should have isEnabled');
+    }
+
+    // Verify specific reminder values
+    final morningReminder = reminders.firstWhere(
+      (r) => (r as Map<String, dynamic>)['label'] == 'Morning Check-in',
+    ) as Map<String, dynamic>;
+    expect(morningReminder['hour'], equals(8));
+    expect(morningReminder['minute'], equals(0));
+    expect(morningReminder['isEnabled'], equals(true));
+
+    final eveningReminder = reminders.firstWhere(
+      (r) => (r as Map<String, dynamic>)['label'] == 'Evening Reflection',
+    ) as Map<String, dynamic>;
+    expect(eveningReminder['hour'], equals(20));
+    expect(eveningReminder['minute'], equals(30));
+    expect(eveningReminder['isEnabled'], equals(true));
+
+    final afternoonReminder = reminders.firstWhere(
+      (r) => (r as Map<String, dynamic>)['label'] == 'Afternoon Review',
+    ) as Map<String, dynamic>;
+    expect(afternoonReminder['hour'], equals(14));
+    expect(afternoonReminder['minute'], equals(0));
+    expect(afternoonReminder['isEnabled'], equals(false));
+  }
+
+  @override
+  RegExp get pattern => RegExp(r'all mentor reminders should be preserved');
 }
 
 /// Then: the Claude API key should not be restored
