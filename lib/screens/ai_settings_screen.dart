@@ -307,8 +307,16 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
       _testLatencyMsCloud = null;
     });
 
+    // Save the current provider so we can restore it after the test
+    final originalProvider = _selectedProvider;
+
     try {
       final startTime = DateTime.now();
+
+      // Temporarily switch to Cloud provider for this test
+      // This ensures we test Cloud AI regardless of which provider is currently selected
+      await _aiService.setProvider(AIProvider.cloud);
+      _aiService.setApiKey(_claudeApiKey);
 
       // Test Cloud AI with actual inference
       final response = await _aiService.getCoachingResponse(
@@ -342,6 +350,9 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
         _testResultCloud = e.toString();
       });
     } finally {
+      // Always restore the original provider, even if test failed
+      await _aiService.setProvider(originalProvider);
+
       if (mounted) {
         setState(() {
           _isTestingCloud = false;
@@ -357,6 +368,9 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
       _testSuccessLocal = null;
       _testLatencyMsLocal = null;
     });
+
+    // Save the current provider so we can restore it after the test
+    final originalProvider = _selectedProvider;
 
     try {
       final startTime = DateTime.now();
@@ -380,10 +394,14 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
         return;
       }
 
-      // Run actual inference test with simple prompt
-      final localAI = LocalAIService();
-      final response = await localAI.runInference(
-        "Say 'Hello' if you can read this.",
+      // Temporarily switch to Local provider for this test
+      // This ensures we test Local AI regardless of which provider is currently selected
+      await _aiService.setProvider(AIProvider.local);
+
+      // Test Local AI with actual inference through AIService
+      // This tests the full integration path (not just LocalAIService directly)
+      final response = await _aiService.getCoachingResponse(
+        prompt: "Say 'Hello' if you can read this.",
       );
 
       final endTime = DateTime.now();
@@ -413,6 +431,9 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
         _testResultLocal = e.toString();
       });
     } finally {
+      // Always restore the original provider, even if test failed
+      await _aiService.setProvider(originalProvider);
+
       if (mounted) {
         setState(() {
           _isTestingLocal = false;
