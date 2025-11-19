@@ -250,19 +250,18 @@ class GivenIHaveHabitsWithCompletionHistory extends Given1<int> {
     final uuid = const Uuid();
 
     final habits = List.generate(count, (i) {
-      // Create completions for the last 7 days
-      final completions = <String, bool>{};
-      for (int day = 0; day < 7; day++) {
+      // Create completions for the last 7 days using completionDates
+      final completionDates = <DateTime>[];
+      for (int day = 0; day < 5; day++) {  // First 5 days completed
         final date = DateTime.now().subtract(Duration(days: day));
-        final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-        completions[dateStr] = day < 5; // First 5 days completed
+        completionDates.add(date);
       }
 
       return Habit(
         id: uuid.v4(),
         title: 'Habit ${i + 1}',
         description: 'Habit with completion history',
-        completions: completions,
+        completionDates: completionDates,
         currentStreak: 5,
         longestStreak: 10,
         createdAt: DateTime.now(),
@@ -277,6 +276,88 @@ class GivenIHaveHabitsWithCompletionHistory extends Given1<int> {
 
   @override
   RegExp get pattern => RegExp(r'I have {int} habits? with completion history');
+}
+
+/// Given: I have a habit "X" with: (table of attributes)
+class GivenIHaveHabitWithAttributes extends Given2WithWorld<String, Table, FlutterWorld> {
+  @override
+  Future<void> executeStep(String habitTitle, Table dataTable) async {
+    final storage = StorageService();
+    final uuid = const Uuid();
+
+    int currentStreak = 0;
+    int longestStreak = 0;
+    HabitStatus status = HabitStatus.active;
+
+    for (final row in dataTable.rows.skip(1)) {
+      final attribute = row.columns[0];
+      final value = row.columns[1];
+
+      switch (attribute) {
+        case 'currentStreak':
+          currentStreak = int.parse(value);
+          break;
+        case 'longestStreak':
+          longestStreak = int.parse(value);
+          break;
+        case 'status':
+          status = HabitStatus.values.firstWhere(
+            (e) => e.toString() == 'HabitStatus.$value',
+          );
+          break;
+      }
+    }
+
+    final habit = Habit(
+      id: uuid.v4(),
+      title: habitTitle,
+      description: 'Test habit for backup/restore',
+      completionDates: [],  // Will be populated by next step
+      currentStreak: currentStreak,
+      longestStreak: longestStreak,
+      createdAt: DateTime.now(),
+      status: status,
+    );
+
+    await storage.saveHabit(habit);
+
+    // Store for later verification
+    BackupTestContext.instance.originalHabits = [habit];
+  }
+
+  @override
+  RegExp get pattern => RegExp(r'I have a habit {string} with:');
+}
+
+/// And: the habit has completions for the last X days
+class AndTheHabitHasCompletionsForLastDays extends And1<int> {
+  @override
+  Future<void> executeStep(int days) async {
+    final storage = StorageService();
+    final habits = await storage.loadHabits();
+
+    if (habits.isEmpty) return;
+
+    final habit = habits.first;
+    final completionDates = <DateTime>[];
+
+    for (int day = 0; day < days; day++) {
+      final date = DateTime.now().subtract(Duration(days: day));
+      completionDates.add(date);
+    }
+
+    final updatedHabit = habit.copyWith(
+      completionDates: completionDates,
+    );
+
+    await storage.saveHabit(updatedHabit);
+
+    // Update original habits for verification
+    BackupTestContext.instance.originalHabits = [updatedHabit];
+  }
+
+  @override
+  RegExp get pattern => RegExp(r'the habit has completions for the last {int} days?');
 }
 
 /// Given: I have a backup file with invalid JSON structure
@@ -933,7 +1014,7 @@ class ThenHabitCompletionHistoryShouldBePreserved extends Then1<String> {
     // Verify habits have non-empty completion history
     for (final habit in habits) {
       expect(
-        habit.completions.isNotEmpty,
+        habit.completionDates.isNotEmpty,
         isTrue,
         reason: 'Habit ${habit.title} should have completion history',
       );
@@ -942,6 +1023,74 @@ class ThenHabitCompletionHistoryShouldBePreserved extends Then1<String> {
 
   @override
   RegExp get pattern => RegExp(r'all habit completion history should be preserved');
+}
+
+/// Then: the habit "X" should have currentStreak Y
+class ThenHabitShouldHaveCurrentStreak extends Then2<String, int> {
+  @override
+  Future<void> executeStep(String habitTitle, int expectedStreak) async {
+    final storage = StorageService();
+    final habits = await storage.loadHabits();
+
+    final habit = habits.firstWhere((h) => h.title == habitTitle);
+
+    expect(
+      habit.currentStreak,
+      equals(expectedStreak),
+      reason: 'Habit "$habitTitle" should have currentStreak $expectedStreak',
+    );
+  }
+
+  @override
+  RegExp get pattern => RegExp(r'the habit {string} should have currentStreak {int}');
+}
+
+/// Then: the habit should have longestStreak X
+class ThenHabitShouldHaveLongestStreak extends Then1<int> {
+  @override
+  Future<void> executeStep(int expectedStreak) async {
+    final storage = StorageService();
+    final habits = await storage.loadHabits();
+
+    if (habits.isEmpty) {
+      throw Exception('No habits found');
+    }
+
+    final habit = habits.first;
+
+    expect(
+      habit.longestStreak,
+      equals(expectedStreak),
+      reason: 'Habit should have longestStreak $expectedStreak',
+    );
+  }
+
+  @override
+  RegExp get pattern => RegExp(r'the habit should have longestStreak {int}');
+}
+
+/// Then: all X completion records should be preserved
+class ThenCompletionRecordsShouldBePreserved extends Then1<int> {
+  @override
+  Future<void> executeStep(int expectedCount) async {
+    final storage = StorageService();
+    final habits = await storage.loadHabits();
+
+    if (habits.isEmpty) {
+      throw Exception('No habits found');
+    }
+
+    final habit = habits.first;
+
+    expect(
+      habit.completionDates.length,
+      equals(expectedCount),
+      reason: 'Should have $expectedCount completion records',
+    );
+  }
+
+  @override
+  RegExp get pattern => RegExp(r'all {int} completion records? should be preserved');
 }
 
 /// Then: the backup metadata should contain:
