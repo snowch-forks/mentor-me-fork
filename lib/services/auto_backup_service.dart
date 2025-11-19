@@ -36,6 +36,19 @@ class AutoBackupService extends ChangeNotifier {
   bool get isBackingUp => _isBackingUp;
   bool get isScheduled => _isScheduled;
 
+  // Test helpers - only use in tests to simulate state changes
+  @visibleForTesting
+  void setScheduledForTest(bool value) {
+    _isScheduled = value;
+    notifyListeners();
+  }
+
+  @visibleForTesting
+  void setBackingUpForTest(bool value) {
+    _isBackingUp = value;
+    notifyListeners();
+  }
+
   /// Schedule an automatic backup (debounced)
   /// This should be called after any significant data change
   Future<void> scheduleAutoBackup() async {
