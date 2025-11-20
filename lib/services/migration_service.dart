@@ -1,6 +1,7 @@
 import 'package:mentor_me/migrations/migration.dart';
 import 'package:mentor_me/migrations/legacy_to_v1_format.dart';
 import 'package:mentor_me/migrations/v1_to_v2_journal_content.dart';
+import 'package:mentor_me/migrations/v2_to_v3_add_sort_order.dart';
 import 'package:mentor_me/services/debug_service.dart';
 
 /// Service for managing data schema migrations
@@ -13,7 +14,7 @@ import 'package:mentor_me/services/debug_service.dart';
 /// - Supports legacy format (pre-schema versioning) migration
 class MigrationService {
   /// Current schema version (increment when data model changes)
-  static const int CURRENT_SCHEMA_VERSION = 2;
+  static const int CURRENT_SCHEMA_VERSION = 3;
 
   final _debug = DebugService();
 
@@ -25,9 +26,9 @@ class MigrationService {
   /// Note: LegacyToV1 is handled separately via migrateLegacy() method
   final List<Migration> _migrations = [
     V1ToV2JournalContentMigration(),
+    V2ToV3AddSortOrderMigration(),
     // Future migrations go here:
-    // V2ToV3PulseMetricsMigration(),
-    // V3ToV4GoalCategoriesMigration(),
+    // V3ToV4ExampleMigration(),
   ];
 
   /// Migrate data from any version to the current version

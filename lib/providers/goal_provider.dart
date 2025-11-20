@@ -29,21 +29,30 @@ class GoalProvider extends ChangeNotifier {
     notifyListeners();
 
     _goals = await _storage.loadGoals();
-    
+    await ensureSortOrder(); // Ensure all goals have valid sortOrder
+
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> addGoal(Goal goal) async {
-    _goals.add(goal);
+    // Assign sortOrder: find max sortOrder in the same status and add 1
+    final statusGoals = _goals.where((g) => g.status == goal.status).toList();
+    final maxSortOrder = statusGoals.isEmpty
+        ? 0
+        : statusGoals.map((g) => g.sortOrder).reduce((a, b) => a > b ? a : b);
+
+    final goalWithSortOrder = goal.copyWith(sortOrder: maxSortOrder + 1);
+
+    _goals.add(goalWithSortOrder);
     await _storage.saveGoals(_goals);
 
     // Schedule deadline reminders if goal has a target date
-    if (goal.targetDate != null) {
+    if (goalWithSortOrder.targetDate != null) {
       await _notifications.scheduleDeadlineReminders(
-        goal.id,
-        goal.title,
-        goal.targetDate!,
+        goalWithSortOrder.id,
+        goalWithSortOrder.title,
+        goalWithSortOrder.targetDate!,
       );
     }
 
@@ -170,5 +179,131 @@ class GoalProvider extends ChangeNotifier {
     }).toList();
     final updatedGoal = goal.copyWith(milestonesDetailed: updatedMilestones);
     await updateGoal(updatedGoal);
+  }
+
+  /// Reorder goals within the same status
+  Future<void> reorderGoals(GoalStatus status, int oldIndex, int newIndex) async {
+    // Get goals with the specified status, sorted by sortOrder
+    final statusGoals = _goals
+        .where((g) => g.status == status)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+    if (oldIndex >= statusGoals.length || newIndex >= statusGoals.length) {
+      return; // Invalid indices
+    }
+
+    // Remove the item from old position
+    final goal = statusGoals.removeAt(oldIndex);
+
+    // Insert at new position
+    statusGoals.insert(newIndex, goal);
+
+    // Update sortOrder for all goals in this status
+    for (int i = 0; i < statusGoals.length; i++) {
+      final updatedGoal = statusGoals[i].copyWith(sortOrder: i);
+      final index = _goals.indexWhere((g) => g.id == updatedGoal.id);
+      if (index != -1) {
+        _goals[index] = updatedGoal;
+      }
+    }
+
+    await _storage.saveGoals(_goals);
+    notifyListeners();
+  }
+
+  /// Move goal to a different status and position
+  Future<void> moveGoalToStatus(
+    String goalId,
+    GoalStatus newStatus,
+    int newIndex,
+  ) async {
+    final goal = getGoalById(goalId);
+    if (goal == null) return;
+
+    // Check limit for active status
+    if (newStatus == GoalStatus.active) {
+      final activeCount = _goals.where((g) =>
+        g.status == GoalStatus.active && g.id != goalId
+      ).length;
+      if (activeCount >= 2) {
+        throw Exception('Cannot have more than 2 active goals');
+      }
+    }
+
+    // Update goal status
+    final updatedGoal = goal.copyWith(
+      status: newStatus,
+      isActive: newStatus == GoalStatus.active,
+    );
+
+    // Update in the list
+    final index = _goals.indexWhere((g) => g.id == goalId);
+    if (index != -1) {
+      _goals[index] = updatedGoal;
+    }
+
+    // Get all goals with the new status
+    final statusGoals = _goals
+        .where((g) => g.status == newStatus)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+    // Reorder: remove and insert at new position
+    statusGoals.removeWhere((g) => g.id == goalId);
+    statusGoals.insert(
+      newIndex.clamp(0, statusGoals.length),
+      updatedGoal,
+    );
+
+    // Update sortOrder for all goals in new status
+    for (int i = 0; i < statusGoals.length; i++) {
+      final goal = statusGoals[i].copyWith(sortOrder: i);
+      final idx = _goals.indexWhere((g) => g.id == goal.id);
+      if (idx != -1) {
+        _goals[idx] = goal;
+      }
+    }
+
+    await _storage.saveGoals(_goals);
+    notifyListeners();
+  }
+
+  /// Get goals by status, sorted by sortOrder
+  List<Goal> getGoalsByStatus(GoalStatus status) {
+    return _goals
+        .where((g) => g.status == status)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  }
+
+  /// Ensure all goals have valid sortOrder (call this on data load/migration)
+  Future<void> ensureSortOrder() async {
+    bool needsSave = false;
+
+    // Group goals by status
+    final goalsByStatus = <GoalStatus, List<Goal>>{};
+    for (final status in GoalStatus.values) {
+      goalsByStatus[status] = _goals.where((g) => g.status == status).toList();
+    }
+
+    // Assign sortOrder within each status
+    for (final status in goalsByStatus.keys) {
+      final goals = goalsByStatus[status]!;
+      for (int i = 0; i < goals.length; i++) {
+        if (goals[i].sortOrder != i) {
+          final index = _goals.indexWhere((g) => g.id == goals[i].id);
+          if (index != -1) {
+            _goals[index] = goals[i].copyWith(sortOrder: i);
+            needsSave = true;
+          }
+        }
+      }
+    }
+
+    if (needsSave) {
+      await _storage.saveGoals(_goals);
+      notifyListeners();
+    }
   }
 }

@@ -39,6 +39,8 @@ class SchemaValidator {
           return await _validateV1Structure(data);
         case 2:
           return await _validateV2Structure(data);
+        case 3:
+          return await _validateV3Structure(data);
         default:
           await _debug.warning(
             'SchemaValidator',
@@ -119,6 +121,94 @@ class SchemaValidator {
     }
 
     return true;
+  }
+
+  /// Validate v3 schema structure
+  Future<bool> _validateV3Structure(Map<String, dynamic> data) async {
+    // v3 has same required keys as v2
+    final requiredKeys = [
+      'journal_entries',
+      'goals',
+      'habits',
+      'checkins',
+    ];
+
+    for (final key in requiredKeys) {
+      if (!data.containsKey(key)) {
+        await _debug.warning(
+          'SchemaValidator',
+          'Missing expected key in v3: $key',
+        );
+      }
+    }
+
+    // Validate journal_entries if present (same as v2)
+    if (data['journal_entries'] != null) {
+      if (!await _validateJournalEntries(data['journal_entries'] as String?)) {
+        return false;
+      }
+
+      // v2-specific: Check structured journals have content
+      if (!await _validateV2JournalContent(
+          data['journal_entries'] as String?)) {
+        return false;
+      }
+    }
+
+    // v3-specific: Validate goals have sortOrder
+    if (data['goals'] != null) {
+      if (!await _validateV3GoalsAndHabits(data['goals'] as String?, 'goals')) {
+        return false;
+      }
+    }
+
+    // v3-specific: Validate habits have sortOrder
+    if (data['habits'] != null) {
+      if (!await _validateV3GoalsAndHabits(data['habits'] as String?, 'habits')) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /// Validate v3-specific requirement: goals and habits must have sortOrder
+  Future<bool> _validateV3GoalsAndHabits(String? itemsJson, String itemType) async {
+    if (itemsJson == null || itemsJson.isEmpty || itemsJson == '[]') {
+      return true; // Empty is valid
+    }
+
+    try {
+      final items = jsonDecode(itemsJson) as List;
+
+      for (final item in items) {
+        // v3: Goals and habits MUST have sortOrder field
+        if (!item.containsKey('sortOrder')) {
+          await _debug.error(
+            'SchemaValidator',
+            'v3 validation failed: $itemType entry ${item['id']} missing sortOrder',
+          );
+          return false;
+        }
+
+        final sortOrder = item['sortOrder'];
+        if (sortOrder is! int || sortOrder < 0) {
+          await _debug.error(
+            'SchemaValidator',
+            'v3 validation failed: $itemType entry ${item['id']} has invalid sortOrder: $sortOrder',
+          );
+          return false;
+        }
+      }
+
+      return true;
+    } catch (e) {
+      await _debug.error(
+        'SchemaValidator',
+        'Failed to validate v3 $itemType: $e',
+      );
+      return false;
+    }
   }
 
   /// Validate journal entries JSON structure

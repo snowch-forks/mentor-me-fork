@@ -1,0 +1,207 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://mentorme.app/schemas/v3.json",
+  "title": "MentorMe Data Schema v3",
+  "description": "Schema for MentorMe app data export/storage format version 3. This version adds sortOrder field to goals and habits for drag-and-drop reordering. IMPORTANT: When modifying this schema, ensure corresponding Dart models are updated. See lib/services/backup_service.dart for export format implementation. See CLAUDE.md 'Data Schema Management' section for full synchronization checklist.",
+  "type": "object",
+  "required": ["schemaVersion"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 3,
+      "description": "Data schema version - must be 3 for this schema"
+    },
+    "exportDate": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when backup was created"
+    },
+    "appVersion": {
+      "type": "string",
+      "description": "App version that created this backup"
+    },
+    "buildNumber": {
+      "type": "string",
+      "description": "Git commit or build identifier"
+    },
+    "journal_entries": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of journal entries",
+      "examples": ["[{\"id\":\"123\",\"type\":\"quickNote\",\"content\":\"...\"}]"]
+    },
+    "goals": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of goals (each with sortOrder field)"
+    },
+    "habits": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of habits (each with sortOrder field)"
+    },
+    "checkins": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of check-ins"
+    },
+    "pulse_entries": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of pulse/wellness entries"
+    },
+    "pulse_types": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of pulse type definitions"
+    },
+    "chat_conversations": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of AI chat conversations"
+    },
+    "mentor_messages": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of mentor coaching messages"
+    },
+    "custom_templates": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of custom journal templates"
+    },
+    "sessions": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of structured journaling sessions"
+    },
+    "enabled_templates": {
+      "type": ["string", "null"],
+      "description": "JSON-encoded array of enabled template IDs"
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "schemaVersion": 3,
+      "exportDate": "2025-11-20T10:30:00Z",
+      "appVersion": "1.2.0",
+      "journal_entries": "[{\"id\":\"abc123\",\"type\":\"structuredJournal\",\"content\":\"🍎 Food Log\\n\\nMeal Type: Dinner\\nWhat You Ate: Pizza\",\"structuredData\":{\"Meal Type\":\"Dinner\",\"What You Ate\":\"Pizza\"},\"createdAt\":\"2025-11-16T09:00:00Z\"}]",
+      "goals": "[{\"id\":\"goal1\",\"title\":\"Learn Flutter\",\"status\":\"GoalStatus.active\",\"sortOrder\":0}]",
+      "habits": "[{\"id\":\"habit1\",\"title\":\"Morning meditation\",\"status\":\"HabitStatus.active\",\"sortOrder\":0}]"
+    }
+  ],
+  "definitions": {
+    "journalEntry_v3": {
+      "description": "Structure of a journal entry in v3 (unchanged from v2). Dart Model: lib/models/journal_entry.dart. Export: lib/services/backup_service.dart (journal_entries field).",
+      "type": "object",
+      "required": ["id", "type", "createdAt"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["quickNote", "guidedJournal", "structuredJournal"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "content": {
+          "type": ["string", "null"],
+          "description": "REQUIRED for all entry types. For structuredJournal, this is auto-generated from structuredData."
+        },
+        "structuredData": {
+          "type": ["object", "null"],
+          "description": "For structuredJournal entries, contains the form data",
+          "additionalProperties": true
+        },
+        "structuredSessionId": {
+          "type": ["string", "null"]
+        },
+        "qaPairs": {
+          "type": ["array", "null"],
+          "description": "For guidedJournal entries"
+        },
+        "goalIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "type": {
+            "const": "structuredJournal"
+          }
+        }
+      },
+      "then": {
+        "required": ["content"],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Structured journals MUST have non-empty content"
+          }
+        }
+      }
+    },
+    "goal_v3": {
+      "description": "Structure of a goal in v3 (adds sortOrder). Dart Model: lib/models/goal.dart. Export: lib/services/backup_service.dart (goals field).",
+      "type": "object",
+      "required": ["id", "title", "status", "sortOrder"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "description": "One of: GoalStatus.active, GoalStatus.backlog, GoalStatus.completed, GoalStatus.abandoned"
+        },
+        "sortOrder": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Position within the status group for drag-and-drop reordering"
+        }
+      }
+    },
+    "habit_v3": {
+      "description": "Structure of a habit in v3 (adds sortOrder). Dart Model: lib/models/habit.dart. Export: lib/services/backup_service.dart (habits field).",
+      "type": "object",
+      "required": ["id", "title", "status", "sortOrder"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "description": "One of: HabitStatus.active, HabitStatus.backlog, HabitStatus.completed, HabitStatus.abandoned"
+        },
+        "sortOrder": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Position within the status group for drag-and-drop reordering"
+        }
+      }
+    }
+  },
+  "changelog": {
+    "v1_to_v2": {
+      "date": "2025-11-16",
+      "changes": [
+        "Added content field requirement for structuredJournal entries",
+        "Content is now auto-generated from structuredData during migration",
+        "Format: 'emoji name\\n\\nField: Value' for better display in journal list"
+      ],
+      "migration": "v1_to_v2_journal_content"
+    },
+    "v2_to_v3": {
+      "date": "2025-11-20",
+      "changes": [
+        "Added sortOrder field to goals for drag-and-drop reordering within status groups",
+        "Added sortOrder field to habits for drag-and-drop reordering within status groups",
+        "sortOrder is auto-assigned during migration based on current order"
+      ],
+      "migration": "v2_to_v3_add_sort_order"
+    }
+  }
+}

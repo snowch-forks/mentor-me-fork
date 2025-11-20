@@ -33,6 +33,7 @@ class Habit {
   final DateTime createdAt;
   final bool isSystemCreated; // True if created by system (onboarding, suggestions)
   final String? systemType; // e.g., 'daily_reflection', 'suggested', null for user-created
+  final int sortOrder; // For drag-and-drop reordering
   
   Habit({
     String? id,
@@ -49,6 +50,7 @@ class Habit {
     DateTime? createdAt,
     this.isSystemCreated = false,
     this.systemType,
+    this.sortOrder = 0,
   })  : id = id ?? const Uuid().v4(),
         completionDates = completionDates ?? [],
         createdAt = createdAt ?? DateTime.now();
@@ -69,6 +71,7 @@ class Habit {
       'createdAt': createdAt.toIso8601String(),
       'isSystemCreated': isSystemCreated,
       'systemType': systemType,
+      'sortOrder': sortOrder,
     };
   }
 
@@ -101,6 +104,7 @@ class Habit {
       createdAt: DateTime.parse(json['createdAt']),
       isSystemCreated: json['isSystemCreated'] ?? false, // Default false for backwards compatibility
       systemType: json['systemType'],
+      sortOrder: json['sortOrder'] ?? 0, // Default 0 for backwards compatibility
     );
   }
 
@@ -117,6 +121,7 @@ class Habit {
     HabitStatus? status,
     bool? isSystemCreated,
     String? systemType,
+    int? sortOrder,
   }) {
     return Habit(
       id: id,
@@ -133,6 +138,7 @@ class Habit {
       createdAt: createdAt,
       isSystemCreated: isSystemCreated ?? this.isSystemCreated,
       systemType: systemType ?? this.systemType,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 
