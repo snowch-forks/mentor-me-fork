@@ -33,13 +33,22 @@ class HabitProvider extends ChangeNotifier {
     notifyListeners();
 
     _habits = await _storage.loadHabits();
-    
+    await ensureSortOrder(); // Ensure all habits have valid sortOrder
+
     _isLoading = false;
     notifyListeners();
   }
 
   Future<void> addHabit(Habit habit) async {
-    _habits.add(habit);
+    // Assign sortOrder: find max sortOrder in the same status and add 1
+    final statusHabits = _habits.where((h) => h.status == habit.status).toList();
+    final maxSortOrder = statusHabits.isEmpty
+        ? 0
+        : statusHabits.map((h) => h.sortOrder).reduce((a, b) => a > b ? a : b);
+
+    final habitWithSortOrder = habit.copyWith(sortOrder: maxSortOrder + 1);
+
+    _habits.add(habitWithSortOrder);
     await _storage.saveHabits(_habits);
     notifyListeners();
   }
@@ -161,11 +170,137 @@ class HabitProvider extends ChangeNotifier {
   Map<String, int> getTodayStats() {
     final todayHabits = getTodayHabits();
     final completedToday = getCompletedTodayHabits();
-    
+
     return {
       'total': activeHabits.length,
       'completed': completedToday.length,
       'remaining': todayHabits.length,
     };
+  }
+
+  /// Reorder habits within the same status
+  Future<void> reorderHabits(HabitStatus status, int oldIndex, int newIndex) async {
+    // Get habits with the specified status, sorted by sortOrder
+    final statusHabits = _habits
+        .where((h) => h.status == status)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+    if (oldIndex >= statusHabits.length || newIndex >= statusHabits.length) {
+      return; // Invalid indices
+    }
+
+    // Remove the item from old position
+    final habit = statusHabits.removeAt(oldIndex);
+
+    // Insert at new position
+    statusHabits.insert(newIndex, habit);
+
+    // Update sortOrder for all habits in this status
+    for (int i = 0; i < statusHabits.length; i++) {
+      final updatedHabit = statusHabits[i].copyWith(sortOrder: i);
+      final index = _habits.indexWhere((h) => h.id == updatedHabit.id);
+      if (index != -1) {
+        _habits[index] = updatedHabit;
+      }
+    }
+
+    await _storage.saveHabits(_habits);
+    notifyListeners();
+  }
+
+  /// Move habit to a different status and position
+  Future<void> moveHabitToStatus(
+    String habitId,
+    HabitStatus newStatus,
+    int newIndex,
+  ) async {
+    final habit = getHabitById(habitId);
+    if (habit == null) return;
+
+    // Check limit for active status
+    if (newStatus == HabitStatus.active) {
+      final activeCount = _habits.where((h) =>
+        h.status == HabitStatus.active && h.id != habitId
+      ).length;
+      if (activeCount >= 2) {
+        throw Exception('Cannot have more than 2 active habits');
+      }
+    }
+
+    // Update habit status
+    final updatedHabit = habit.copyWith(
+      status: newStatus,
+      isActive: newStatus == HabitStatus.active,
+    );
+
+    // Update in the list
+    final index = _habits.indexWhere((h) => h.id == habitId);
+    if (index != -1) {
+      _habits[index] = updatedHabit;
+    }
+
+    // Get all habits with the new status
+    final statusHabits = _habits
+        .where((h) => h.status == newStatus)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+    // Reorder: remove and insert at new position
+    statusHabits.removeWhere((h) => h.id == habitId);
+    statusHabits.insert(
+      newIndex.clamp(0, statusHabits.length),
+      updatedHabit,
+    );
+
+    // Update sortOrder for all habits in new status
+    for (int i = 0; i < statusHabits.length; i++) {
+      final habit = statusHabits[i].copyWith(sortOrder: i);
+      final idx = _habits.indexWhere((h) => h.id == habit.id);
+      if (idx != -1) {
+        _habits[idx] = habit;
+      }
+    }
+
+    await _storage.saveHabits(_habits);
+    notifyListeners();
+  }
+
+  /// Get habits by status, sorted by sortOrder
+  List<Habit> getHabitsByStatus(HabitStatus status) {
+    return _habits
+        .where((h) => h.status == status)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  }
+
+  /// Ensure all habits have valid sortOrder (call this on data load/migration)
+  Future<void> ensureSortOrder() async {
+    bool needsSave = false;
+
+    // Group habits by status
+    final habitsByStatus = <HabitStatus, List<Habit>>{};
+    for (final status in HabitStatus.values) {
+      habitsByStatus[status] = _habits.where((h) => h.status == status).toList();
+    }
+
+    // Assign sortOrder within each status
+    for (final status in habitsByStatus.keys) {
+      final habits = habitsByStatus[status]!;
+      for (int i = 0; i < habits.length; i++) {
+        if (habits[i].sortOrder != i) {
+          final index = _habits.indexWhere((h) => h.id == habits[i].id);
+          if (index != -1) {
+            _habits[index] = habits[i].copyWith(sortOrder: i);
+            needsSave = true;
+          }
+        }
+      }
+    }
+
+    if (needsSave) {
+      await _storage.saveHabits(_habits);
+      notifyListeners();
+    }
   }
 }

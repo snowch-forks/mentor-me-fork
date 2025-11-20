@@ -24,10 +24,10 @@ void main() {
 
       // Debug output for CI diagnostics
       print('DEBUG: Current schema version from MigrationService: $currentVersion');
-      print('DEBUG: Expected version: 2');
+      print('DEBUG: Expected version: 3');
 
-      // Schema version should be 2 (current)
-      expect(currentVersion, equals(2),
+      // Schema version should be 3 (current)
+      expect(currentVersion, equals(3),
         reason: 'If you changed the schema version, update this test and all schema files. Got: $currentVersion');
     });
   });
@@ -67,8 +67,8 @@ void main() {
         reason: 'habits field is required in export');
 
       // Validate schema version is correct
-      expect(mockExport['schemaVersion'], equals(2),
-        reason: 'Current schema version should be 2');
+      expect(mockExport['schemaVersion'], equals(3),
+        reason: 'Current schema version should be 3');
     });
 
     test('Export format data fields are JSON-encoded strings', () {
@@ -206,6 +206,8 @@ void main() {
       expect(json.containsKey('createdAt'), isTrue);
       expect(json.containsKey('status'), isTrue);
       expect(json.containsKey('milestonesDetailed'), isTrue);
+      expect(json.containsKey('sortOrder'), isTrue,
+        reason: 'sortOrder is required in v3 schema for drag-and-drop reordering');
     });
 
     test('Goal deserialization handles all statuses', () {
@@ -221,6 +223,7 @@ void main() {
           'milestonesDetailed': <Map<String, dynamic>>[],
           'currentProgress': 0,
           'isActive': true,
+          'sortOrder': 0,
         };
 
         final goal = Goal.fromJson(json);
@@ -246,6 +249,8 @@ void main() {
       expect(json.containsKey('description'), isTrue);
       expect(json.containsKey('frequency'), isTrue);
       expect(json.containsKey('status'), isTrue);
+      expect(json.containsKey('sortOrder'), isTrue,
+        reason: 'sortOrder is required in v3 schema for drag-and-drop reordering');
     });
   });
 

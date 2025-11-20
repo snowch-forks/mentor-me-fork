@@ -32,6 +32,7 @@ class Goal {
   final int currentProgress;
   bool isActive;  // Deprecated: Use status instead
   final GoalStatus status;
+  final int sortOrder; // For drag-and-drop reordering
   
   Goal({
     String? id,
@@ -45,6 +46,7 @@ class Goal {
     this.currentProgress = 0,
     this.isActive = true,  // Deprecated
     this.status = GoalStatus.active,
+    this.sortOrder = 0,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
         milestones = milestones ?? [],
@@ -63,6 +65,7 @@ class Goal {
       'currentProgress': currentProgress,
       'isActive': isActive,
       'status': status.toString(),
+      'sortOrder': sortOrder,
     };
   }
 
@@ -94,6 +97,7 @@ class Goal {
       currentProgress: json['currentProgress'] ?? 0,
       isActive: json['isActive'] ?? true,
       status: parsedStatus,
+      sortOrder: json['sortOrder'] ?? 0, // Default 0 for backwards compatibility
     );
   }
 
@@ -107,6 +111,7 @@ class Goal {
     int? currentProgress,
     bool? isActive,
     GoalStatus? status,
+    int? sortOrder,
   }) {
     return Goal(
       id: id,
@@ -120,6 +125,7 @@ class Goal {
       currentProgress: currentProgress ?? this.currentProgress,
       isActive: isActive ?? this.isActive,
       status: status ?? this.status,
+      sortOrder: sortOrder ?? this.sortOrder,
     );
   }
 }
