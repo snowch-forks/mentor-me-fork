@@ -45,6 +45,25 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     super.initState();
     _loadCurrentDataCounts();
     _loadAutoBackupSettings();
+
+    // Listen for auto-backup completion to refresh UI
+    // When backup completes, isBackingUp changes from true→false, triggering this
+    _autoBackupService.addListener(_onAutoBackupStateChanged);
+  }
+
+  @override
+  void dispose() {
+    _autoBackupService.removeListener(_onAutoBackupStateChanged);
+    super.dispose();
+  }
+
+  /// Called when AutoBackupService state changes (scheduled/backing up/idle)
+  void _onAutoBackupStateChanged() {
+    // Refresh the "Last backup" timestamp when backup completes
+    // (isBackingUp changes from true → false)
+    if (!_autoBackupService.isBackingUp && !_autoBackupService.isScheduled) {
+      _loadAutoBackupSettings();
+    }
   }
 
   Future<void> _loadCurrentDataCounts() async {
@@ -551,6 +570,18 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                 ),
               ),
             ],
+            // Add diagnostics button for debugging
+            if (_autoBackupEnabled && !kIsWeb) ...[
+              AppSpacing.gapMd,
+              OutlinedButton.icon(
+                onPressed: _showDiagnostics,
+                icon: const Icon(Icons.bug_report, size: 16),
+                label: const Text('Show Diagnostics'),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
             // Show backup icon in header (optional)
             if (_autoBackupEnabled && !kIsWeb) ...[
               AppSpacing.gapMd,
@@ -589,6 +620,135 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Show auto-backup diagnostics dialog
+  Future<void> _showDiagnostics() async {
+    final diagnostics = await _autoBackupService.getDiagnostics();
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.bug_report),
+            SizedBox(width: 12),
+            Text('Auto-Backup Diagnostics'),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDiagnosticRow('Auto-backup enabled', diagnostics['isEnabled'] ? '✅ Yes' : '❌ No'),
+              _buildDiagnosticRow('Platform', diagnostics['isWeb'] ? '🌐 Web (not supported)' : '📱 Android'),
+              _buildDiagnosticRow('Backup scheduled', diagnostics['isScheduled'] ? '⏰ Yes' : 'No'),
+              _buildDiagnosticRow('Backup in progress', diagnostics['isBackingUp'] ? '🔄 Yes' : 'No'),
+              _buildDiagnosticRow('Pending timer active', diagnostics['hasPendingTimer'] ? '⏲️  Yes' : 'No'),
+              const Divider(),
+              if (diagnostics['lastBackupTime'] != null) ...[
+                _buildDiagnosticRow('Last backup', _formatBackupTime(DateTime.parse(diagnostics['lastBackupTime']))),
+                _buildDiagnosticRow('Time since last', '${diagnostics['timeSinceLastBackup']} minutes ago'),
+                if (diagnostics['lastBackupFilename'] != null)
+                  _buildDiagnosticRow('Last filename', diagnostics['lastBackupFilename'], monospace: true),
+              ] else
+                _buildDiagnosticRow('Last backup', 'Never'),
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                'Debug Tips:',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              if (!diagnostics['isEnabled'])
+                _buildDebugTip('❌ Auto-backup is disabled. Enable it above.')
+              else if (diagnostics['isWeb'])
+                _buildDebugTip('❌ Auto-backup doesn\'t work on web. Use Android app.')
+              else if (diagnostics['isScheduled'])
+                _buildDebugTip('⏰ Backup is scheduled. Waiting 30s for changes to settle...')
+              else if (diagnostics['isBackingUp'])
+                _buildDebugTip('🔄 Backup in progress. Should complete soon.')
+              else if (diagnostics['timeSinceLastBackup'] != null && diagnostics['timeSinceLastBackup'] > 60)
+                _buildDebugTip('⚠️ No backups in ${diagnostics['timeSinceLastBackup']} minutes. Try making a data change (add goal/habit/journal entry).')
+              else
+                _buildDebugTip('✅ System looks healthy. Make a data change to trigger a backup.'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              // Manually trigger a backup for testing
+              await _autoBackupService.scheduleAutoBackup();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Manual backup scheduled (will complete in 30s)'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Trigger Backup Now'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDiagnosticRow(String label, String value, {bool monospace = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(
+              '$label:',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    fontFamily: monospace ? 'monospace' : null,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDebugTip(String tip) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: Text(
+        tip,
+        style: Theme.of(context).textTheme.bodySmall,
       ),
     );
   }

@@ -1,6 +1,7 @@
 // lib/services/debug_service.dart
 // Centralized debugging and logging service
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -171,8 +172,9 @@ class DebugService {
       _printToConsole(entry);
     }
 
-    // Persist logs asynchronously
-    _saveLogs();
+    // Persist logs asynchronously (but don't await to avoid blocking)
+    // Fire and forget to prevent circular dependencies
+    unawaited(_saveLogs());
   }
 
   void _printToConsole(LogEntry entry) {

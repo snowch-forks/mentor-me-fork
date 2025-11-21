@@ -465,6 +465,100 @@ extension BackupServiceTestExtension on BackupService {
       ));
     }
 
+    // Import custom templates
+    try {
+      if (data.containsKey('custom_templates') && data['custom_templates'] != null) {
+        await storage.saveTemplates(data['custom_templates'] as String);
+        await debug.info('BackupService', 'Imported custom templates');
+        results.add(ImportItemResult(
+          dataType: 'Custom Templates',
+          success: true,
+          count: 1,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Custom Templates',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await debug.error(
+        'BackupService',
+        'Failed to import custom templates: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Custom Templates',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import sessions
+    try {
+      if (data.containsKey('sessions') && data['sessions'] != null) {
+        await storage.saveSessions(data['sessions'] as String);
+        await debug.info('BackupService', 'Imported sessions');
+        results.add(ImportItemResult(
+          dataType: 'Sessions',
+          success: true,
+          count: 1,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Sessions',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await debug.error(
+        'BackupService',
+        'Failed to import sessions: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Sessions',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import enabled templates
+    try {
+      if (data.containsKey('enabled_templates') && data['enabled_templates'] != null) {
+        final templateIds = (json.decode(data['enabled_templates'] as String) as List).cast<String>();
+        await storage.setEnabledTemplates(templateIds);
+        await debug.info('BackupService', 'Imported enabled templates (${templateIds.length} templates)');
+        results.add(ImportItemResult(
+          dataType: 'Enabled Templates',
+          success: true,
+          count: templateIds.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Enabled Templates',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await debug.error(
+        'BackupService',
+        'Failed to import enabled templates: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Enabled Templates',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
     return results;
   }
 }

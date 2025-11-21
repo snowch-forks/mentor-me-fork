@@ -89,6 +89,10 @@ void main() async {
     try {
       final autoBackup = AutoBackupService();
       storage.addPersistenceListener((dataType) async {
+        await debugService.info('main', 'Data change detected - triggering auto-backup', metadata: {
+          'dataType': dataType,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
         await autoBackup.scheduleAutoBackup();
       });
       await debugService.info('main', 'Auto-backup listener registered successfully');
