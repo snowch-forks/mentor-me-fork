@@ -14,6 +14,14 @@ import 'package:mentor_me/services/migration_service.dart';
 import 'package:mentor_me/services/debug_service.dart';
 
 class StorageService {
+  // Singleton pattern with lazy initialization
+  // This is CRITICAL for the persistence listener system to work!
+  // All code must use the SAME instance.
+  static StorageService? _instance;
+  factory StorageService() => _instance ??= StorageService._internal();
+
+  StorageService._internal();
+
   static const String _goalsKey = 'goals';
   static const String _journalEntriesKey = 'journal_entries';
   static const String _checkinKey = 'checkin';
@@ -26,8 +34,13 @@ class StorageService {
   static const String _sessionsKey = 'structured_journaling_sessions';
   static const String _schemaVersionKey = 'schema_version';
 
-  final _migrationService = MigrationService();
-  final _debug = DebugService();
+  // Lazy initialization of dependencies to avoid eager construction
+  MigrationService? _migrationServiceInstance;
+  MigrationService get _migrationService => _migrationServiceInstance ??= MigrationService();
+
+  DebugService? _debugInstance;
+  DebugService get _debug => _debugInstance ??= DebugService();
+
   bool _hasMigrated = false;
 
   // ============================================================================
@@ -225,7 +238,11 @@ class StorageService {
           json.encode(settings['featureDiscovery']));
     }
 
-    await _notifyPersistence('settings');
+    // Don't trigger persistence listeners for debug logs to avoid circular dependencies
+    // Debug logs being saved shouldn't trigger auto-backups
+    if (!settings.containsKey('debug_logs')) {
+      await _notifyPersistence('settings');
+    }
   }
 
   Future<Map<String, dynamic>> loadSettings() async {

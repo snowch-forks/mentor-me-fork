@@ -57,6 +57,9 @@ class AutoBackupService extends ChangeNotifier {
     final isEnabled = settings['autoBackupEnabled'] as bool? ?? false;
 
     if (!isEnabled) {
+      await _debug.info('AutoBackupService', 'Auto-backup skipped (disabled by user)', metadata: {
+        'isEnabled': isEnabled,
+      });
       return; // Auto-backup disabled
     }
 
@@ -67,6 +70,7 @@ class AutoBackupService extends ChangeNotifier {
     }
 
     // Cancel existing timer and start new one (debounce)
+    final hadExistingTimer = _debounceTimer?.isActive ?? false;
     _debounceTimer?.cancel();
     _isScheduled = true;
     notifyListeners();
@@ -75,7 +79,10 @@ class AutoBackupService extends ChangeNotifier {
       _performAutoBackup();
     });
 
-    await _debug.info('AutoBackupService', 'Auto-backup scheduled (30s delay)');
+    await _debug.info('AutoBackupService', 'Auto-backup scheduled (30s delay)', metadata: {
+      'hadExistingTimer': hadExistingTimer,
+      'debounceSeconds': _debounceDelay.inSeconds,
+    });
   }
 
   /// Perform the actual backup
@@ -218,6 +225,34 @@ class AutoBackupService extends ChangeNotifier {
   void cancelPendingBackup() {
     _debounceTimer?.cancel();
     _debounceTimer = null;
+
+    // Update state and notify listeners
+    if (_isScheduled) {
+      _isScheduled = false;
+      notifyListeners();
+    }
+  }
+
+  /// Get diagnostic information about auto-backup state
+  /// Useful for debugging why backups might not be triggering
+  Future<Map<String, dynamic>> getDiagnostics() async {
+    final settings = await _storage.loadSettings();
+    final isEnabled = settings['autoBackupEnabled'] as bool? ?? false;
+    final lastBackupTime = await getLastAutoBackupTime();
+    final lastBackupFilename = await getLastAutoBackupFilename();
+
+    return {
+      'isEnabled': isEnabled,
+      'isScheduled': _isScheduled,
+      'isBackingUp': _isBackingUp,
+      'isWeb': kIsWeb,
+      'lastBackupTime': lastBackupTime?.toIso8601String(),
+      'lastBackupFilename': lastBackupFilename,
+      'timeSinceLastBackup': lastBackupTime != null
+          ? DateTime.now().difference(lastBackupTime).inMinutes
+          : null,
+      'hasPendingTimer': _debounceTimer != null && _debounceTimer!.isActive,
+    };
   }
 
   /// Get list of auto-backup files (for display/restore)
