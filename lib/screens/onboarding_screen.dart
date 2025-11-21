@@ -160,13 +160,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (!mounted) return;
 
     // Reload all providers to pick up the restored data
-    await Provider.of<GoalProvider>(context, listen: false).loadGoals();
-    await Provider.of<HabitProvider>(context, listen: false).loadHabits();
-    await Provider.of<JournalProvider>(context, listen: false).loadEntries();
-    await Provider.of<CheckinProvider>(context, listen: false).loadCheckin();
-    await Provider.of<PulseProvider>(context, listen: false).loadPulseEntries();
-    await Provider.of<PulseTypeProvider>(context, listen: false).loadPulseTypes();
-    await Provider.of<ChatProvider>(context, listen: false).loadConversations();
+    await Provider.of<GoalProvider>(context, listen: false).reload();
+    await Provider.of<HabitProvider>(context, listen: false).reload();
+    await Provider.of<JournalProvider>(context, listen: false).reload();
+    await Provider.of<CheckinProvider>(context, listen: false).reload();
+    await Provider.of<PulseProvider>(context, listen: false).reload();
+    await Provider.of<PulseTypeProvider>(context, listen: false).reload();
+    await Provider.of<ChatProvider>(context, listen: false).reload();
   }
 
   Future<void> _completeOnboarding() async {
