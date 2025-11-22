@@ -33,6 +33,7 @@ class StorageService {
   static const String _templatesKey = 'journal_templates_custom';
   static const String _sessionsKey = 'structured_journaling_sessions';
   static const String _schemaVersionKey = 'schema_version';
+  static const String _safetyPlanKey = 'safety_plan';
 
   // Lazy initialization of dependencies to avoid eager construction
   MigrationService? _migrationServiceInstance;
@@ -407,6 +408,27 @@ class StorageService {
   Future<String?> loadSessions() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_sessionsKey);
+  }
+
+  // Save/Load Safety Plan
+  Future<void> saveSafetyPlan(Map<String, dynamic> safetyPlan) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_safetyPlanKey, json.encode(safetyPlan));
+    await _notifyPersistence('safety_plan');
+  }
+
+  Future<Map<String, dynamic>?> getSafetyPlan() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_safetyPlanKey);
+    if (jsonString == null) return null;
+
+    try {
+      return json.decode(jsonString) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('Warning: Corrupted safety plan data, returning null. Error: $e');
+      await prefs.remove(_safetyPlanKey);
+      return null;
+    }
   }
 
   // ============================================================================
