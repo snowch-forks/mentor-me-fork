@@ -429,26 +429,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 message: 'AI Provider: ${currentProvider.displayName}'
                     '${cloudError != null ? "\n⚠️ $cloudError" : ""}'
                     '${isConfigured ? "" : " (Not configured)"}'
-                    '\nTap to switch',
-                child: IconButton(
-                  icon: Icon(
-                    // Show error icon if there's a cloud error
-                    cloudError != null && currentProvider == AIProvider.cloud
-                        ? Icons.error
-                        : (isConfigured
-                            ? (currentProvider == AIProvider.cloud
-                                ? Icons.cloud
-                                : Icons.phone_android)
-                            : (currentProvider == AIProvider.cloud
-                                ? Icons.cloud_off
-                                : Icons.phonelink_off)),
-                    color: cloudError != null && currentProvider == AIProvider.cloud
-                        ? Colors.red
-                        : (isConfigured
-                            ? Theme.of(context).colorScheme.primary
-                            : Colors.orange),
+                    '\nTap to switch • Long press for settings',
+                child: GestureDetector(
+                  onTap: _toggleAIProvider,
+                  onLongPress: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AISettingsScreen(),
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Icon(
+                      // Show error icon if there's a cloud error
+                      cloudError != null && currentProvider == AIProvider.cloud
+                          ? Icons.error
+                          : (isConfigured
+                              ? (currentProvider == AIProvider.cloud
+                                  ? Icons.cloud
+                                  : Icons.phone_android)
+                              : (currentProvider == AIProvider.cloud
+                                  ? Icons.cloud_off
+                                  : Icons.phonelink_off)),
+                      color: cloudError != null && currentProvider == AIProvider.cloud
+                          ? Colors.red
+                          : (isConfigured
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.orange),
+                    ),
                   ),
-                  onPressed: _toggleAIProvider,
                 ),
               );
             },
