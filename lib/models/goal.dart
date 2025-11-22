@@ -30,7 +30,7 @@ class Goal {
   final List<String> milestones;
   final List<Milestone> milestonesDetailed;
   final int currentProgress;
-  bool isActive;  // Deprecated: Use status instead
+  final bool isActive;  // Deprecated: Use status instead
   final GoalStatus status;
   final int sortOrder; // For drag-and-drop reordering
   
@@ -44,13 +44,14 @@ class Goal {
     List<String>? milestones,
     List<Milestone>? milestonesDetailed,
     this.currentProgress = 0,
-    this.isActive = true,  // Deprecated
+    bool? isActive,  // Deprecated - auto-syncs with status if not provided
     this.status = GoalStatus.active,
     this.sortOrder = 0,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
         milestones = milestones ?? [],
-        milestonesDetailed = milestonesDetailed ?? [];
+        milestonesDetailed = milestonesDetailed ?? [],
+        isActive = isActive ?? (status == GoalStatus.active);
 
   Map<String, dynamic> toJson() {
     return {
@@ -113,6 +114,11 @@ class Goal {
     GoalStatus? status,
     int? sortOrder,
   }) {
+    // Auto-sync isActive with status if status is provided but isActive is not
+    final newStatus = status ?? this.status;
+    final newIsActive = isActive ??
+      (status != null ? (newStatus == GoalStatus.active) : this.isActive);
+
     return Goal(
       id: id,
       title: title ?? this.title,
@@ -123,8 +129,8 @@ class Goal {
       milestones: milestones ?? this.milestones,
       milestonesDetailed: milestonesDetailed ?? this.milestonesDetailed,
       currentProgress: currentProgress ?? this.currentProgress,
-      isActive: isActive ?? this.isActive,
-      status: status ?? this.status,
+      isActive: newIsActive,
+      status: newStatus,
       sortOrder: sortOrder ?? this.sortOrder,
     );
   }

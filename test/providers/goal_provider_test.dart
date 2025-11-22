@@ -151,8 +151,7 @@ void main() {
         expect(provider.goals, isEmpty);
       });
 
-      // SKIPPED: isActive field doesn't sync with status field automatically
-      test('should update goal status', () async {
+      test('should update goal status and auto-sync isActive', () async {
         final goal = Goal(
           title: 'Test',
           description: 'Test',
@@ -163,13 +162,13 @@ void main() {
 
         final updatedGoal = goal.copyWith(
           status: GoalStatus.completed,
-          isActive: false, // FIX: Need to set this explicitly
+          // isActive should auto-sync to false when status is completed
         );
         await provider.updateGoal(updatedGoal);
 
         expect(provider.goals.first.status, GoalStatus.completed);
         expect(provider.goals.first.isActive, false);
-      }, skip: 'TODO: Fix isActive/status field synchronization');
+      });
 
       test('should notify listeners when goal updated', () async {
         final goal = Goal(
@@ -255,8 +254,6 @@ void main() {
     });
 
     group('Get Goals By Category', () {
-      // SKIPPED: isActive field doesn't sync with status field automatically
-      // Need to also set isActive: false when setting status: GoalStatus.completed
       test('should return only active goals in specified category', () async {
         await provider.addGoal(Goal(
           title: 'Fitness 1',
@@ -275,14 +272,14 @@ void main() {
           description: 'Test',
           category: GoalCategory.fitness,
           status: GoalStatus.completed,
-          isActive: false, // FIX: Need to set this explicitly
+          // isActive auto-syncs to false
         ));
 
         final fitnessGoals = provider.getGoalsByCategory(GoalCategory.fitness);
 
         expect(fitnessGoals.length, 1);
         expect(fitnessGoals.first.title, 'Fitness 1');
-      }, skip: 'TODO: Fix isActive/status field synchronization');
+      });
 
       test('should return empty list if no goals in category', () {
         final goals = provider.getGoalsByCategory(GoalCategory.learning);
@@ -413,7 +410,6 @@ void main() {
     });
 
     group('Active Goals', () {
-      // SKIPPED: isActive field doesn't sync with status field automatically
       test('should return only active goals', () async {
         await provider.addGoal(Goal(
           title: 'Active 1',
@@ -426,7 +422,7 @@ void main() {
           description: 'Test',
           category: GoalCategory.personal,
           status: GoalStatus.completed,
-          isActive: false, // FIX: Need to set this explicitly
+          // isActive auto-syncs to false
         ));
         await provider.addGoal(Goal(
           title: 'Active 2',
@@ -439,7 +435,7 @@ void main() {
 
         expect(activeGoals.length, 2);
         expect(activeGoals.every((g) => g.isActive), isTrue);
-      }, skip: 'TODO: Fix isActive/status field synchronization');
+      });
     });
 
     group('Reload', () {

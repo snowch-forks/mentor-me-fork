@@ -176,8 +176,7 @@ void main() {
         expect(provider.habits, isEmpty);
       });
 
-      // SKIPPED: isActive field doesn't sync with status field automatically
-      test('should update habit status', () async {
+      test('should update habit status and auto-sync isActive', () async {
         final habit = Habit(
           title: 'Test',
           description: 'Test',
@@ -187,13 +186,13 @@ void main() {
 
         final updatedHabit = habit.copyWith(
           status: HabitStatus.completed,
-          isActive: false, // FIX: Need to set this explicitly
+          // isActive should auto-sync to false when status is completed
         );
         await provider.updateHabit(updatedHabit);
 
         expect(provider.habits.first.status, HabitStatus.completed);
         expect(provider.habits.first.isActive, false);
-      }, skip: 'TODO: Fix isActive/status field synchronization');
+      });
 
       test('should notify listeners when habit updated', () async {
         final habit = Habit(
@@ -392,7 +391,6 @@ void main() {
     });
 
     group('Get Habits By Goal', () {
-      // SKIPPED: isActive field doesn't sync with status field automatically
       test('should return only active habits linked to goal', () async {
         await provider.addHabit(Habit(
           title: 'Habit 1',
@@ -411,14 +409,14 @@ void main() {
           description: 'Test',
           linkedGoalId: 'goal-1',
           status: HabitStatus.completed,
-          isActive: false, // FIX: Need to set this explicitly
+          // isActive auto-syncs to false
         ));
 
         final goal1Habits = provider.getHabitsByGoal('goal-1');
 
         expect(goal1Habits.length, 1);
         expect(goal1Habits.first.title, 'Habit 1');
-      }, skip: 'TODO: Fix isActive/status field synchronization');
+      });
 
       test('should return empty list if no habits for goal', () {
         final habits = provider.getHabitsByGoal('non-existent-goal');
@@ -449,7 +447,6 @@ void main() {
         expect(todayHabits.first.title, 'Not Done');
       });
 
-      // SKIPPED: isActive field doesn't sync with status field automatically
       test('should not include inactive habits', () async {
         await provider.addHabit(Habit(
           title: 'Active',
@@ -460,14 +457,14 @@ void main() {
           title: 'Completed',
           description: 'Test',
           status: HabitStatus.completed,
-          isActive: false, // FIX: Need to set this explicitly
+          // isActive auto-syncs to false
         ));
 
         final todayHabits = provider.getTodayHabits();
 
         expect(todayHabits.length, 1);
         expect(todayHabits.first.title, 'Active');
-      }, skip: 'TODO: Fix isActive/status field synchronization');
+      });
     });
 
     group('Get Completed Today Habits', () {
@@ -494,7 +491,6 @@ void main() {
     });
 
     group('Get Today Stats', () {
-      // SKIPPED: isActive field doesn't sync with status field automatically
       test('should return correct statistics', () async {
         final habit1 = Habit(
           title: 'Completed',
@@ -514,7 +510,7 @@ void main() {
           title: 'Inactive',
           description: 'Test',
           status: HabitStatus.completed,
-          isActive: false, // FIX: Need to set this explicitly
+          // isActive auto-syncs to false
         ));
 
         final stats = provider.getTodayStats();
@@ -522,7 +518,7 @@ void main() {
         expect(stats['total'], 2); // Only active habits
         expect(stats['completed'], 1);
         expect(stats['remaining'], 1);
-      }, skip: 'TODO: Fix isActive/status field synchronization');
+      });
 
       test('should handle empty habit list', () {
         final stats = provider.getTodayStats();
@@ -534,7 +530,6 @@ void main() {
     });
 
     group('Active Habits', () {
-      // SKIPPED: isActive field doesn't sync with status field automatically
       test('should return only active habits', () async {
         await provider.addHabit(Habit(
           title: 'Active 1',
@@ -545,7 +540,7 @@ void main() {
           title: 'Completed',
           description: 'Test',
           status: HabitStatus.completed,
-          isActive: false, // FIX: Need to set this explicitly
+          // isActive auto-syncs to false
         ));
         await provider.addHabit(Habit(
           title: 'Active 2',
@@ -557,7 +552,7 @@ void main() {
 
         expect(activeHabits.length, 2);
         expect(activeHabits.every((h) => h.isActive), isTrue);
-      }, skip: 'TODO: Fix isActive/status field synchronization');
+      });
     });
 
     group('Celebration Message', () {

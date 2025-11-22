@@ -99,10 +99,17 @@ class ChatProvider extends ChangeNotifier {
 
   /// Switch to a different conversation
   void switchConversation(String conversationId) {
-    _currentConversation = _conversations.firstWhere(
-      (c) => c.id == conversationId,
-      orElse: () => _currentConversation!,
-    );
+    try {
+      _currentConversation = _conversations.firstWhere(
+        (c) => c.id == conversationId,
+      );
+    } catch (e) {
+      // Conversation not found - keep current if it exists, otherwise use first available
+      if (_currentConversation == null && _conversations.isNotEmpty) {
+        _currentConversation = _conversations.first;
+      }
+      // If still null or conversations is empty, _currentConversation remains null
+    }
     notifyListeners();
   }
 

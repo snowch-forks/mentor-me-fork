@@ -62,10 +62,10 @@ class PulseProvider extends ChangeNotifier {
     }).toList();
   }
 
-  /// Get pulse entries within a date range
+  /// Get pulse entries within a date range (inclusive)
   List<PulseEntry> getEntriesByDateRange(DateTime start, DateTime end) {
     return _entries.where((e) {
-      return e.timestamp.isAfter(start) && e.timestamp.isBefore(end);
+      return !e.timestamp.isBefore(start) && !e.timestamp.isAfter(end);
     }).toList();
   }
 
