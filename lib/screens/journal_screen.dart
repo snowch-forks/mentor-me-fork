@@ -764,6 +764,9 @@ class _JournalScreenState extends State<JournalScreen> {
                         color: Colors.grey[600],
                       ),
                 ),
+                const SizedBox(width: 8),
+                // Entry type badge
+                _buildEntryTypeBadge(context, entry.type),
                 const Spacer(),
                 // Actions menu (hidden in compact view)
                 if (!_isCompactView)
@@ -929,9 +932,46 @@ class _JournalScreenState extends State<JournalScreen> {
   }
 
 
+  Widget _buildEntryTypeBadge(BuildContext context, JournalEntryType type) {
+    String label;
+    Color color;
+
+    switch (type) {
+      case JournalEntryType.quickNote:
+        label = 'Quick Note';
+        color = Theme.of(context).colorScheme.primary;
+        break;
+      case JournalEntryType.guidedJournal:
+        label = 'Guided';
+        color = Theme.of(context).colorScheme.tertiary;
+        break;
+      case JournalEntryType.structuredJournal:
+        label = 'Structured';
+        color = Colors.orange;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+
   String _formatDate(DateTime date) {
     final now = DateTime.now();
-    
+
     // Compare calendar dates, not time differences
     final today = DateTime(now.year, now.month, now.day);
     final entryDate = DateTime(date.year, date.month, date.day);
@@ -1333,6 +1373,8 @@ class _JournalScreenState extends State<JournalScreen> {
                             _formatDate(entry.createdAt),
                             style: Theme.of(context).textTheme.headlineSmall,
                           ),
+                          const SizedBox(height: 8),
+                          _buildEntryTypeBadge(context, entry.type),
                         ],
                       ),
                     ),
