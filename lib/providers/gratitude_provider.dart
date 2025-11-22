@@ -77,9 +77,7 @@ class GratitudeProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'GratitudeProvider',
-        'Failed to add gratitude entry',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to add gratitude entry',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -107,9 +105,7 @@ class GratitudeProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'GratitudeProvider',
-        'Failed to update gratitude entry',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to update gratitude entry',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -130,9 +126,7 @@ class GratitudeProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'GratitudeProvider',
-        'Failed to delete gratitude entry',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to delete gratitude entry',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -209,9 +203,7 @@ class GratitudeProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'GratitudeProvider',
-        'Failed to load gratitude entries',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to load gratitude entries',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -226,9 +218,7 @@ class GratitudeProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'GratitudeProvider',
-        'Failed to save gratitude entries',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to save gratitude entries',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -245,9 +235,7 @@ class GratitudeProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'GratitudeProvider',
-        'Failed to clear gratitude entries',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to clear gratitude entries',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }

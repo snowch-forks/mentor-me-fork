@@ -7,7 +7,7 @@ enum SelfCompassionType {
   commonHumanity,         // Recognize shared human experience
   mindfulnessExercise,    // Non-judgmental awareness
   lovingKindnessMeditation, // Metta practice
-  self compassionPhrase,   // Kristin Neff's 3 components
+  selfCompassionPhrase,   // Kristin Neff's 3 components
   other,
 }
 

@@ -77,9 +77,7 @@ class ImplementationIntentionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ImplementationIntentionProvider',
-        'Failed to add implementation intention',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to add implementation intention',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -107,9 +105,7 @@ class ImplementationIntentionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ImplementationIntentionProvider',
-        'Failed to update implementation intention',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to update implementation intention',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -138,9 +134,7 @@ class ImplementationIntentionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ImplementationIntentionProvider',
-        'Failed to record success',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to record success',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -169,9 +163,7 @@ class ImplementationIntentionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ImplementationIntentionProvider',
-        'Failed to record miss',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to record miss',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -192,9 +184,7 @@ class ImplementationIntentionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ImplementationIntentionProvider',
-        'Failed to toggle active status',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to toggle active status',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -215,9 +205,7 @@ class ImplementationIntentionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ImplementationIntentionProvider',
-        'Failed to delete implementation intention',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to delete implementation intention',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -286,9 +274,7 @@ class ImplementationIntentionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ImplementationIntentionProvider',
-        'Failed to load implementation intentions',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to load implementation intentions',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -303,9 +289,7 @@ class ImplementationIntentionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ImplementationIntentionProvider',
-        'Failed to save implementation intentions',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to save implementation intentions',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -322,9 +306,7 @@ class ImplementationIntentionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ImplementationIntentionProvider',
-        'Failed to clear implementation intentions',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to clear implementation intentions',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }

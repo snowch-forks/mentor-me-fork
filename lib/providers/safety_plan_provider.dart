@@ -47,9 +47,7 @@ class SafetyPlanProvider extends ChangeNotifier {
       _error = 'Failed to load safety plan: $e';
       await _debug.error(
         'SafetyPlanProvider',
-        'Failed to load safety plan',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to load safety plan',stackTrace: stackTrace.toString(),
       );
     } finally {
       _isLoading = false;
@@ -74,9 +72,7 @@ class SafetyPlanProvider extends ChangeNotifier {
       _error = 'Failed to save safety plan: $e';
       await _debug.error(
         'SafetyPlanProvider',
-        'Failed to save safety plan',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to save safety plan',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }

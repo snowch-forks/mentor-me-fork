@@ -9,7 +9,7 @@ enum ActivityCategory {
   creative,        // Art, music, writing
   selfCare,        // Personal care, hygiene
   routine,         // Daily tasks, chores
-  values,          // Aligned with personal values
+  valuesBased,      // Aligned with personal values
   learning,        // Skill development
   relaxation,      // Rest, meditation
   other,           // Custom category
@@ -32,7 +32,7 @@ extension ActivityCategoryExtension on ActivityCategory {
         return 'Self-Care';
       case ActivityCategory.routine:
         return 'Routine';
-      case ActivityCategory.values:
+      case ActivityCategory.valuesBased:
         return 'Values-Based';
       case ActivityCategory.learning:
         return 'Learning';
@@ -59,7 +59,7 @@ extension ActivityCategoryExtension on ActivityCategory {
         return '💆';
       case ActivityCategory.routine:
         return '📋';
-      case ActivityCategory.values:
+      case ActivityCategory.valuesBased:
         return '⭐';
       case ActivityCategory.learning:
         return '📚';
@@ -136,7 +136,7 @@ extension ActivityCategoryExtension on ActivityCategory {
           'Laundry',
           'Evening wind-down',
         ];
-      case ActivityCategory.values:
+      case ActivityCategory.valuesBased:
         return [
           'Spend time on meaningful goal',
           'Practice a valued skill',
