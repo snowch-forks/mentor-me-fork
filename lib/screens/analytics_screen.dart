@@ -30,9 +30,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          SliverAppBar.large(
+          SliverAppBar(
             title: const Text('Analytics'),
             centerTitle: false,
+            pinned: true,
+            floating: false,
           ),
           SliverPadding(
             padding: const EdgeInsets.all(AppSpacing.md),
