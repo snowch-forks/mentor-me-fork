@@ -47,6 +47,7 @@ class CheckinProvider extends ChangeNotifier {
     final areEnabled = await _notifications.areNotificationsEnabled();
     if (!areEnabled) {
       debugPrint('⚠️  Notifications are not enabled');
+      notifyListeners(); // Notify listeners even when permissions denied
       return false;
     }
 

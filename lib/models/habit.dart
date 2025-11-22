@@ -45,7 +45,7 @@ class Habit {
     List<DateTime>? completionDates,
     this.currentStreak = 0,
     this.longestStreak = 0,
-    this.isActive = true,  // Deprecated
+    bool? isActive,  // Deprecated - auto-syncs with status if not provided
     this.status = HabitStatus.active,
     DateTime? createdAt,
     this.isSystemCreated = false,
@@ -53,7 +53,8 @@ class Habit {
     this.sortOrder = 0,
   })  : id = id ?? const Uuid().v4(),
         completionDates = completionDates ?? [],
-        createdAt = createdAt ?? DateTime.now();
+        createdAt = createdAt ?? DateTime.now(),
+        isActive = isActive ?? (status == HabitStatus.active);
 
   Map<String, dynamic> toJson() {
     return {
@@ -123,6 +124,11 @@ class Habit {
     String? systemType,
     int? sortOrder,
   }) {
+    // Auto-sync isActive with status if status is provided but isActive is not
+    final newStatus = status ?? this.status;
+    final newIsActive = isActive ??
+      (status != null ? (newStatus == HabitStatus.active) : this.isActive);
+
     return Habit(
       id: id,
       title: title ?? this.title,
@@ -133,8 +139,8 @@ class Habit {
       completionDates: completionDates ?? this.completionDates,
       currentStreak: currentStreak ?? this.currentStreak,
       longestStreak: longestStreak ?? this.longestStreak,
-      isActive: isActive ?? this.isActive,
-      status: status ?? this.status,
+      isActive: newIsActive,
+      status: newStatus,
       createdAt: createdAt,
       isSystemCreated: isSystemCreated ?? this.isSystemCreated,
       systemType: systemType ?? this.systemType,
