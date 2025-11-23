@@ -37,7 +37,7 @@ class _AssessmentDashboardScreenState extends State<AssessmentDashboardScreen> {
         builder: (context, provider, child) {
           final assessments = _filterType == null
               ? provider.assessments
-              : provider.getAssessmentsByType(_filterType!);
+              : provider.getByType(_filterType!);
 
           return Column(
             children: [
@@ -75,7 +75,7 @@ class _AssessmentDashboardScreenState extends State<AssessmentDashboardScreen> {
                   padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     children: AssessmentType.values.map((type) {
-                      final typeAssessments = provider.getAssessmentsByType(type);
+                      final typeAssessments = provider.getByType(type);
                       final latestAssessment = typeAssessments.isNotEmpty ? typeAssessments.first : null;
 
                       return Expanded(
@@ -217,7 +217,7 @@ class _AssessmentDashboardScreenState extends State<AssessmentDashboardScreen> {
       case AssessmentType.gad7:
         return Icons.psychology;
       case AssessmentType.pss10:
-        return Icons.stress_management;
+        return Icons.monitor_heart;
     }
   }
 

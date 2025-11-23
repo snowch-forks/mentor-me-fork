@@ -681,7 +681,7 @@ class AssessmentResultScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
 
           // Crisis warning if triggered
-          if (result.triggeredCrisis) ...[
+          if (result.triggeredCrisisProtocol) ...[
             Card(
               color: Colors.red.shade50,
               child: Padding(
