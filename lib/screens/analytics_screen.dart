@@ -7,9 +7,11 @@ import '../providers/goal_provider.dart';
 import '../providers/habit_provider.dart';
 import '../providers/journal_provider.dart';
 import '../providers/pulse_provider.dart';
+import '../providers/assessment_provider.dart';
 import '../models/goal.dart';
 import '../theme/app_spacing.dart';
 import 'halt_analytics_screen.dart';
+import 'assessment_dashboard_screen.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -25,6 +27,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final habitProvider = context.watch<HabitProvider>();
     final journalProvider = context.watch<JournalProvider>();
     final pulseProvider = context.watch<PulseProvider>();
+    final assessmentProvider = context.watch<AssessmentProvider>();
 
     return Scaffold(
       body: CustomScrollView(
@@ -61,6 +64,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const HaltAnalyticsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                _buildCategoryCard(
+                  context,
+                  title: 'Clinical Assessments',
+                  icon: Icons.assessment_outlined,
+                  color: Colors.teal,
+                  description: '${assessmentProvider.assessments.length} total · PHQ-9, GAD-7, PSS-10',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AssessmentDashboardScreen(),
                       ),
                     );
                   },

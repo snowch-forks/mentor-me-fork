@@ -14,6 +14,7 @@ import 'providers/chat_provider.dart';
 import 'providers/journal_template_provider.dart';
 import 'providers/checkin_template_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/assessment_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/notification_service.dart';
@@ -174,6 +175,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PulseProvider()),
         ChangeNotifierProvider(create: (_) => PulseTypeProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => AssessmentProvider()),
         ChangeNotifierProvider(create: (_) {
           final provider = JournalTemplateProvider();
           // Initialize system templates
