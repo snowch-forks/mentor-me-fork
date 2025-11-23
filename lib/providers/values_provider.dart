@@ -69,9 +69,7 @@ class ValuesProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ValuesProvider',
-        'Failed to add personal value',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to add personal value',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -99,9 +97,7 @@ class ValuesProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ValuesProvider',
-        'Failed to update personal value',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to update personal value',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -122,9 +118,7 @@ class ValuesProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ValuesProvider',
-        'Failed to delete personal value',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to delete personal value',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -145,9 +139,7 @@ class ValuesProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ValuesProvider',
-        'Failed to mark value as reviewed',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to mark value as reviewed',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -231,9 +223,7 @@ class ValuesProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ValuesProvider',
-        'Failed to load personal values',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to load personal values',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -248,9 +238,7 @@ class ValuesProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ValuesProvider',
-        'Failed to save personal values',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to save personal values',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -267,9 +255,7 @@ class ValuesProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'ValuesProvider',
-        'Failed to clear personal values',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to clear personal values',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }

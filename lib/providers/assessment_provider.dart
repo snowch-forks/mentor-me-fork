@@ -117,9 +117,7 @@ class AssessmentProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'AssessmentProvider',
-        'Failed to complete assessment',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to complete assessment',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -142,9 +140,7 @@ class AssessmentProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'AssessmentProvider',
-        'Failed to delete assessment',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to delete assessment',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -236,9 +232,7 @@ class AssessmentProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'AssessmentProvider',
-        'Failed to load assessments',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to load assessments',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -253,9 +247,7 @@ class AssessmentProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'AssessmentProvider',
-        'Failed to save assessments',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to save assessments',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -272,9 +264,7 @@ class AssessmentProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'AssessmentProvider',
-        'Failed to clear assessments',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to clear assessments',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }

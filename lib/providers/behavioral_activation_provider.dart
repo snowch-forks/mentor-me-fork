@@ -94,9 +94,7 @@ class BehavioralActivationProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'BehavioralActivationProvider',
-        'Failed to add activity',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to add activity',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -139,9 +137,7 @@ class BehavioralActivationProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'BehavioralActivationProvider',
-        'Failed to schedule activity',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to schedule activity',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -193,9 +189,7 @@ class BehavioralActivationProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'BehavioralActivationProvider',
-        'Failed to complete activity',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to complete activity',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -231,9 +225,7 @@ class BehavioralActivationProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'BehavioralActivationProvider',
-        'Failed to skip activity',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to skip activity',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -254,9 +246,7 @@ class BehavioralActivationProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'BehavioralActivationProvider',
-        'Failed to delete activity',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to delete activity',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -277,9 +267,7 @@ class BehavioralActivationProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'BehavioralActivationProvider',
-        'Failed to delete scheduled activity',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to delete scheduled activity',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -367,9 +355,7 @@ class BehavioralActivationProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'BehavioralActivationProvider',
-        'Failed to load behavioral activation data',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to load behavioral activation data',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -387,9 +373,7 @@ class BehavioralActivationProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'BehavioralActivationProvider',
-        'Failed to save behavioral activation data',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to save behavioral activation data',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -407,9 +391,7 @@ class BehavioralActivationProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'BehavioralActivationProvider',
-        'Failed to clear data',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to clear data',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }

@@ -1,4 +1,5 @@
 import 'package:uuid/uuid.dart';
+import 'package:flutter/material.dart';
 
 /// Types of clinical assessments available
 enum AssessmentType {
@@ -114,9 +115,6 @@ extension SeverityLevelExtension on SeverityLevel {
     }
   }
 }
-
-// Required import for Color
-import 'package:flutter/material.dart';
 
 /// Result of a clinical assessment
 ///

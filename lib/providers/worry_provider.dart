@@ -80,9 +80,7 @@ class WorryProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'WorryProvider',
-        'Failed to record worry',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to record worry',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -123,9 +121,7 @@ class WorryProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'WorryProvider',
-        'Failed to process worry',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to process worry',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -142,9 +138,7 @@ class WorryProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'WorryProvider',
-        'Failed to delete worry',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to delete worry',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -180,9 +174,7 @@ class WorryProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'WorryProvider',
-        'Failed to schedule worry session',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to schedule worry session',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -213,9 +205,7 @@ class WorryProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'WorryProvider',
-        'Failed to start worry session',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to start worry session',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -268,9 +258,7 @@ class WorryProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'WorryProvider',
-        'Failed to complete worry session',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to complete worry session',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -291,9 +279,7 @@ class WorryProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'WorryProvider',
-        'Failed to delete worry session',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to delete worry session',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -352,9 +338,7 @@ class WorryProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'WorryProvider',
-        'Failed to load worry data',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to load worry data',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -372,9 +356,7 @@ class WorryProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'WorryProvider',
-        'Failed to save worry data',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to save worry data',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -392,9 +374,7 @@ class WorryProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'WorryProvider',
-        'Failed to clear worry data',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to clear worry data',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }

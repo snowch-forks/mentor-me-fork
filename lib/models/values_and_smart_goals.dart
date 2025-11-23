@@ -5,7 +5,7 @@ enum ValueDomain {
   relationships,    // Family, friends, romantic
   work,            // Career, education, skill development
   health,          // Physical and mental wellbeing
-  personal_growth, // Learning, creativity, spirituality
+  personalGrowth, // Learning, creativity, spirituality
   leisure,         // Recreation, hobbies, play
   community,       // Citizenship, environment, activism
   other,           // Custom values
@@ -20,7 +20,7 @@ extension ValueDomainExtension on ValueDomain {
         return 'Work & Education';
       case ValueDomain.health:
         return 'Health & Wellbeing';
-      case ValueDomain.personal_growth:
+      case ValueDomain.personalGrowth:
         return 'Personal Growth';
       case ValueDomain.leisure:
         return 'Leisure & Recreation';
@@ -39,7 +39,7 @@ extension ValueDomainExtension on ValueDomain {
         return '💼';
       case ValueDomain.health:
         return '🏥';
-      case ValueDomain.personal_growth:
+      case ValueDomain.personalGrowth:
         return '🌱';
       case ValueDomain.leisure:
         return '🎭';
@@ -77,7 +77,7 @@ extension ValueDomainExtension on ValueDomain {
           'Nourishing my body',
           'Managing stress effectively',
         ];
-      case ValueDomain.personal_growth:
+      case ValueDomain.personalGrowth:
         return [
           'Self-awareness and reflection',
           'Creativity and self-expression',

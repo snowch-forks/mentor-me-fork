@@ -77,9 +77,7 @@ class InterventionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'InterventionProvider',
-        'Failed to record intervention attempt',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to record intervention attempt',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -122,9 +120,7 @@ class InterventionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'InterventionProvider',
-        'Failed to rate intervention',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to rate intervention',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -145,9 +141,7 @@ class InterventionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'InterventionProvider',
-        'Failed to delete intervention attempt',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to delete intervention attempt',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -260,9 +254,7 @@ class InterventionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'InterventionProvider',
-        'Failed to load intervention attempts',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to load intervention attempts',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -277,9 +269,7 @@ class InterventionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'InterventionProvider',
-        'Failed to save intervention attempts',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to save intervention attempts',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -296,9 +286,7 @@ class InterventionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'InterventionProvider',
-        'Failed to clear intervention attempts',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to clear intervention attempts',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }

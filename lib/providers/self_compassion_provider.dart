@@ -86,9 +86,7 @@ class SelfCompassionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'SelfCompassionProvider',
-        'Failed to add self-compassion entry',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to add self-compassion entry',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -116,9 +114,7 @@ class SelfCompassionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'SelfCompassionProvider',
-        'Failed to update self-compassion entry',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to update self-compassion entry',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -139,9 +135,7 @@ class SelfCompassionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'SelfCompassionProvider',
-        'Failed to delete self-compassion entry',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to delete self-compassion entry',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -245,9 +239,7 @@ class SelfCompassionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'SelfCompassionProvider',
-        'Failed to load self-compassion entries',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to load self-compassion entries',stackTrace: stackTrace.toString(),
       );
       _isLoading = false;
       notifyListeners();
@@ -262,9 +254,7 @@ class SelfCompassionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'SelfCompassionProvider',
-        'Failed to save self-compassion entries',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to save self-compassion entries',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
@@ -281,9 +271,7 @@ class SelfCompassionProvider extends ChangeNotifier {
     } catch (e, stackTrace) {
       await _debug.error(
         'SelfCompassionProvider',
-        'Failed to clear self-compassion entries',
-        error: e,
-        stackTrace: stackTrace,
+        'Failed to clear self-compassion entries',stackTrace: stackTrace.toString(),
       );
       rethrow;
     }
