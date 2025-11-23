@@ -253,7 +253,7 @@ class _PendingWorriesTab extends StatelessWidget {
             Icon(
               Icons.check_circle_outline,
               size: 100,
-              color: Colors.green.withOpacity(0.3),
+              color: Colors.green.withValues(alpha: 0.3),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(
@@ -315,7 +315,7 @@ class _SessionsTab extends StatelessWidget {
                   Icon(
                     Icons.history,
                     size: 100,
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
@@ -354,7 +354,6 @@ class _WorryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final timeAgo = _formatTimeAgo(worry.recordedAt);
 
     return Card(

@@ -222,7 +222,7 @@ class _PulseTypeDialogState extends State<PulseTypeDialog> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: _selectedColor.withOpacity(0.2),
+                            color: _selectedColor.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: _selectedColor),
                           ),

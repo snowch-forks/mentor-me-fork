@@ -3,12 +3,14 @@ import '../models/habit.dart';
 import '../services/storage_service.dart';
 import '../services/habit_service.dart';
 import '../services/notification_service.dart';
+import '../services/smart_notification_service.dart';
 import '../services/notification_analytics_service.dart';
 import '../services/feature_discovery_service.dart';
 
 class HabitProvider extends ChangeNotifier {
   final StorageService _storage = StorageService();
   final NotificationService _notifications = NotificationService();
+  final SmartNotificationService _smartNotifications = SmartNotificationService();
   final NotificationAnalyticsService _analytics = NotificationAnalyticsService();
   List<Habit> _habits = [];
   bool _isLoading = false;
@@ -112,6 +114,15 @@ class HabitProvider extends ChangeNotifier {
         updatedHabit.id,
         updatedHabit.title,
         currentStreak,
+      );
+    }
+
+    // Send celebration notification for streak milestones
+    const streakMilestones = [7, 14, 21, 30, 60, 90];
+    if (streakMilestones.contains(currentStreak)) {
+      await _smartNotifications.sendStreakCelebrationNotification(
+        habitTitle: updatedHabit.title,
+        streak: currentStreak,
       );
     }
   }

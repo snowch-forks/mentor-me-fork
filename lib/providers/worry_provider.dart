@@ -316,14 +316,14 @@ class WorryProvider extends ChangeNotifier {
 
       final worriesData = await _storage.getWorries();
       if (worriesData != null) {
-        _worries = (worriesData as List)
+        _worries = worriesData
             .map((json) => Worry.fromJson(json))
             .toList();
       }
 
       final sessionsData = await _storage.getWorrySessions();
       if (sessionsData != null) {
-        _sessions = (sessionsData as List)
+        _sessions = sessionsData
             .map((json) => WorrySession.fromJson(json))
             .toList();
       }

@@ -37,7 +37,7 @@ class PulseTypeManagementScreen extends StatelessWidget {
                     Icon(
                       Icons.category_outlined,
                       size: 64,
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
                     ),
                     AppSpacing.gapLg,
                     Text(
@@ -48,7 +48,7 @@ class PulseTypeManagementScreen extends StatelessWidget {
                     Text(
                       'Create custom types to track different aspects of your wellness',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                       textAlign: TextAlign.center,
                     ),
@@ -70,7 +70,7 @@ class PulseTypeManagementScreen extends StatelessWidget {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.md),
-                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                 child: Row(
                   children: [
                     Icon(
@@ -112,7 +112,7 @@ class PulseTypeManagementScreen extends StatelessWidget {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.2),
+                            color: color.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(icon, color: color, size: 24),
@@ -181,7 +181,7 @@ class PulseTypeManagementScreen extends StatelessWidget {
                   color: Theme.of(context).scaffoldBackgroundColor,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 4,
                       offset: const Offset(0, -2),
                     ),

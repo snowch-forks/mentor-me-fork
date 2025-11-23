@@ -207,8 +207,8 @@ class _AddPulseDialogState extends State<AddPulseDialog> {
                     height: 50,
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? color.withOpacity(0.2)
-                          : Theme.of(context).colorScheme.surfaceVariant,
+                          ? color.withValues(alpha: 0.2)
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isSelected ? color : Colors.transparent,

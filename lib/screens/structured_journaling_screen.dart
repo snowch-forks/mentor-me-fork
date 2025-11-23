@@ -15,6 +15,9 @@ import 'package:mentor_me/services/structured_journaling_service.dart';
 import 'package:mentor_me/services/ai_service.dart';
 import 'package:mentor_me/services/debug_service.dart';
 import 'package:mentor_me/services/storage_service.dart';
+import 'package:mentor_me/services/cognitive_distortion_detector.dart';
+import 'package:mentor_me/widgets/distortion_suggestion_widget.dart';
+import 'package:mentor_me/widgets/socratic_questioning_dialog.dart';
 import 'package:mentor_me/theme/app_spacing.dart';
 import 'package:mentor_me/screens/template_settings_screen.dart';
 
@@ -39,6 +42,11 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
   final _service = StructuredJournalingService();
   final _debug = DebugService();
 
+  // Cognitive distortion detection
+  final _distortionDetector = CognitiveDistortionDetector();
+  final _suggestionController = DistortionSuggestionController();
+  String? _alternativeThought;
+
   JournalTemplate? _selectedTemplate;
   StructuredJournalingSession? _currentSession;
   bool _isTyping = false;
@@ -47,6 +55,9 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
   @override
   void initState() {
     super.initState();
+
+    // Add listener for distortion detection
+    _messageController.addListener(_onTextChanged);
 
     if (widget.existingSession != null) {
       _currentSession = widget.existingSession;
@@ -59,10 +70,58 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
     }
   }
 
+  /// Detect cognitive distortions as user types
+  void _onTextChanged() {
+    final text = _messageController.text;
+
+    // Don't detect if suggestion is already showing
+    if (_suggestionController.hasSuggestion) return;
+
+    // Detect distortions
+    final detections = _distortionDetector.detectDistortions(text);
+
+    // Show suggestion for the highest confidence detection
+    if (detections.isNotEmpty) {
+      _suggestionController.showSuggestion(detections.first);
+    }
+  }
+
+  /// Launch Socratic questioning dialog
+  Future<void> _exploreDistortion() async {
+    final detection = _suggestionController.currentDetection;
+    if (detection == null) return;
+
+    final alternativeThought = await SocraticQuestioningDialog.show(
+      context: context,
+      detection: detection,
+      originalText: detection.suggestedText,
+    );
+
+    if (alternativeThought != null) {
+      setState(() {
+        _alternativeThought = alternativeThought;
+        _suggestionController.clear();
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Great reframing! Your balanced thought has been noted.'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
+    _messageController.removeListener(_onTextChanged);
     _messageController.dispose();
     _scrollController.dispose();
+    _suggestionController.dispose();
     super.dispose();
   }
 
@@ -800,7 +859,7 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
 
                 // Info banner about enabled templates
                 Container(
-                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.lg,
                     vertical: AppSpacing.md,
@@ -973,7 +1032,7 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
               decoration: BoxDecoration(
                 color: isUser
                     ? Theme.of(context).colorScheme.primaryContainer
-                    : Theme.of(context).colorScheme.surfaceVariant,
+                    : Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(AppRadius.lg),
                   topRight: const Radius.circular(AppRadius.lg),
@@ -1044,7 +1103,7 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: Row(
@@ -1080,40 +1139,112 @@ class _StructuredJournalingScreenState extends State<StructuredJournalingScreen>
           color: Theme.of(context).colorScheme.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, -2),
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: TextField(
-                controller: _messageController,
-                decoration: InputDecoration(
-                  hintText: 'Type your response...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
+            // Cognitive distortion suggestion
+            ListenableBuilder(
+              listenable: _suggestionController,
+              builder: (context, _) {
+                if (!_suggestionController.hasSuggestion) {
+                  return const SizedBox.shrink();
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: DistortionSuggestionWidget(
+                    detection: _suggestionController.currentDetection!,
+                    onExplore: _exploreDistortion,
+                    onDismiss: () => _suggestionController.dismiss(),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
-                    vertical: AppSpacing.md,
+                );
+              },
+            ),
+
+            // Alternative thought confirmation (if user completed reframing)
+            if (_alternativeThought != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   ),
                 ),
-                maxLines: null,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _sendMessage(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.psychology_outlined,
+                          size: 20,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Your Balanced Thought',
+                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '"$_alternativeThought"',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            fontStyle: FontStyle.italic,
+                          ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            AppSpacing.gapHorizontalSm,
-            FilledButton(
-              onPressed: _isTyping ? null : _sendMessage,
-              style: FilledButton.styleFrom(
-                shape: const CircleBorder(),
-                padding: const EdgeInsets.all(AppSpacing.md),
-              ),
-              child: const Icon(Icons.send),
+            ],
+
+            // Message input row
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: 'Type your response...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.lg,
+                        vertical: AppSpacing.md,
+                      ),
+                    ),
+                    maxLines: null,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                AppSpacing.gapHorizontalSm,
+                FilledButton(
+                  onPressed: _isTyping ? null : _sendMessage,
+                  style: FilledButton.styleFrom(
+                    shape: const CircleBorder(),
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                  ),
+                  child: const Icon(Icons.send),
+                ),
+              ],
             ),
           ],
         ),
@@ -1184,7 +1315,7 @@ class _AnimatedDotState extends State<_AnimatedDot>
             color: Theme.of(context)
                 .colorScheme
                 .onSurfaceVariant
-                .withOpacity(_animation.value),
+                .withValues(alpha: _animation.value),
             shape: BoxShape.circle,
           ),
         );

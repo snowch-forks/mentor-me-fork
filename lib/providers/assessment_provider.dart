@@ -217,7 +217,7 @@ class AssessmentProvider extends ChangeNotifier {
 
       final data = await _storage.getAssessments();
       if (data != null) {
-        _assessments = (data as List)
+        _assessments = data
             .map((json) => AssessmentResult.fromJson(json))
             .toList();
       }

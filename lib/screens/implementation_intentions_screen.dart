@@ -144,7 +144,7 @@ class _ActiveIntentionsTab extends StatelessWidget {
                   Icon(
                     Icons.lightbulb_outline,
                     size: 100,
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
@@ -240,7 +240,7 @@ class _ArchivedIntentionsTab extends StatelessWidget {
                   Icon(
                     Icons.archive_outlined,
                     size: 100,
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(

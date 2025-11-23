@@ -63,16 +63,26 @@ class MentorAction {
   }
 }
 
+/// Urgency level for mentor coaching cards (affects visual styling)
+enum CardUrgency {
+  urgent,       // Red accent - immediate attention needed (deadline, streak at risk)
+  attention,    // Yellow accent - needs attention soon (stalled, drift)
+  celebration,  // Green accent - positive reinforcement (wins, completion)
+  info,         // Blue accent - informational (feature discovery, balanced state)
+}
+
 /// Complete mentor coaching card with dynamic actions
 class MentorCoachingCard {
   final String message;
   final MentorAction primaryAction;
   final MentorAction secondaryAction;
+  final CardUrgency urgency;
 
   const MentorCoachingCard({
     required this.message,
     required this.primaryAction,
     required this.secondaryAction,
+    this.urgency = CardUrgency.info, // Default to informational
   });
 }
 
@@ -91,6 +101,7 @@ enum UserStateType {
   habitsAndGoals,       // Has habits and goals, no journals
   comeback,             // Inactive for 3+ days
   struggling,           // Negative patterns in journals
+  cognitiveDistortion,  // Unhelpful thinking patterns detected in journals
   overcommitted,        // Too many active items, low completion
   winning,              // Consistently achieving (high completion)
   dataQuality,          // Data quality issues (vague goals, etc)
@@ -98,11 +109,18 @@ enum UserStateType {
 
   // Wellness check states
   needsHaltCheck,       // User showing signs of stress/unmet basic needs
+  needsSafetyPlan,      // Concerning patterns detected (low mood 7+ days)
+  valuesDrift,          // High-importance value with no active goals
 
   // Feature discovery states (help users learn the app organically)
   discoverChat,         // User hasn't tried chat feature yet
   discoverHabitChecking,// User completed reflection but hasn't checked off habit
   discoverMilestones,   // User has goals but hasn't created milestones
+
+  // Progress milestone celebrations
+  goalQuarterway,       // Goal reached 25% progress
+  goalHalfway,          // Goal reached 50% progress
+  goalFinishLine,       // Goal reached 75% progress
 }
 
 /// User state with context for message generation

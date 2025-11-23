@@ -9,6 +9,7 @@ import '../services/storage_service.dart';
 import '../widgets/add_milestone_dialog.dart';
 import '../widgets/edit_milestone_dialog.dart';
 import '../widgets/edit_goal_dialog.dart';
+import '../widgets/milestone_celebration_dialog.dart';
 import 'package:mentor_me/constants/app_strings.dart';
 
 class GoalDetailSheet extends StatefulWidget {
@@ -183,7 +184,7 @@ class _GoalDetailSheetState extends State<GoalDetailSheet> {
                     '${goal.targetDate!.day}/${goal.targetDate!.month}/${goal.targetDate!.year}',
                   ),
                   subtitle: Text(_getDaysRemaining(goal.targetDate!)),
-                  tileColor: Theme.of(context).colorScheme.surfaceVariant,
+                  tileColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -215,7 +216,7 @@ class _GoalDetailSheetState extends State<GoalDetailSheet> {
               
               if (goal.milestonesDetailed.isEmpty) ...[
                 Card(
-                  color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -314,17 +315,21 @@ class _GoalDetailSheetState extends State<GoalDetailSheet> {
                           value: milestone.isCompleted,
                           onChanged: (value) async {
                             if (value == true) {
+                              // Complete the milestone
                               await context.read<GoalProvider>().completeMilestone(
                                     goal.id,
                                     milestone.id,
                                   );
 
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('🎉 ${milestone.title} ${AppStrings.milestoneCompleted}'),
-                                    duration: const Duration(seconds: 2),
-                                  ),
+                              // Get updated goal to show in celebration
+                              final updatedGoal = context.read<GoalProvider>().getGoalById(goal.id);
+
+                              if (mounted && updatedGoal != null) {
+                                // Show celebration dialog
+                                await MilestoneCelebrationDialog.show(
+                                  context: context,
+                                  goal: updatedGoal,
+                                  completedMilestone: milestone,
                                 );
                               }
                             }

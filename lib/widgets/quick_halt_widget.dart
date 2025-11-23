@@ -40,6 +40,166 @@ class _QuickHaltWidgetState extends State<QuickHaltWidget> {
     });
   }
 
+  /// Show intervention suggestions based on high HALT ratings
+  Future<void> _showInterventionDialog(Map<String, int> highNeeds) async {
+    final interventions = _generateInterventions(highNeeds);
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.favorite_border,
+                color: Colors.orange.shade700,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Let\'s Address Your Needs',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'I noticed ${highNeeds.length > 1 ? 'some' : 'one'} of your basic needs ${highNeeds.length > 1 ? 'are' : 'is'} running high. '
+                'Addressing these needs can help you function better.\n\nHere are some suggestions:',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...interventions.map((intervention) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            intervention['emoji'] as String,
+                            style: const TextStyle(fontSize: 20),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              intervention['need'] as String,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        intervention['message'] as String,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('OK'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              // Navigate to journal to reflect on needs
+              // You could add navigation here if desired
+            },
+            icon: const Icon(Icons.book, size: 18),
+            label: const Text('Journal About This'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Generate intervention suggestions based on high HALT ratings
+  List<Map<String, String>> _generateInterventions(Map<String, int> highNeeds) {
+    final interventions = <Map<String, String>>[];
+
+    if (highNeeds.containsKey('Hungry')) {
+      interventions.add({
+        'emoji': '🍽️',
+        'need': 'Hungry',
+        'message': 'When did you last eat? Even a small snack can help stabilize your mood and focus. '
+            'Try eating something nutritious in the next 30 minutes—your body is asking for fuel.',
+      });
+    }
+
+    if (highNeeds.containsKey('Angry')) {
+      interventions.add({
+        'emoji': '😤',
+        'need': 'Angry',
+        'message': 'Anger is energy that needs somewhere to go. Consider: '
+            '(1) Journal about what\'s bothering you to get it out of your head, '
+            '(2) Take 5 minutes to move your body (walk, stretch, dance), or '
+            '(3) Talk to someone you trust.',
+      });
+    }
+
+    if (highNeeds.containsKey('Lonely')) {
+      interventions.add({
+        'emoji': '🤝',
+        'need': 'Lonely',
+        'message': 'Loneliness is a hard feeling to sit with. You have options: '
+            '(1) Reach out to someone (even a quick text), '
+            '(2) Spend time in a public space (coffee shop, library), or '
+            '(3) If you\'re not ready for people, chat with me here—you\'re not alone.',
+      });
+    }
+
+    if (highNeeds.containsKey('Tired')) {
+      interventions.add({
+        'emoji': '😴',
+        'need': 'Tired',
+        'message': 'Your body is asking for rest. Can you: '
+            '(1) Take 10 minutes to close your eyes and breathe, '
+            '(2) Schedule sleep earlier tonight (even 30 min helps), or '
+            '(3) Scale back your commitments today to conserve energy?',
+      });
+    }
+
+    return interventions;
+  }
+
   Future<void> _saveHaltCheck() async {
     setState(() {
       _isSaving = true;
@@ -65,12 +225,26 @@ class _QuickHaltWidgetState extends State<QuickHaltWidget> {
       await pulseProvider.addEntry(entry);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('HALT check saved!'),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        // Check if any needs are high (≥4) and provide interventions
+        final highNeeds = <String, int>{};
+        if (_hungryRating >= 4) highNeeds['Hungry'] = _hungryRating.round();
+        if (_angryRating >= 4) highNeeds['Angry'] = _angryRating.round();
+        if (_lonelyRating >= 4) highNeeds['Lonely'] = _lonelyRating.round();
+        if (_tiredRating >= 4) highNeeds['Tired'] = _tiredRating.round();
+
+        if (highNeeds.isNotEmpty) {
+          // Show intervention dialog for high needs
+          await _showInterventionDialog(highNeeds);
+        } else {
+          // Standard confirmation
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('HALT check saved! Your basic needs look balanced.'),
+              duration: Duration(seconds: 2),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
         _resetForm();
       }
     } catch (e) {
@@ -139,7 +313,7 @@ class _QuickHaltWidgetState extends State<QuickHaltWidget> {
                             Text(
                               'Tap to check in on your basic needs',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                   ),
                             ),
                         ],
@@ -147,7 +321,7 @@ class _QuickHaltWidgetState extends State<QuickHaltWidget> {
                     ),
                     Icon(
                       _isExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ],
                 ),
@@ -165,7 +339,7 @@ class _QuickHaltWidgetState extends State<QuickHaltWidget> {
                     Text(
                       'Rate each need (1 = doing great, 5 = urgent need):',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                           ),
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -287,7 +461,7 @@ class _QuickHaltWidgetState extends State<QuickHaltWidget> {
                 Text(
                   sublabel,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         fontSize: 11,
                       ),
                 ),
@@ -296,7 +470,7 @@ class _QuickHaltWidgetState extends State<QuickHaltWidget> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: color, width: 1),
               ),
@@ -317,7 +491,7 @@ class _QuickHaltWidgetState extends State<QuickHaltWidget> {
           divisions: 4,
           onChanged: onChanged,
           activeColor: color,
-          inactiveColor: color.withOpacity(0.3),
+          inactiveColor: color.withValues(alpha: 0.3),
         ),
       ],
     );

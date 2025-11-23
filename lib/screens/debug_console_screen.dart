@@ -180,7 +180,7 @@ class _DebugConsoleScreenState extends State<DebugConsoleScreen> {
           // Statistics bar
           Container(
             padding: const EdgeInsets.all(16),
-            color: Theme.of(context).colorScheme.surfaceVariant,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             child: Column(
               children: [
                 Row(
@@ -457,7 +457,7 @@ class _LogEntryCardState extends State<_LogEntryCard> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: _getLevelColor().withOpacity(0.2),
+                      color: _getLevelColor().withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -511,7 +511,7 @@ class _LogEntryCardState extends State<_LogEntryCard> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: SelectableText(
@@ -534,7 +534,7 @@ class _LogEntryCardState extends State<_LogEntryCard> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: SelectableText(

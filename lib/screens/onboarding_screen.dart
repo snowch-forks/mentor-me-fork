@@ -34,7 +34,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   // User selections for personalization
   final Set<String> _selectedNeeds = {};
-  bool _needsEmergencySupport = false;
 
   @override
   void dispose() {
@@ -83,23 +82,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
 
     return shouldExit ?? false;
-  }
-
-  Future<void> _saveNameAndContinue() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.pleaseEnterYourName)),
-      );
-      return;
-    }
-
-    // Save name to settings
-    final settings = await _storage.loadSettings();
-    settings['userName'] = name;
-    await _storage.saveSettings(settings);
-
-    _nextPage();
   }
 
   Future<void> _restoreFromBackup() async {
@@ -172,51 +154,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await Provider.of<PulseTypeProvider>(context, listen: false).reload();
     if (!mounted) return;
     await Provider.of<ChatProvider>(context, listen: false).reload();
-  }
-
-  Future<void> _completeOnboarding() async {
-    setState(() => _isCreatingHabit = true);
-
-    try {
-      // Create Daily Reflection habit
-      final habitProvider = Provider.of<HabitProvider>(context, listen: false);
-
-      // Check if it already exists (shouldn't, but be safe)
-      final existingHabit = habitProvider.habits.firstWhere(
-        (h) => h.systemType == 'daily_reflection',
-        orElse: () => Habit(title: '', description: '', frequency: HabitFrequency.daily),
-      );
-
-      if (existingHabit.title.isEmpty) {
-        final journalHabit = Habit(
-          title: 'Daily Reflection',
-          description: 'Use the Journal tab daily for guided reflection to track your progress, capture insights, and maintain self-awareness.',
-          frequency: HabitFrequency.daily,
-          isSystemCreated: true,
-          systemType: 'daily_reflection',
-        );
-        await habitProvider.addHabit(journalHabit);
-      }
-
-      // Mark onboarding as completed
-      final settings = await _storage.loadSettings();
-      settings['hasCompletedOnboarding'] = true;
-      await _storage.saveSettings(settings);
-
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
-    } catch (e) {
-      setState(() => _isCreatingHabit = false);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error setting up: $e')),
-        );
-      }
-    }
   }
 
   @override
@@ -697,7 +634,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 icon,
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -731,80 +668,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           style: Theme.of(context).textTheme.bodyMedium,
           textAlign: TextAlign.center,
         ),
-      ],
-    );
-  }
-
-  Widget _buildFoundationPage() {
-    return _buildPageWrapper(
-      children: [
-        // Success icon
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            Icons.check_circle,
-            size: 48,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Your Foundation is Ready',
-          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'We\'ve set up everything you need to begin your growth journey',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Colors.grey[600],
-              ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 40),
-
-        // Daily Reflection habit card
-        _buildInfoCard(
-          icon: Icons.auto_stories,
-          title: 'Daily Reflection Habit',
-          description: 'Your foundation habit will be created for you. Reflect daily to track progress and maintain self-awareness.',
-        ),
-        const SizedBox(height: 16),
-
-        // Habits & Goals emerge card
-        _buildInfoCard(
-          icon: Icons.lightbulb_outline,
-          title: 'Habits & Goals Will Emerge',
-          description: 'As you reflect consistently, meaningful habits and goals will naturally reveal themselves.',
-        ),
-        const SizedBox(height: 16),
-
-        // Create anytime card
-        _buildInfoCard(
-          icon: Icons.flag_outlined,
-          title: 'Or Create Anytime',
-          description: 'You can also create and track habits and goals manually from their respective tabs whenever you\'re ready.',
-        ),
-
-        const SizedBox(height: 48),
-
-        // Get started button
-        _isCreatingHabit
-            ? const CircularProgressIndicator()
-            : FilledButton.icon(
-                onPressed: _completeOnboarding,
-                icon: const Icon(Icons.rocket_launch),
-                label: const Text('Get Started'),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                ),
-              ),
       ],
     );
   }
@@ -843,7 +706,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(

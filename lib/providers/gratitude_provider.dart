@@ -184,7 +184,7 @@ class GratitudeProvider extends ChangeNotifier {
 
       final data = await _storage.getGratitudeEntries();
       if (data != null) {
-        _entries = (data as List)
+        _entries = data
             .map((json) => GratitudeEntry.fromJson(json))
             .toList();
       }

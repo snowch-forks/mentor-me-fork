@@ -208,7 +208,7 @@ class ValuesProvider extends ChangeNotifier {
 
       final data = await _storage.getPersonalValues();
       if (data != null) {
-        _values = (data as List)
+        _values = data
             .map((json) => PersonalValue.fromJson(json))
             .toList();
       }

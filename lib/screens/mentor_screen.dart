@@ -7,6 +7,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import '../providers/goal_provider.dart';
 import '../providers/journal_provider.dart';
 import '../providers/habit_provider.dart';
+import '../providers/values_provider.dart';
 import '../theme/app_spacing.dart';
 import '../services/mentor_intelligence_service.dart';
 import '../services/storage_service.dart';
@@ -121,12 +122,14 @@ class _MentorScreenState extends State<MentorScreen> {
         // not what the state becomes during generation (race condition fix)
         final capturedHash = currentStateHash;
 
+        final valuesProvider = context.read<ValuesProvider>();
         final intelligence = MentorIntelligenceService();
         intelligence
             .generateMentorCoachingCard(
           goals: goalProvider.goals,
           habits: habitProvider.habits,
           journals: journalProvider.entries,
+          values: valuesProvider.values,
         )
             .then((card) {
           if (mounted) {
@@ -170,7 +173,7 @@ class _MentorScreenState extends State<MentorScreen> {
                 Text(
                   'Reviewing your goals, habits, and journal entries',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
                     fontSize: 12,
                   ),
                   textAlign: TextAlign.center,
@@ -196,8 +199,18 @@ class _MentorScreenState extends State<MentorScreen> {
     mentor.MentorCoachingCard coachingCard,
     String userName,
   ) {
+    // Get color based on urgency level
+    final urgencyColor = _getUrgencyColor(context, coachingCard.urgency);
+
     return Card(
       elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: urgencyColor,
+          width: 3,
+        ),
+      ),
       child: Padding(
         padding: AppSpacing.cardPadding,
         child: Column(
@@ -247,8 +260,146 @@ class _MentorScreenState extends State<MentorScreen> {
                 listBullet: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
               ),
             ),
+            AppSpacing.gapLg,
+
+            // Action buttons
+            Row(
+              children: [
+                // Primary action button (filled, prominent)
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _handleAction(context, coachingCard.primaryAction),
+                    icon: Icon(_getActionIcon(coachingCard.primaryAction.type), size: 18),
+                    label: Text(coachingCard.primaryAction.label),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                        horizontal: AppSpacing.md,
+                      ),
+                    ),
+                  ),
+                ),
+                AppSpacing.gapHorizontalMd,
+                // Secondary action button (outlined, less prominent)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _handleAction(context, coachingCard.secondaryAction),
+                    icon: Icon(_getActionIcon(coachingCard.secondaryAction.type), size: 18),
+                    label: Text(coachingCard.secondaryAction.label),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md,
+                        horizontal: AppSpacing.md,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Get appropriate icon for action type
+  IconData _getActionIcon(mentor.MentorActionType type) {
+    switch (type) {
+      case mentor.MentorActionType.navigate:
+        return Icons.arrow_forward;
+      case mentor.MentorActionType.chat:
+        return Icons.chat_bubble_outline;
+      case mentor.MentorActionType.quickAction:
+        return Icons.bolt;
+    }
+  }
+
+  /// Get color based on urgency level
+  Color _getUrgencyColor(BuildContext context, mentor.CardUrgency urgency) {
+    switch (urgency) {
+      case mentor.CardUrgency.urgent:
+        return Colors.red.shade600; // Red for immediate attention
+      case mentor.CardUrgency.attention:
+        return Colors.orange.shade600; // Orange for needs attention
+      case mentor.CardUrgency.celebration:
+        return Colors.green.shade600; // Green for celebrations
+      case mentor.CardUrgency.info:
+        return Theme.of(context).colorScheme.primary.withValues(alpha: 0.4); // Subtle blue for info
+    }
+  }
+
+  /// Handle mentor action (navigation, chat, quick actions)
+  void _handleAction(BuildContext context, mentor.MentorAction action) {
+    switch (action.type) {
+      case mentor.MentorActionType.navigate:
+        _handleNavigationAction(context, action);
+        break;
+      case mentor.MentorActionType.chat:
+        _handleChatAction(context, action);
+        break;
+      case mentor.MentorActionType.quickAction:
+        // Quick actions can be extended as needed
+        // For now, treat as navigation
+        _handleNavigationAction(context, action);
+        break;
+    }
+  }
+
+  /// Handle navigation actions (tab navigation or screen push)
+  void _handleNavigationAction(BuildContext context, mentor.MentorAction action) {
+    if (action.destination == null) return;
+
+    final destination = action.destination!;
+
+    // Handle tab navigation for main screens
+    switch (destination.toLowerCase()) {
+      case 'goals':
+        widget.onNavigateToTab(3); // Goals tab
+        break;
+      case 'habits':
+        widget.onNavigateToTab(2); // Habits tab
+        break;
+      case 'journal':
+        widget.onNavigateToTab(1); // Journal tab
+        break;
+      case 'wellness':
+        widget.onNavigateToTab(4); // Wellness tab
+        break;
+      case 'settings':
+        widget.onNavigateToTab(5); // Settings tab
+        break;
+      default:
+        // For other destinations, try to navigate using named routes or direct navigation
+        // This handles screens like ChatScreen, ReflectionSessionScreen, etc.
+        if (destination == 'ChatScreen') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ChatScreen(),
+            ),
+          );
+        } else if (destination == 'ReflectionSession') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ReflectionSessionScreen(),
+            ),
+          );
+        }
+        // Add more specific screen navigation as needed
+        break;
+    }
+  }
+
+  /// Handle chat actions (open chat with pre-filled message)
+  void _handleChatAction(BuildContext context, mentor.MentorAction action) {
+    if (action.chatPreFill == null) return;
+
+    // Navigate to chat screen with pre-filled message
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(initialMessage: action.chatPreFill),
       ),
     );
   }
@@ -465,7 +616,7 @@ class _MentorScreenState extends State<MentorScreen> {
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
                           value: progress,
-                          backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                           valueColor: AlwaysStoppedAnimation<Color>(
                             Theme.of(context).colorScheme.primary,
                           ),

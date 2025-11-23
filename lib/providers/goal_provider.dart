@@ -3,11 +3,13 @@ import '../models/goal.dart';
 import '../models/milestone.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/smart_notification_service.dart';
 import '../services/feature_discovery_service.dart';
 
 class GoalProvider extends ChangeNotifier {
   final StorageService _storage = StorageService();
   final NotificationService _notifications = NotificationService();
+  final SmartNotificationService _smartNotifications = SmartNotificationService();
   List<Goal> _goals = [];
   bool _isLoading = false;
 
@@ -121,6 +123,13 @@ class GoalProvider extends ChangeNotifier {
     if (goal == null) {
       throw Exception('Goal not found: $goalId');
     }
+
+    // Find the milestone being completed to get its title
+    final completedMilestone = goal.milestonesDetailed.firstWhere(
+      (m) => m.id == milestoneId,
+      orElse: () => throw Exception('Milestone not found: $milestoneId'),
+    );
+
     final updatedMilestones = goal.milestonesDetailed.map((m) {
       if (m.id == milestoneId) {
         return m.markComplete();
@@ -130,6 +139,12 @@ class GoalProvider extends ChangeNotifier {
 
     final updatedGoal = goal.copyWith(milestonesDetailed: updatedMilestones);
     await updateGoal(updatedGoal);
+
+    // Send celebration notification
+    await _smartNotifications.sendMilestoneCelebrationNotification(
+      goal: updatedGoal,
+      milestoneTitle: completedMilestone.title,
+    );
   }
 
   Future<void> updateMilestones(String goalId, List<Milestone> milestones) async {

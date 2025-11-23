@@ -71,7 +71,7 @@ class HaltAnalyticsScreen extends StatelessWidget {
             Icon(
               Icons.insert_chart_outlined,
               size: 80,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             ),
             const SizedBox(height: AppSpacing.md),
             Text(
@@ -83,7 +83,7 @@ class HaltAnalyticsScreen extends StatelessWidget {
             Text(
               'Take your first HALT check to see analytics and insights about your basic needs.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
               textAlign: TextAlign.center,
             ),
@@ -155,7 +155,7 @@ class HaltAnalyticsScreen extends StatelessWidget {
               Text(
                 'Last Check',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w600,
                     ),
               ),
@@ -195,7 +195,7 @@ class HaltAnalyticsScreen extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
           textAlign: TextAlign.center,
         ),
@@ -227,7 +227,7 @@ class HaltAnalyticsScreen extends StatelessWidget {
             Text(
               'How often each need was flagged as a concern',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -299,7 +299,7 @@ class HaltAnalyticsScreen extends StatelessWidget {
               Container(
                 height: 24,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -351,7 +351,7 @@ class HaltAnalyticsScreen extends StatelessWidget {
               Text(
                 'No recent checks',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
               )
             else
@@ -386,7 +386,7 @@ class HaltAnalyticsScreen extends StatelessWidget {
                             Text(
                               summary['text'] as String,
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                   ),
                             ),
                           ],

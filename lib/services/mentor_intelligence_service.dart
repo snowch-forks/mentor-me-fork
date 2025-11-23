@@ -1,14 +1,19 @@
 // lib/services/mentor_intelligence_service.dart
 // Phase 2: Intelligence Layer - Makes the mentor proactive and smart
 
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/goal.dart';
 import '../models/habit.dart';
 import '../models/journal_entry.dart';
 import '../models/mentor_message.dart' as mentor;
+import '../models/values_and_smart_goals.dart';
 import 'ai_service.dart';
+import 'debug_service.dart';
 import 'feature_discovery_service.dart';
+import 'value_alignment_service.dart';
 
 /// Represents journaling quality metrics
 class JournalingMetrics {
@@ -141,6 +146,8 @@ class Challenge {
 
 /// Service that provides AI-powered mentor intelligence
 class MentorIntelligenceService {
+  final DebugService _debug = DebugService();
+
   // ============================================================================
   // CONFIGURATION CONSTANTS
   // ============================================================================
@@ -1081,6 +1088,7 @@ class MentorIntelligenceService {
     required List<Goal> goals,
     required List<Habit> habits,
     required List<JournalEntry> journals,
+    required List<PersonalValue> values,
   }) async {
     // Performance optimization: Check for new users first to skip expensive computations
     if (goals.isEmpty && habits.isEmpty && journals.isEmpty) {
@@ -1121,6 +1129,7 @@ class MentorIntelligenceService {
       habits,
       journals,
       journalingMetrics,
+      values,
       precomputedTheme: precomputedTheme,
     );
 
@@ -1169,8 +1178,27 @@ class MentorIntelligenceService {
       case mentor.UserStateType.needsHaltCheck:
         return _generateHaltCheckCard(userState.context!);
 
+      case mentor.UserStateType.needsSafetyPlan:
+        return _generateSafetyPlanCard(userState.context!);
+
+      case mentor.UserStateType.valuesDrift:
+        return _generateValuesDriftCard(userState.context!);
+
+      case mentor.UserStateType.cognitiveDistortion:
+        return _generateCognitiveDistortionCard(userState.context!);
+
       case mentor.UserStateType.winning:
         return _generateWinningCard(userState.context!);
+
+      // Progress milestone celebrations
+      case mentor.UserStateType.goalQuarterway:
+        return _generateGoalQuarterwayCard(userState.context!);
+
+      case mentor.UserStateType.goalHalfway:
+        return _generateGoalHalfwayCard(userState.context!);
+
+      case mentor.UserStateType.goalFinishLine:
+        return _generateGoalFinishLineCard(userState.context!);
 
       default:
         return _generateDefaultCard(userState.context);
@@ -1252,7 +1280,8 @@ class MentorIntelligenceService {
     List<Goal> goals,
     List<Habit> habits,
     List<JournalEntry> journals,
-    JournalingMetrics journalingMetrics, {
+    JournalingMetrics journalingMetrics,
+    List<PersonalValue> values, {
     String? precomputedTheme,
   }) async {
     final now = DateTime.now();
@@ -1266,7 +1295,16 @@ class MentorIntelligenceService {
       return const mentor.UserState(type: mentor.UserStateType.newUser);
     }
 
-    // 2. Check for urgent deadline (critical priority)
+    // 2. Check for concerning patterns needing safety plan (CRITICAL - safety first)
+    final concerningPattern = await _detectConcerningPatterns(journals);
+    if (concerningPattern != null) {
+      return mentor.UserState(
+        type: mentor.UserStateType.needsSafetyPlan,
+        context: {'pattern': concerningPattern},
+      );
+    }
+
+    // 3. Check for urgent deadline (critical priority)
     final activeGoals = goals.where((g) => g.status == GoalStatus.active).toList();
     for (final goal in activeGoals) {
       if (goal.targetDate != null) {
@@ -1343,6 +1381,87 @@ class MentorIntelligenceService {
         type: mentor.UserStateType.needsHaltCheck,
         context: haltCheckNeeded,
       );
+    }
+
+    // 6c. Check for values drift (values with no active goals)
+    // Trigger conditions:
+    // - User has defined personal values
+    // - One or more high-importance values (rating >= 7) have no active goals for 14+ days
+    if (values.isNotEmpty) {
+      final alignmentService = ValueAlignmentService();
+      final driftAlerts = alignmentService.detectValuesDrift(
+        userValues: values,
+        allGoals: goals,
+        daysSinceActivity: 14,
+      );
+
+      // Only show for high-importance values
+      final highImportanceDrift = driftAlerts.where((alert) => alert.value.importanceRating >= 7).toList();
+      if (highImportanceDrift.isNotEmpty) {
+        final alert = highImportanceDrift.first;
+        return mentor.UserState(
+          type: mentor.UserStateType.valuesDrift,
+          context: {
+            'value': alert.value,
+            'daysSinceGoal': 14, // Using daysSinceActivity threshold
+            'hasNoGoals': alert.type == DriftType.noGoals,
+          },
+        );
+      }
+    }
+
+    // COGNITIVE DISTORTION DETECTION (medium-high priority)
+    // Detect unhelpful thinking patterns in recent journal entries
+    // Only show if pattern detected in 2+ entries (not a one-off)
+    if (journals.isNotEmpty) {
+      final distortion = _detectCognitiveDistortions(journals);
+      if (distortion != null) {
+        return mentor.UserState(
+          type: mentor.UserStateType.cognitiveDistortion,
+          context: {
+            'distortion': distortion,
+          },
+        );
+      }
+    }
+
+    // PROGRESS MILESTONE CELEBRATIONS (medium priority)
+    // Check for incremental progress milestones (25%, 50%, 75%)
+    // Only show each milestone once per goal to avoid spam
+    final celebratedMilestones = await _getCelebratedMilestones();
+
+    for (final goal in activeGoals) {
+      final progress = goal.currentProgress.round();
+      final goalId = goal.id;
+      final lastCelebrated = celebratedMilestones[goalId] ?? 0;
+
+      // 75% milestone (finish line in sight)
+      if (progress >= 75 && progress <= 78 && lastCelebrated < 75) {
+        // Mark this milestone as celebrated
+        await _markMilestoneCelebrated(goalId, 75);
+        return mentor.UserState(
+          type: mentor.UserStateType.goalFinishLine,
+          context: {'goal': goal, 'progress': progress},
+        );
+      }
+
+      // 50% milestone (halfway there)
+      if (progress >= 50 && progress <= 53 && lastCelebrated < 50) {
+        await _markMilestoneCelebrated(goalId, 50);
+        return mentor.UserState(
+          type: mentor.UserStateType.goalHalfway,
+          context: {'goal': goal, 'progress': progress},
+        );
+      }
+
+      // 25% milestone (quarterway progress)
+      if (progress >= 25 && progress <= 28 && lastCelebrated < 25) {
+        await _markMilestoneCelebrated(goalId, 25);
+        return mentor.UserState(
+          type: mentor.UserStateType.goalQuarterway,
+          context: {'goal': goal, 'progress': progress},
+        );
+      }
     }
 
     // FEATURE DISCOVERY CHECKS (medium priority)
@@ -1585,6 +1704,50 @@ class MentorIntelligenceService {
 
   // Message generators - Starting with the most important ones
 
+  /// Map user state type to card urgency level for visual styling
+  mentor.CardUrgency _getUrgencyForState(mentor.UserStateType state) {
+    switch (state) {
+      // URGENT (Red) - Immediate attention needed
+      case mentor.UserStateType.urgentDeadline:
+      case mentor.UserStateType.streakAtRisk:
+      case mentor.UserStateType.needsSafetyPlan:  // Safety is highest priority
+        return mentor.CardUrgency.urgent;
+
+      // ATTENTION (Yellow) - Needs attention soon
+      case mentor.UserStateType.stalledGoal:
+      case mentor.UserStateType.valuesDrift:
+      case mentor.UserStateType.needsHaltCheck:
+      case mentor.UserStateType.struggling:
+      case mentor.UserStateType.cognitiveDistortion:
+      case mentor.UserStateType.overcommitted:
+      case mentor.UserStateType.comeback:
+        return mentor.CardUrgency.attention;
+
+      // CELEBRATION (Green) - Positive reinforcement
+      case mentor.UserStateType.miniWin:
+      case mentor.UserStateType.winning:
+      case mentor.UserStateType.goalQuarterway:
+      case mentor.UserStateType.goalHalfway:
+      case mentor.UserStateType.goalFinishLine:
+        return mentor.CardUrgency.celebration;
+
+      // INFO (Blue) - Informational/Guidance
+      case mentor.UserStateType.newUser:
+      case mentor.UserStateType.onlyJournals:
+      case mentor.UserStateType.onlyHabits:
+      case mentor.UserStateType.onlyGoals:
+      case mentor.UserStateType.journalsAndHabits:
+      case mentor.UserStateType.journalsAndGoals:
+      case mentor.UserStateType.habitsAndGoals:
+      case mentor.UserStateType.dataQuality:
+      case mentor.UserStateType.balanced:
+      case mentor.UserStateType.discoverChat:
+      case mentor.UserStateType.discoverHabitChecking:
+      case mentor.UserStateType.discoverMilestones:
+        return mentor.CardUrgency.info;
+    }
+  }
+
   mentor.MentorCoachingCard _generateNewUserCard() {
     return mentor.MentorCoachingCard(
       message: "👋 Welcome!\n\n"
@@ -1601,6 +1764,7 @@ class MentorIntelligenceService {
         label: "Chat with Me",
         chatPreFill: "Hi! I'm new here. Can you explain how MentorMe works?",
       ),
+      urgency: _getUrgencyForState(mentor.UserStateType.newUser),
     );
   }
 
@@ -1620,6 +1784,7 @@ class MentorIntelligenceService {
         label: "Prioritize with Me",
         chatPreFill: "I have ${hours} hours left for ${goal.title}. Help me figure out what to focus on.",
       ),
+      urgency: _getUrgencyForState(mentor.UserStateType.urgentDeadline),
     );
   }
 
@@ -1641,6 +1806,7 @@ class MentorIntelligenceService {
         label: "View All Habits",
         destination: "Habits",
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.streakAtRisk),
     );
   }
 
@@ -1660,6 +1826,7 @@ class MentorIntelligenceService {
         label: "Get Unstuck",
         chatPreFill: "I want to make progress on ${goal.title}. Can you help me figure out my next step?",
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.stalledGoal),
     );
   }
 
@@ -1678,6 +1845,7 @@ class MentorIntelligenceService {
         label: "Break It Down",
         chatPreFill: "I want to work on ${goal.title}. Help me figure out a tiny first step I can take today.",
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.needsHaltCheck),
     );
   }
 
@@ -1697,6 +1865,7 @@ class MentorIntelligenceService {
         label: "Explore Ideas",
         chatPreFill: "I've been journaling about $theme. Help me figure out what goal would make sense based on my reflections.",
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.valuesDrift),
     );
   }
 
@@ -1729,6 +1898,7 @@ class MentorIntelligenceService {
         label: "Track Progress",
         destination: "Habits",
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.comeback),
     );
   }
 
@@ -1747,6 +1917,7 @@ class MentorIntelligenceService {
         label: "Help Me Plan",
         chatPreFill: "I want to achieve ${goal.title}. What daily habits would help me get there?",
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.miniWin),
     );
   }
 
@@ -1770,6 +1941,7 @@ class MentorIntelligenceService {
         label: "Review Goals",
         destination: "Goals",
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.winning),
     );
   }
 
@@ -1822,6 +1994,150 @@ class MentorIntelligenceService {
         destination: "GuidedJournalingScreen",
         context: {'isCheckIn': true},
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.onlyJournals),
+    );
+  }
+
+  mentor.MentorCoachingCard _generateValuesDriftCard(Map<String, dynamic> context) {
+    final value = context['value'] as PersonalValue;
+    final daysSinceGoal = context['daysSinceGoal'] as int?;
+    final hasNoGoals = context['hasNoGoals'] as bool;
+
+    String message;
+    if (hasNoGoals) {
+      // Never created a goal for this value
+      message = "${value.domain.emoji} I've noticed something important.\n\n"
+          "You rated **${value.statement}** as highly important to you (${value.importanceRating}/10), "
+          "but you don't have any active goals aligned with this value yet.\n\n"
+          "Our research shows that when we neglect our core values, we often feel a sense of drift or dissatisfaction - "
+          "even when we're \"productive\" in other areas.\n\n"
+          "Want to create a goal that honors this value? Even a small goal can make a big difference in how fulfilled you feel.";
+    } else {
+      // Had goals before but not recently (14+ days)
+      final weeksAgo = (daysSinceGoal! / 7).ceil();
+      message = "${value.domain.emoji} I've noticed something worth reflecting on.\n\n"
+          "It's been $weeksAgo ${weeksAgo == 1 ? 'week' : 'weeks'} since you had an active goal aligned with **${value.statement}** "
+          "(importance: ${value.importanceRating}/10).\n\n"
+          "Sometimes life pulls us away from what matters most. There's no judgment here - just a gentle reminder.\n\n"
+          "Research shows that when our actions drift from our values, we can feel disconnected or unfulfilled, "
+          "even when we're \"getting things done.\"\n\n"
+          "Is this value still important to you? If so, what's one small goal that could help you reconnect with it?";
+    }
+
+    return mentor.MentorCoachingCard(
+      message: message,
+      primaryAction: mentor.MentorAction.navigate(
+        label: "Create Goal",
+        destination: "Goals",
+        context: {
+          'action': 'create',
+          'suggestedValueId': value.id,
+        },
+      ),
+      secondaryAction: mentor.MentorAction.chat(
+        label: "Explore This",
+        chatPreFill: "I want to reconnect with my value: ${value.statement}. Can you help me think about what goals would support this?",
+      ),
+          urgency: _getUrgencyForState(mentor.UserStateType.onlyHabits),
+    );
+  }
+
+  mentor.MentorCoachingCard _generateSafetyPlanCard(Map<String, dynamic> context) {
+    final pattern = context['pattern'] as String;
+
+    return mentor.MentorCoachingCard(
+      message: "⚠️ I want to check in with you.\n\n"
+          "$pattern\n\n"
+          "When we're going through tough times, it helps to have a **safety plan** - "
+          "a personalized set of coping strategies and support contacts for crisis moments.\n\n"
+          "**I'm not here to judge or diagnose** - but I do want to make sure you have support. "
+          "A safety plan helps you identify warning signs, remember what helps, and know who to reach out to.\n\n"
+          "Would you like to create one together? It takes about 10 minutes and could be really valuable.",
+      primaryAction: mentor.MentorAction.navigate(
+        label: "Create Safety Plan",
+        destination: "SafetyPlan",
+      ),
+      secondaryAction: mentor.MentorAction.navigate(
+        label: "Crisis Resources",
+        destination: "CrisisResources",
+      ),
+      urgency: _getUrgencyForState(mentor.UserStateType.needsSafetyPlan),
+    );
+  }
+
+  mentor.MentorCoachingCard _generateCognitiveDistortionCard(Map<String, dynamic> context) {
+    final distortion = context['distortion'] as CognitiveDistortion;
+
+    // Get user-friendly name and explanation for each distortion type
+    String distortionName;
+    String explanation;
+    String reframingTip;
+
+    switch (distortion.type) {
+      case DistortionType.allOrNothing:
+        distortionName = "All-or-Nothing Thinking";
+        explanation = "This is when we see things in black and white - something is either perfect or a complete failure, "
+            "with no middle ground. Words like \"always\" and \"never\" are red flags.";
+        reframingTip = "Try looking for the gray area. What's partially true? What progress have you made, even if it's not perfect?";
+        break;
+
+      case DistortionType.catastrophizing:
+        distortionName = "Catastrophizing";
+        explanation = "This is when we expect the worst possible outcome, even when it's unlikely. "
+            "We jump straight to disaster without considering more realistic possibilities.";
+        reframingTip = "Ask yourself: What's the most likely outcome? What would I tell a friend in this situation?";
+        break;
+
+      case DistortionType.overgeneralization:
+        distortionName = "Overgeneralization";
+        explanation = "This is when we take one negative experience and assume it's true for all situations. "
+            "Words like \"everyone,\" \"nobody,\" and \"all\" often signal this pattern.";
+        reframingTip = "Challenge the generalization: Is this really true for everyone? Can you think of exceptions?";
+        break;
+
+      case DistortionType.shouldStatements:
+        distortionName = "Should Statements";
+        explanation = "This is when we have rigid rules about how we (or others) \"should\" be. "
+            "These create unnecessary pressure and guilt when life doesn't match our expectations.";
+        reframingTip = "Replace \"should\" with \"I'd prefer\" or \"it would be nice if.\" This creates space for reality as it is.";
+        break;
+
+      case DistortionType.mindReading:
+        distortionName = "Mind Reading";
+        explanation = "This is when we assume we know what others are thinking about us - usually assuming they're thinking negatively. "
+            "But we can't actually read minds, and our assumptions are often wrong.";
+        reframingTip = "Remember: You don't know what they're thinking. Focus on what they actually said or did, not your assumptions.";
+        break;
+
+      case DistortionType.fortuneTelling:
+        distortionName = "Fortune Telling";
+        explanation = "This is when we predict the future negatively with certainty, as if we have a crystal ball. "
+            "We convince ourselves things \"will never\" work or we're \"going to fail\" before we even try.";
+        reframingTip = "The future isn't written yet. Ask yourself: What if it goes better than expected? What's one small step I can take?";
+        break;
+    }
+
+    return mentor.MentorCoachingCard(
+      message: "🧠 I've noticed a thinking pattern in your recent journals.\n\n"
+          "It looks like **$distortionName** - $explanation\n\n"
+          "I saw this in your writing:\n"
+          "\"${distortion.example}\"\n\n"
+          "$reframingTip\n\n"
+          "This isn't about \"positive thinking\" - it's about seeing situations more accurately. "
+          "When we recognize these patterns, we can choose healthier ways to think.",
+      primaryAction: mentor.MentorAction.navigate(
+        label: "Journal About This",
+        destination: "Journal",
+        context: {
+          'prompt': 'Reflect on this thought pattern: $distortionName. '
+              'Where else do I notice this pattern? How might I reframe these thoughts more accurately?'
+        },
+      ),
+      secondaryAction: mentor.MentorAction.chat(
+        label: "Talk It Through",
+        chatPreFill: "I want to work on my $distortionName pattern. Can you help me reframe my thoughts more realistically?",
+      ),
+      urgency: _getUrgencyForState(mentor.UserStateType.cognitiveDistortion),
     );
   }
 
@@ -1855,6 +2171,7 @@ class MentorIntelligenceService {
         label: "What's Next?",
         chatPreFill: "I'm making good progress! What should I focus on next to keep growing?",
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.onlyGoals),
     );
   }
 
@@ -1890,6 +2207,73 @@ class MentorIntelligenceService {
         destination: hasHabitProgress || hasGoalProgress ? "GuidedJournalingScreen" : "Habits",
         context: hasHabitProgress || hasGoalProgress ? {'isCheckIn': true} : null,
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.habitsAndGoals),
+    );
+  }
+
+  // Progress milestone celebration cards
+
+  mentor.MentorCoachingCard _generateGoalQuarterwayCard(Map<String, dynamic> context) {
+    final goal = context['goal'] as Goal;
+    final progress = context['progress'] as int;
+
+    return mentor.MentorCoachingCard(
+      message: "🎯 You're $progress% of the way to \"${goal.title}\"!\n\n"
+          "That first quarter is often the hardest - it's where you build momentum. "
+          "You've proven you can make progress, and that's worth celebrating.\n\n"
+          "What's working well so far? Let's capture that learning.",
+      primaryAction: mentor.MentorAction.navigate(
+        label: "View Progress",
+        destination: "Goals",
+      ),
+      secondaryAction: mentor.MentorAction.chat(
+        label: "Reflect on Progress",
+        chatPreFill: "I just hit 25% on ${goal.title}! Can you help me reflect on what's working and what I learned?",
+      ),
+      urgency: _getUrgencyForState(mentor.UserStateType.goalQuarterway),
+    );
+  }
+
+  mentor.MentorCoachingCard _generateGoalHalfwayCard(Map<String, dynamic> context) {
+    final goal = context['goal'] as Goal;
+    final progress = context['progress'] as int;
+
+    return mentor.MentorCoachingCard(
+      message: "🌟 You're halfway to \"${goal.title}\"!\n\n"
+          "$progress% complete. That's real progress! You've built habits, overcome obstacles, "
+          "and kept showing up.\n\n"
+          "Take a moment to appreciate how far you've come. The momentum you've built is powerful - "
+          "let's carry it through to the finish line.",
+      primaryAction: mentor.MentorAction.navigate(
+        label: "See My Progress",
+        destination: "Goals",
+      ),
+      secondaryAction: mentor.MentorAction.chat(
+        label: "Celebrate with Me",
+        chatPreFill: "I'm halfway there on ${goal.title}! 🎉 This feels great. What should I focus on for the second half?",
+      ),
+      urgency: _getUrgencyForState(mentor.UserStateType.goalHalfway),
+    );
+  }
+
+  mentor.MentorCoachingCard _generateGoalFinishLineCard(Map<String, dynamic> context) {
+    final goal = context['goal'] as Goal;
+    final progress = context['progress'] as int;
+
+    return mentor.MentorCoachingCard(
+      message: "🏁 The finish line is in sight for \"${goal.title}\"!\n\n"
+          "You're at $progress% - that's amazing! The final stretch is where champions are made.\n\n"
+          "You've come too far to stop now. What do you need to cross that finish line? "
+          "Let's make sure these last steps count.",
+      primaryAction: mentor.MentorAction.navigate(
+        label: "Finish Strong",
+        destination: "Goals",
+      ),
+      secondaryAction: mentor.MentorAction.chat(
+        label: "Plan the Finish",
+        chatPreFill: "I'm at 75% on ${goal.title}! Help me plan out the final steps to complete this goal.",
+      ),
+      urgency: _getUrgencyForState(mentor.UserStateType.goalFinishLine),
     );
   }
 
@@ -1958,7 +2342,8 @@ class MentorIntelligenceService {
           destination: "GuidedJournalingScreen",
           context: {'isCheckIn': true},
         ),
-      );
+            urgency: _getUrgencyForState(mentor.UserStateType.discoverChat),
+    );
     }
 
     // Absolute fallback for edge cases
@@ -1974,6 +2359,7 @@ class MentorIntelligenceService {
         label: "Explore Habits",
         destination: "Habits",
       ),
+          urgency: _getUrgencyForState(mentor.UserStateType.balanced),
     );
   }
 
@@ -2138,4 +2524,239 @@ class MentorIntelligenceService {
 
     return {'needed': false};
   }
+
+  /// Get map of goalId -> highest celebrated milestone progress
+  Future<Map<String, int>> _getCelebratedMilestones() async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString('celebrated_milestones');
+    if (json == null) return {};
+
+    try {
+      final Map<String, dynamic> data = jsonDecode(json);
+      return data.map((key, value) => MapEntry(key, value as int));
+    } catch (e) {
+      await _debug.error('MentorIntelligenceService', 'Failed to load celebrated milestones', stackTrace: e.toString());
+      return {};
+    }
+  }
+
+  /// Mark a milestone as celebrated for a goal
+  Future<void> _markMilestoneCelebrated(String goalId, int milestoneProgress) async {
+    final milestones = await _getCelebratedMilestones();
+    milestones[goalId] = milestoneProgress;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('celebrated_milestones', jsonEncode(milestones));
+
+    await _debug.info(
+      'MentorIntelligenceService',
+      'Marked ${milestoneProgress}% milestone celebrated for goal $goalId',
+    );
+  }
+
+  // ============================================================================
+  // SAFETY CONCERN DETECTION
+  // ============================================================================
+
+  /// Detects concerning patterns that warrant safety plan creation
+  /// Returns description of concerning pattern, or null if none detected
+  Future<String?> _detectConcerningPatterns(List<JournalEntry> journals) async {
+    if (journals.isEmpty) return null;
+
+    // Check last 7 journal entries for concerning patterns
+    final recentEntries = journals.take(7).toList();
+    if (recentEntries.isEmpty) return null;
+
+    // Count entries with concerning keywords
+    int concerningCount = 0;
+    final concerningKeywords = [
+      r'\bhopeless\b',
+      r'\bhelpless\b',
+      r'\bworthless\b',
+      r'\bno point\b',
+      r'\bgive up\b',
+      r"\bcan't go on\b",
+      r'\btoo much\b',
+      r'\bend it\b',
+      r'\bessentially the same as\b.*\bdeath\b',
+      r"\bdon't want to be here\b",
+      r'\bburden\b',
+    ];
+
+    for (final entry in recentEntries) {
+      final content = (entry.content ?? '').toLowerCase();
+
+      for (final pattern in concerningKeywords) {
+        if (RegExp(pattern).hasMatch(content)) {
+          concerningCount++;
+          break; // Count each entry only once
+        }
+      }
+    }
+
+    // If 3+ entries in last week show concerning patterns, suggest safety plan
+    if (concerningCount >= 3) {
+      return "I've noticed patterns in your recent journal entries that suggest you might be going through a really difficult time. "
+          "You mentioned feeling hopeless or overwhelmed in several recent entries.";
+    }
+
+    return null;
+  }
+
+  // ============================================================================
+  // COGNITIVE DISTORTION DETECTION
+  // ============================================================================
+
+  /// Detects cognitive distortions in recent journal entries
+  /// Returns the most significant distortion found, or null if none detected
+  CognitiveDistortion? _detectCognitiveDistortions(List<JournalEntry> journals) {
+    // Only analyze last 3 journal entries to focus on recent patterns
+    final recentEntries = journals.take(3).toList();
+    if (recentEntries.isEmpty) return null;
+
+    // Track distortion counts
+    final distortionCounts = <DistortionType, int>{};
+    final examples = <DistortionType, String>{};
+
+    for (final entry in recentEntries) {
+      final content = (entry.content ?? '').toLowerCase();
+
+      // All-or-nothing thinking (black and white)
+      if (_containsPattern(content, [
+        r'\balways\b',
+        r'\bnever\b',
+        r'\bevery time\b',
+        r'\bnothing ever\b',
+        r'\bcompletely\b.*\b(fail|wrong|useless)',
+        r'\btotally\b.*\b(fail|wrong|useless)',
+      ])) {
+        distortionCounts[DistortionType.allOrNothing] =
+            (distortionCounts[DistortionType.allOrNothing] ?? 0) + 1;
+        examples[DistortionType.allOrNothing] ??= _extractExample(entry.content ?? '', 50);
+      }
+
+      // Catastrophizing
+      if (_containsPattern(content, [
+        r'\bdisaster\b',
+        r'\bterrible\b',
+        r'\bawful\b',
+        r'\bhorrible\b',
+        r'\bworst\b',
+        r'\bcatastrophe\b',
+        r'\bruined\b',
+        r'\bdevastating\b',
+      ])) {
+        distortionCounts[DistortionType.catastrophizing] =
+            (distortionCounts[DistortionType.catastrophizing] ?? 0) + 1;
+        examples[DistortionType.catastrophizing] ??= _extractExample(entry.content ?? '', 50);
+      }
+
+      // Overgeneralization
+      if (_containsPattern(content, [
+        r'\beveryone\b',
+        r'\bnobody\b',
+        r'\bno one\b',
+        r'\beverybody\b',
+        r'\ball.*\b(people|think|say)',
+        r'\bpeople always\b',
+      ])) {
+        distortionCounts[DistortionType.overgeneralization] =
+            (distortionCounts[DistortionType.overgeneralization] ?? 0) + 1;
+        examples[DistortionType.overgeneralization] ??= _extractExample(entry.content ?? '', 50);
+      }
+
+      // Should statements
+      if (_containsPattern(content, [
+        r'\bshould have\b',
+        r"\bshouldn't\b",
+        r'\bmust\b',
+        r'\bhave to\b.*\b(or else|otherwise)',
+        r'\boughta\b',
+        r'\bsupposed to\b',
+      ])) {
+        distortionCounts[DistortionType.shouldStatements] =
+            (distortionCounts[DistortionType.shouldStatements] ?? 0) + 1;
+        examples[DistortionType.shouldStatements] ??= _extractExample(entry.content ?? '', 50);
+      }
+
+      // Mind reading
+      if (_containsPattern(content, [
+        r'\bthey think\b',
+        r'\bthey probably\b',
+        r'\bpeople must think\b',
+        r"\bthey're judging\b",
+        r'\bthey hate\b',
+        r"\bthey don't like\b",
+      ])) {
+        distortionCounts[DistortionType.mindReading] =
+            (distortionCounts[DistortionType.mindReading] ?? 0) + 1;
+        examples[DistortionType.mindReading] ??= _extractExample(entry.content ?? '', 50);
+      }
+
+      // Fortune telling
+      if (_containsPattern(content, [
+        r'\bwill never\b',
+        r'\bgoing to fail\b',
+        r"\bwon't work\b",
+        r'\bdoomed\b',
+        r"\bit's hopeless\b",
+        r'\bno point\b.*\btrying\b',
+      ])) {
+        distortionCounts[DistortionType.fortuneTelling] =
+            (distortionCounts[DistortionType.fortuneTelling] ?? 0) + 1;
+        examples[DistortionType.fortuneTelling] ??= _extractExample(entry.content ?? '', 50);
+      }
+    }
+
+    // Return the most frequent distortion if found in 2+ entries
+    if (distortionCounts.isEmpty) return null;
+
+    final sortedDistortions = distortionCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // Only return if detected in at least 2 entries (pattern, not one-off)
+    if (sortedDistortions.first.value >= 2) {
+      return CognitiveDistortion(
+        type: sortedDistortions.first.key,
+        example: examples[sortedDistortions.first.key] ?? '',
+        occurrences: sortedDistortions.first.value,
+      );
+    }
+
+    return null;
+  }
+
+  /// Helper to check if content matches any of the regex patterns
+  bool _containsPattern(String content, List<String> patterns) {
+    return patterns.any((pattern) => RegExp(pattern).hasMatch(content));
+  }
+
+  /// Helper to extract a brief example from journal content
+  String _extractExample(String content, int maxLength) {
+    if (content.length <= maxLength) return content;
+    return '${content.substring(0, maxLength)}...';
+  }
+}
+
+/// Represents a detected cognitive distortion
+class CognitiveDistortion {
+  final DistortionType type;
+  final String example;
+  final int occurrences;
+
+  CognitiveDistortion({
+    required this.type,
+    required this.example,
+    required this.occurrences,
+  });
+}
+
+/// Types of cognitive distortions
+enum DistortionType {
+  allOrNothing,        // Black and white thinking
+  catastrophizing,     // Expecting the worst
+  overgeneralization,  // One event = always
+  shouldStatements,    // Rigid rules and expectations
+  mindReading,         // Assuming you know what others think
+  fortuneTelling,      // Predicting negative outcomes
 }

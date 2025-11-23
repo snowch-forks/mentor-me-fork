@@ -237,7 +237,7 @@ class _ActivityLibraryTab extends StatelessWidget {
                   Icon(
                     Icons.library_books,
                     size: 100,
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
@@ -384,7 +384,7 @@ class _ScheduledActivitiesTab extends StatelessWidget {
                   Icon(
                     Icons.event_available,
                     size: 100,
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text(
@@ -424,13 +424,13 @@ class _ScheduledActivitiesTab extends StatelessWidget {
                           child: Text(
                             activity.name,
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              decoration: scheduled.completed != null
+                              decoration: scheduled.completed
                                   ? TextDecoration.lineThrough
                                   : null,
                             ),
                           ),
                         ),
-                        if (scheduled.completed == null)
+                        if (!scheduled.completed)
                           FilledButton.tonal(
                             onPressed: () => _completeActivity(context, scheduled.id),
                             child: const Text('Complete'),
@@ -445,7 +445,7 @@ class _ScheduledActivitiesTab extends StatelessWidget {
                         Icon(
                           Icons.schedule,
                           size: 16,
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Text(

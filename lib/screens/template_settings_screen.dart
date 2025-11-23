@@ -144,7 +144,7 @@ class _TemplateSettingsScreenState extends State<TemplateSettingsScreen> {
           // Info card
           Card(
             elevation: 0,
-            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
@@ -260,7 +260,7 @@ class _TemplateSettingsScreenState extends State<TemplateSettingsScreen> {
       elevation: isEnabled ? 2 : 0,
       color: isEnabled
           ? null
-          : Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+          : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
@@ -274,7 +274,7 @@ class _TemplateSettingsScreenState extends State<TemplateSettingsScreen> {
                 decoration: BoxDecoration(
                   color: isEnabled
                       ? Theme.of(context).colorScheme.primaryContainer
-                      : Theme.of(context).colorScheme.surfaceVariant,
+                      : Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Center(

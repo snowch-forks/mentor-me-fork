@@ -1,6 +1,5 @@
 import 'package:uuid/uuid.dart';
 import '../models/reflection_session.dart';
-import 'crisis_detection_service.dart';
 
 /// Service for analyzing reflection session responses and providing
 /// evidence-based intervention recommendations.

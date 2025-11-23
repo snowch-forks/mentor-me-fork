@@ -518,7 +518,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   Widget _buildAutoBackupCard() {
     return Card(
       color: _autoBackupEnabled
-          ? Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3)
+          ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3)
           : null,
       child: Padding(
         padding: AppSpacing.paddingLg,
@@ -550,7 +550,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             Text(
               'Automatically create backups after data changes (30s delay)',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
             ),
             if (_lastAutoBackupTime != null) ...[
@@ -591,7 +591,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             fontFamily: 'monospace',
                             fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
                       ),
@@ -628,7 +628,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     children: [
                       Icon(
                         Icons.visibility,
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
                         size: 18,
                       ),
                       AppSpacing.gapHorizontalSm,
@@ -651,7 +651,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               Text(
                 'Display a status icon when backup is running',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
               ),
             ],
@@ -685,7 +685,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         Text(
           AppStrings.chooseBackupLocation,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
         ),
         AppSpacing.gapMd,
@@ -730,7 +730,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
               ),
             ),
             child: Column(
@@ -905,7 +905,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             child: Text(
               '$label:',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
             ),
           ),
@@ -930,7 +930,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Text(
@@ -1058,7 +1058,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           Text(
             AppStrings.saveCopyOfData,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
           ),
           AppSpacing.gapLg,
@@ -1094,7 +1094,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           Text(
             AppStrings.restoreFromBackup,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
           ),
           AppSpacing.gapLg,

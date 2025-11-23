@@ -51,7 +51,7 @@ class _InterventionCardWidgetState extends State<InterventionCardWidget> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             color: widget.isSelected
-                ? colorScheme.primaryContainer.withOpacity(0.3)
+                ? colorScheme.primaryContainer.withValues(alpha: 0.3)
                 : null,
           ),
           child: Column(
@@ -149,7 +149,7 @@ class _InterventionCardWidgetState extends State<InterventionCardWidget> {
                   margin: const EdgeInsets.only(top: AppSpacing.sm),
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -275,7 +275,7 @@ class DetectedPatternWidget extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
-                    color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -336,7 +336,7 @@ class _ConfidenceIndicator extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

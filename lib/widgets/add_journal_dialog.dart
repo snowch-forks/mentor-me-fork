@@ -8,6 +8,9 @@ import '../models/journal_entry.dart';
 import '../providers/journal_provider.dart';
 import '../providers/goal_provider.dart';
 import 'package:mentor_me/constants/app_strings.dart';
+import 'package:mentor_me/services/cognitive_distortion_detector.dart';
+import 'package:mentor_me/widgets/distortion_suggestion_widget.dart';
+import 'package:mentor_me/widgets/socratic_questioning_dialog.dart';
 
 class AddJournalDialog extends StatefulWidget {
   const AddJournalDialog({super.key});
@@ -22,10 +25,70 @@ class _AddJournalDialogState extends State<AddJournalDialog> {
   final List<String> _selectedGoalIds = [];
   DateTime _selectedDateTime = DateTime.now();
 
+  // Cognitive distortion detection
+  final _distortionDetector = CognitiveDistortionDetector();
+  final _suggestionController = DistortionSuggestionController();
+  String? _alternativeThought;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for text changes to detect distortions in real-time
+    _contentController.addListener(_onTextChanged);
+  }
+
   @override
   void dispose() {
+    _contentController.removeListener(_onTextChanged);
     _contentController.dispose();
+    _suggestionController.dispose();
     super.dispose();
+  }
+
+  /// Detect cognitive distortions as user types
+  void _onTextChanged() {
+    final text = _contentController.text;
+
+    // Don't detect if suggestion is already showing
+    if (_suggestionController.hasSuggestion) return;
+
+    // Detect distortions
+    final detections = _distortionDetector.detectDistortions(text);
+
+    // Show suggestion for the highest confidence detection
+    if (detections.isNotEmpty) {
+      _suggestionController.showSuggestion(detections.first);
+    }
+  }
+
+  /// Launch Socratic questioning dialog
+  Future<void> _exploreDistortion() async {
+    final detection = _suggestionController.currentDetection;
+    if (detection == null) return;
+
+    final alternativeThought = await SocraticQuestioningDialog.show(
+      context: context,
+      detection: detection,
+      originalText: detection.suggestedText,
+    );
+
+    if (alternativeThought != null) {
+      setState(() {
+        _alternativeThought = alternativeThought;
+        _suggestionController.clear();
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Great reframing! Your balanced thought has been noted.'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _selectDateTime() async {
@@ -156,6 +219,67 @@ class _AddJournalDialogState extends State<AddJournalDialog> {
                           return null;
                         },
                       ),
+
+                      // Cognitive distortion suggestion
+                      ListenableBuilder(
+                        listenable: _suggestionController,
+                        builder: (context, _) {
+                          if (!_suggestionController.hasSuggestion) {
+                            return const SizedBox.shrink();
+                          }
+
+                          return DistortionSuggestionWidget(
+                            detection: _suggestionController.currentDetection!,
+                            onExplore: _exploreDistortion,
+                            onDismiss: () => _suggestionController.dismiss(),
+                          );
+                        },
+                      ),
+
+                      // Alternative thought confirmation (if user completed reframing)
+                      if (_alternativeThought != null) ...[
+                        Container(
+                          margin: const EdgeInsets.only(top: 8, bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.psychology_outlined,
+                                    size: 20,
+                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Your Balanced Thought',
+                                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '"$_alternativeThought"',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
 
                       // Date/Time selector
                       const SizedBox(height: 24),

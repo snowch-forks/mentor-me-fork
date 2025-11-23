@@ -114,7 +114,7 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
                       Text(
                         'Check if Gemini Nano / AICore is available on this device (Samsung S22 Ultra)',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                       ),
                       AppSpacing.gapMd,
@@ -291,7 +291,7 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
           child: Text(
             value,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
               fontFamily: 'monospace',
             ),
           ),

@@ -107,7 +107,7 @@ class _ValuesClarificationScreenState extends State<ValuesClarificationScreen> {
             Icon(
               Icons.favorite_border,
               size: 100,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(

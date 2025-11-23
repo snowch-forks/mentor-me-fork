@@ -9,6 +9,7 @@ import '../providers/goal_provider.dart';
 import '../providers/values_provider.dart';
 import '../services/goal_decomposition_service.dart';
 import '../services/ai_service.dart';
+import '../services/value_alignment_service.dart';
 
 class AddGoalDialog extends StatefulWidget {
   final String? suggestedTitle;
@@ -31,9 +32,15 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
     if (widget.suggestedTitle != null) {
       _titleController.text = widget.suggestedTitle!;
     }
+
+    // Add listeners for auto-detection
+    _titleController.addListener(_detectValueAlignment);
+    _descriptionController.addListener(_detectValueAlignment);
   }
+
   final _decompositionService = GoalDecompositionService();
   final _aiService = AIService();
+  final _alignmentService = ValueAlignmentService();
 
   GoalCategory _selectedCategory = GoalCategory.personal;
   GoalStatus _selectedStatus = GoalStatus.active;
@@ -43,6 +50,8 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
   String? _suggestionError;
   bool _showMilestones = false;
   final Set<String> _selectedValueIds = {}; // Selected values for this goal
+  List<String> _autoDetectedValueIds = []; // Auto-detected values
+  bool _hasUserModifiedValues = false; // Track if user manually changed values
 
   @override
   Widget build(BuildContext context) {
@@ -261,6 +270,8 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
                           runSpacing: 8,
                           children: userValues.map((value) {
                             final isSelected = _selectedValueIds.contains(value.id);
+                            final isAutoDetected = _autoDetectedValueIds.contains(value.id);
+
                             return FilterChip(
                               label: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -273,11 +284,20 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  if (isAutoDetected && !_hasUserModifiedValues) ...[
+                                    const SizedBox(width: 4),
+                                    Icon(
+                                      Icons.auto_awesome,
+                                      size: 14,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ],
                                 ],
                               ),
                               selected: isSelected,
                               onSelected: (selected) {
                                 setState(() {
+                                  _hasUserModifiedValues = true; // User manually changed values
                                   if (selected) {
                                     _selectedValueIds.add(value.id);
                                   } else {
@@ -291,7 +311,42 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
                           }).toList(),
                         ),
                         const SizedBox(height: 8),
-                        if (_selectedValueIds.isEmpty)
+                        if (_autoDetectedValueIds.isNotEmpty && !_hasUserModifiedValues)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.auto_awesome,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _alignmentService.getAlignmentMessage(
+                                      alignedValues: userValues
+                                          .where((v) => _autoDetectedValueIds.contains(v.id))
+                                          .toList(),
+                                      goalTitle: _titleController.text,
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (_selectedValueIds.isEmpty)
                           Text(
                             'Tip: Connecting goals to values increases motivation and clarity',
                             style: TextStyle(
@@ -357,7 +412,7 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
                     
                     if (_showMilestones) ...[
                       Card(
-                        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: Column(
@@ -493,6 +548,50 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
     );
   }
 
+  /// Auto-detect value alignment based on goal title and description
+  void _detectValueAlignment() {
+    // Only auto-detect if user hasn't manually modified values
+    if (_hasUserModifiedValues) return;
+
+    // Need both title and description for good detection
+    if (_titleController.text.isEmpty || _descriptionController.text.isEmpty) {
+      return;
+    }
+
+    final valuesProvider = context.read<ValuesProvider>();
+    final userValues = valuesProvider.values;
+
+    if (userValues.isEmpty) return;
+
+    final detectedIds = _alignmentService.detectAlignment(
+      goalTitle: _titleController.text,
+      goalDescription: _descriptionController.text,
+      goalCategory: _selectedCategory,
+      userValues: userValues,
+    );
+
+    // Only update if detection changed
+    if (!_listsEqual(_autoDetectedValueIds, detectedIds)) {
+      setState(() {
+        _autoDetectedValueIds = detectedIds;
+        // Auto-select detected values (unless user has manually changed)
+        if (!_hasUserModifiedValues) {
+          _selectedValueIds.clear();
+          _selectedValueIds.addAll(detectedIds);
+        }
+      });
+    }
+  }
+
+  /// Helper to compare lists for equality
+  bool _listsEqual(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   Future<void> _getSuggestions() async {
     // Validate title and description first
     if (_titleController.text.isEmpty || _descriptionController.text.isEmpty) {
@@ -587,6 +686,8 @@ class _AddGoalDialogState extends State<AddGoalDialog> {
 
   @override
   void dispose() {
+    _titleController.removeListener(_detectValueAlignment);
+    _descriptionController.removeListener(_detectValueAlignment);
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
