@@ -12,6 +12,7 @@ import '../models/goal.dart';
 import '../theme/app_spacing.dart';
 import 'halt_analytics_screen.dart';
 import 'assessment_dashboard_screen.dart';
+import 'wellness_dashboard_screen.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -81,6 +82,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const AssessmentDashboardScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                _buildCategoryCard(
+                  context,
+                  title: 'Wellness Tools',
+                  icon: Icons.spa_outlined,
+                  color: Colors.deepPurple,
+                  description: 'Evidence-based interventions for mental wellbeing',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WellnessDashboardScreen(),
                       ),
                     );
                   },
