@@ -74,16 +74,16 @@ class BackupService {
     final checkinResponses = prefs.getString('checkin_responses');
 
     // Load wellness app data types
-    final assessments = await _storage.loadAssessments();
-    final interventionAttempts = await _storage.loadInterventionAttempts();
-    final activities = await _storage.loadActivities();
-    final scheduledActivities = await _storage.loadScheduledActivities();
-    final gratitudeEntries = await _storage.loadGratitudeEntries();
-    final worries = await _storage.loadWorries();
-    final worrySessions = await _storage.loadWorrySessions();
-    final selfCompassionEntries = await _storage.loadSelfCompassionEntries();
-    final personalValues = await _storage.loadPersonalValues();
-    final implementationIntentions = await _storage.loadImplementationIntentions();
+    final assessments = await _storage.getAssessments() ?? [];
+    final interventionAttempts = await _storage.getInterventionAttempts() ?? [];
+    final activities = await _storage.getActivities() ?? [];
+    final scheduledActivities = await _storage.getScheduledActivities() ?? [];
+    final gratitudeEntries = await _storage.getGratitudeEntries() ?? [];
+    final worries = await _storage.getWorries() ?? [];
+    final worrySessions = await _storage.getWorrySessions() ?? [];
+    final selfCompassionEntries = await _storage.getSelfCompassionEntries() ?? [];
+    final personalValues = await _storage.getPersonalValues() ?? [];
+    final implementationIntentions = await _storage.getImplementationIntentions() ?? [];
 
     // Remove sensitive data (API key, HF token) from export
     // Note: Auto-backup location settings (autoBackupLocation, autoBackupCustomPath)
