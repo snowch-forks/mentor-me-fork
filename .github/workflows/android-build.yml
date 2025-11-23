@@ -66,8 +66,22 @@ jobs:
         run: flutter pub get
 
       - name: Run Flutter analyzer
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings lib/
-        continue-on-error: false  # FAIL on compilation errors (not warnings/info)
+        run: |
+          # Run analyzer and capture output
+          flutter analyze --no-fatal-infos --no-fatal-warnings lib/ 2>&1 | tee analyzer_output.txt || true
+
+          # Check if there are any actual errors or warnings (not just info)
+          if grep -q "^error •" analyzer_output.txt; then
+            echo "❌ ERRORS found in code"
+            exit 1
+          elif grep -q "^warning •" analyzer_output.txt; then
+            echo "⚠️ WARNINGS found in code"
+            exit 1
+          else
+            echo "✅ No errors or warnings (info-level issues are acceptable)"
+            exit 0
+          fi
+        continue-on-error: false  # FAIL on compilation errors/warnings (not info)
         # Note: Only analyzing lib/ to focus on production code, not test files
 
       - name: Run Flutter tests

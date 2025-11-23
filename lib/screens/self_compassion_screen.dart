@@ -97,7 +97,7 @@ class _SelfCompassionScreenState extends State<SelfCompassionScreen> {
         Text(
           'Choose a practice to cultivate self-kindness and reduce self-criticism',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -210,7 +210,7 @@ class _ExerciseCard extends StatelessWidget {
                 width: 56,
                 height: 56,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 28),
@@ -322,7 +322,7 @@ class _EntryCard extends StatelessWidget {
         '$label ${isPositive ? "+" : ""}$change',
         style: TextStyle(color: color, fontSize: 12),
       ),
-      backgroundColor: color.withOpacity(0.1),
+      backgroundColor: color.withValues(alpha: 0.1),
     );
   }
 }

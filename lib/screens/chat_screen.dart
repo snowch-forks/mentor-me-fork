@@ -149,7 +149,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   color: Theme.of(context).colorScheme.primaryContainer,
                   border: Border(
                     bottom: BorderSide(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                     ),
                   ),
                 ),
@@ -233,7 +233,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Icon(
               Icons.psychology,
               size: 80,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5),
             ),
             AppSpacing.gapLg,
             Text(
@@ -244,7 +244,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Text(
               'Ask me about your goals, get advice, or just chat!',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
               textAlign: TextAlign.center,
             ),
@@ -273,7 +273,7 @@ class _ChatScreenState extends State<ChatScreen> {
         color: Theme.of(context).colorScheme.onPrimaryContainer,
       ),
       side: BorderSide(
-        color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
       ),
       onPressed: () {
         _messageController.text = text;
@@ -318,7 +318,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   decoration: BoxDecoration(
                     color: isUser
                         ? Theme.of(context).colorScheme.primaryContainer
-                        : Theme.of(context).colorScheme.surfaceVariant,
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(AppRadius.lg),
                       topRight: const Radius.circular(AppRadius.lg),
@@ -403,7 +403,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: Row(
@@ -443,7 +443,7 @@ class _ChatScreenState extends State<ChatScreen> {
               color: Theme.of(context).colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),
@@ -776,7 +776,7 @@ class _AnimatedDotState extends State<_AnimatedDot>
             color: Theme.of(context)
                 .colorScheme
                 .onSurfaceVariant
-                .withOpacity(_animation.value),
+                .withValues(alpha: _animation.value),
             shape: BoxShape.circle,
           ),
         );

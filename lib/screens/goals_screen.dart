@@ -8,18 +8,44 @@ import '../widgets/add_goal_dialog.dart';
 import '../widgets/goal_detail_sheet.dart';
 import '../constants/app_strings.dart';
 
-class GoalsScreen extends StatelessWidget {
+class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
+
+  @override
+  State<GoalsScreen> createState() => _GoalsScreenState();
+}
+
+class _GoalsScreenState extends State<GoalsScreen> {
+  String? _selectedValueFilter; // null means show all goals
 
   @override
   Widget build(BuildContext context) {
     final goalProvider = context.watch<GoalProvider>();
+    final valuesProvider = context.watch<ValuesProvider>();
     final allGoals = goalProvider.goals;
 
-    // Separate goals by status (sorted by sortOrder)
-    final activeGoals = goalProvider.getGoalsByStatus(GoalStatus.active);
-    final backlogGoals = goalProvider.getGoalsByStatus(GoalStatus.backlog);
-    final completedGoals = goalProvider.getGoalsByStatus(GoalStatus.completed);
+    // Apply value filter if selected
+    List<Goal> filteredGoals = allGoals;
+    if (_selectedValueFilter != null) {
+      filteredGoals = allGoals.where((goal) {
+        return goal.linkedValueIds != null &&
+            goal.linkedValueIds!.contains(_selectedValueFilter);
+      }).toList();
+    }
+
+    // Separate filtered goals by status (sorted by sortOrder)
+    final activeGoals = filteredGoals
+        .where((g) => g.status == GoalStatus.active)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final backlogGoals = filteredGoals
+        .where((g) => g.status == GoalStatus.backlog)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final completedGoals = filteredGoals
+        .where((g) => g.status == GoalStatus.completed)
+        .toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
     // Calculate stats
     final avgProgress = activeGoals.isNotEmpty
@@ -106,6 +132,88 @@ class GoalsScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
+                    ],
+
+                    // Values Filter (if user has values defined)
+                    if (valuesProvider.values.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.filter_list,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Filter by Value:',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            // "All" chip
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: const Text('All Goals'),
+                                selected: _selectedValueFilter == null,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _selectedValueFilter = null;
+                                  });
+                                },
+                                selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                                checkmarkColor: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            // Value filter chips
+                            ...valuesProvider.values.map((value) {
+                              // Count goals for this value
+                              final goalCount = allGoals.where((g) =>
+                                  g.linkedValueIds != null &&
+                                  g.linkedValueIds!.contains(value.id)).length;
+
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: FilterChip(
+                                  label: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(value.domain.emoji),
+                                      const SizedBox(width: 6),
+                                      Text(value.statement),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '($goalCount)',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  selected: _selectedValueFilter == value.id,
+                                  onSelected: (selected) {
+                                    setState(() {
+                                      _selectedValueFilter = selected ? value.id : null;
+                                    });
+                                  },
+                                  selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                                  checkmarkColor: Theme.of(context).colorScheme.primary,
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
                     ],
 
                     // Active Goals section (max 2)

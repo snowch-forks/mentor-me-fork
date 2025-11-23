@@ -19,7 +19,6 @@ import 'habits_screen.dart';
 import 'settings_screen.dart' as settings;
 import 'mentor_screen.dart';
 import 'ai_settings_screen.dart';
-import 'analytics_screen.dart';
 import 'wellness_dashboard_screen.dart';
 import 'crisis_resources_screen.dart';
 
@@ -185,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -421,7 +420,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           padding: const EdgeInsets.all(12.0),
                           child: Icon(
                             Icons.schedule,
-                            color: Theme.of(context).colorScheme.primary.withOpacity(0.6),
+                            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
                             size: 20,
                           ),
                         ),

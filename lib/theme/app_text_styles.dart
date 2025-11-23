@@ -213,14 +213,14 @@ extension TextStyleHelpers on TextStyle {
   /// Apply muted text color (lower contrast)
   TextStyle muted(BuildContext context) {
     return copyWith(
-      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
     );
   }
 
   /// Apply disabled text color
   TextStyle disabled(BuildContext context) {
     return copyWith(
-      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.38),
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38),
     );
   }
 
@@ -231,6 +231,6 @@ extension TextStyleHelpers on TextStyle {
 
   /// Apply custom opacity
   TextStyle withOpacity(double opacity) {
-    return copyWith(color: color?.withOpacity(opacity));
+    return copyWith(color: color?.withValues(alpha: opacity));
   }
 }

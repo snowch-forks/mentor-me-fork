@@ -162,7 +162,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           Text(
             'This name is used throughout the app to personalize your experience',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
           ),
           AppSpacing.gapLg,
@@ -216,7 +216,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
           Container(
             padding: AppSpacing.paddingMd,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: AppRadius.radiusMd,
             ),
             child: Row(

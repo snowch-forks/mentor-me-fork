@@ -536,7 +536,7 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                   Container(
                     padding: AppSpacing.paddingMd,
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                       borderRadius: AppRadius.radiusMd,
                     ),
                     child: Row(
@@ -588,7 +588,7 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                   Text(
                     'Use Claude API (more powerful, requires internet)',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                   ),
                   AppSpacing.gapLg,
@@ -695,7 +695,7 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                   Text(
                     'Send a test message to verify your API key and model configuration.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                   ),
                   AppSpacing.gapMd,
@@ -830,7 +830,7 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                   Text(
                     'Run AI on your device (private, offline, faster for simple tasks)',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                   ),
                   AppSpacing.gapLg,
@@ -1125,7 +1125,7 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                   Text(
                     'Send a test message to verify local AI is working correctly.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                   ),
 
@@ -1289,7 +1289,7 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                     Text(
                       AppStrings.selectClaudeModel,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                     ),
                     AppSpacing.gapLg,
@@ -1330,7 +1330,7 @@ class _AISettingsScreenState extends State<AISettingsScreen> {
                     Container(
                       padding: AppSpacing.paddingMd,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                         borderRadius: AppRadius.radiusMd,
                       ),
                       child: Row(

@@ -224,7 +224,7 @@ class SelfCompassionProvider extends ChangeNotifier {
 
       final data = await _storage.getSelfCompassionEntries();
       if (data != null) {
-        _entries = (data as List)
+        _entries = data
             .map((json) => SelfCompassionEntry.fromJson(json))
             .toList();
       }

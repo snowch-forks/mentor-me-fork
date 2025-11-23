@@ -258,7 +258,7 @@ class ImplementationIntentionProvider extends ChangeNotifier {
 
       final data = await _storage.getImplementationIntentions();
       if (data != null) {
-        _intentions = (data as List)
+        _intentions = data
             .map((json) => ImplementationIntention.fromJson(json))
             .toList();
       }

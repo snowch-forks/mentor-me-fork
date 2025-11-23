@@ -239,7 +239,7 @@ class InterventionProvider extends ChangeNotifier {
 
       final data = await _storage.getInterventionAttempts();
       if (data != null) {
-        _attempts = (data as List)
+        _attempts = data
             .map((json) => InterventionAttempt.fromJson(json))
             .toList();
       }

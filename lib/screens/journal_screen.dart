@@ -108,7 +108,7 @@ class _JournalScreenState extends State<JournalScreen> {
                         Text(
                           '$thisMonthCount ${thisMonthCount == 1 ? AppStrings.entryThisMonth : AppStrings.entriesThisMonth} · $thisWeekCount ${AppStrings.thisWeek}',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                               ),
                         ),
                         const Spacer(),
@@ -187,7 +187,7 @@ class _JournalScreenState extends State<JournalScreen> {
                           child: Text(
                             AppStrings.tipUseAiChat,
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                   fontStyle: FontStyle.italic,
                                 ),
                           ),
@@ -237,7 +237,7 @@ class _JournalScreenState extends State<JournalScreen> {
                                   ? AppStrings.tryAdjustingSearchOrFilter
                                   : AppStrings.startJournaling,
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                   ),
                             ),
                           ],
@@ -280,7 +280,7 @@ class _JournalScreenState extends State<JournalScreen> {
       side: BorderSide(
         color: isSelected
             ? Theme.of(context).colorScheme.primary
-            : Theme.of(context).colorScheme.outline.withOpacity(0.3),
+            : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
         width: isSelected ? 1.5 : 1,
       ),
       elevation: isSelected ? 1 : 0,
@@ -308,7 +308,7 @@ class _JournalScreenState extends State<JournalScreen> {
 
               // Goals & Habits Journal (formerly Guided Reflection) - RECOMMENDED
               Card(
-                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                 child: InkWell(
                   onTap: () {
                     Navigator.pop(context);
@@ -370,7 +370,7 @@ class _JournalScreenState extends State<JournalScreen> {
                               Text(
                                 'Reflect on your goals and habits with AI-guided prompts',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                     ),
                               ),
                             ],
@@ -428,7 +428,7 @@ class _JournalScreenState extends State<JournalScreen> {
                               Text(
                                 AppStrings.haltCheckInDescription,
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                     ),
                               ),
                             ],
@@ -506,7 +506,7 @@ class _JournalScreenState extends State<JournalScreen> {
                               Text(
                                 'Deep dive using therapeutic frameworks (CBT, Gratitude, etc.)',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                     ),
                               ),
                             ],
@@ -562,7 +562,7 @@ class _JournalScreenState extends State<JournalScreen> {
                               Text(
                                 AppStrings.fastSimpleNote,
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                     ),
                               ),
                             ],
@@ -618,7 +618,7 @@ class _JournalScreenState extends State<JournalScreen> {
                               Text(
                                 AppStrings.justLogHowYouFeel,
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                                     ),
                               ),
                             ],
@@ -743,7 +743,7 @@ class _JournalScreenState extends State<JournalScreen> {
         margin: EdgeInsets.only(bottom: compactMargin),
         padding: EdgeInsets.all(compactPadding),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -861,10 +861,10 @@ class _JournalScreenState extends State<JournalScreen> {
         margin: EdgeInsets.only(bottom: compactMargin),
         padding: EdgeInsets.all(compactPadding),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: Theme.of(context).colorScheme.surfaceVariant,
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
             width: 1,
           ),
         ),
@@ -954,9 +954,9 @@ class _JournalScreenState extends State<JournalScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Text(
         label,
@@ -1011,9 +1011,9 @@ class _JournalScreenState extends State<JournalScreen> {
         vertical: _isCompactView ? 4 : AppSpacing.sm - 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1028,7 +1028,7 @@ class _JournalScreenState extends State<JournalScreen> {
             '$metricName: $value/5',
             style: AppTextStyles.bodySmall.copyWith(
               fontWeight: AppTextStyles.medium,
-              color: color.withOpacity(0.9),
+              color: color.withValues(alpha: 0.9),
               fontSize: _isCompactView ? 11 : null,
             ),
           ),
@@ -1436,8 +1436,8 @@ class _JournalScreenState extends State<JournalScreen> {
 
         // Determine background color (alternating)
         final backgroundColor = i % 2 == 0
-            ? Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3)
-            : Theme.of(context).colorScheme.primaryContainer.withOpacity(0.15);
+            ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
+            : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.15);
 
         widgets.add(
           Container(

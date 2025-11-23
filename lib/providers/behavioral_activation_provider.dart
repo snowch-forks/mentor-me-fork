@@ -333,14 +333,14 @@ class BehavioralActivationProvider extends ChangeNotifier {
 
       final activitiesData = await _storage.getActivities();
       if (activitiesData != null) {
-        _activities = (activitiesData as List)
+        _activities = activitiesData
             .map((json) => Activity.fromJson(json))
             .toList();
       }
 
       final scheduledData = await _storage.getScheduledActivities();
       if (scheduledData != null) {
-        _scheduledActivities = (scheduledData as List)
+        _scheduledActivities = scheduledData
             .map((json) => ScheduledActivity.fromJson(json))
             .toList();
       }

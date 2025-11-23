@@ -13,6 +13,9 @@ import '../providers/goal_provider.dart';
 import '../providers/habit_provider.dart';
 import '../services/ai_service.dart';
 import '../services/feature_discovery_service.dart';
+import '../services/cognitive_distortion_detector.dart';
+import '../widgets/distortion_suggestion_widget.dart';
+import '../widgets/socratic_questioning_dialog.dart';
 import '../constants/app_strings.dart';
 import 'goal_suggestions_screen.dart';
 
@@ -38,6 +41,11 @@ class _GuidedJournalingScreenState extends State<GuidedJournalingScreen> {
   bool _showCompletionScreen = false;
   String? _mentorFeedback;
   bool _isFetchingFeedback = false;
+
+  // Cognitive distortion detection
+  final _distortionDetector = CognitiveDistortionDetector();
+  final _suggestionController = DistortionSuggestionController();
+  String? _alternativeThought;
 
   // Prompts for initial onboarding (discovering goals)
   final List<ReflectionPrompt> _onboardingPrompts = [
@@ -152,6 +160,72 @@ class _GuidedJournalingScreenState extends State<GuidedJournalingScreen> {
       _controllers.add(TextEditingController());
       _responses.add('');
     }
+
+    // Add listener to first controller
+    _controllers[0].addListener(_onTextChanged);
+  }
+
+  /// Detect cognitive distortions as user types
+  void _onTextChanged() {
+    final currentController = _controllers[_currentPromptIndex];
+    final text = currentController.text;
+
+    // Don't detect if suggestion is already showing
+    if (_suggestionController.hasSuggestion) return;
+
+    // Detect distortions
+    final detections = _distortionDetector.detectDistortions(text);
+
+    // Show suggestion for the highest confidence detection
+    if (detections.isNotEmpty) {
+      _suggestionController.showSuggestion(detections.first);
+    }
+  }
+
+  /// Launch Socratic questioning dialog
+  Future<void> _exploreDistortion() async {
+    final detection = _suggestionController.currentDetection;
+    if (detection == null) return;
+
+    final alternativeThought = await SocraticQuestioningDialog.show(
+      context: context,
+      detection: detection,
+      originalText: detection.suggestedText,
+    );
+
+    if (alternativeThought != null) {
+      setState(() {
+        _alternativeThought = alternativeThought;
+        _suggestionController.clear();
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Great reframing! Your balanced thought has been noted.'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Switch to a new prompt index (handles listener management)
+  void _switchPrompt(int newIndex) {
+    // Remove listener from old controller
+    _controllers[_currentPromptIndex].removeListener(_onTextChanged);
+
+    // Update index
+    setState(() {
+      _currentPromptIndex = newIndex;
+      _suggestionController.reset(); // Clear any pending suggestions
+      _alternativeThought = null; // Clear alternative thought for new prompt
+    });
+
+    // Add listener to new controller
+    _controllers[_currentPromptIndex].addListener(_onTextChanged);
   }
 
   /// Build check-in prompts dynamically based on user's setup
@@ -276,9 +350,14 @@ class _GuidedJournalingScreenState extends State<GuidedJournalingScreen> {
 
   @override
   void dispose() {
+    // Remove listener from current controller
+    if (_controllers.isNotEmpty && _currentPromptIndex < _controllers.length) {
+      _controllers[_currentPromptIndex].removeListener(_onTextChanged);
+    }
     for (var controller in _controllers) {
       controller.dispose();
     }
+    _suggestionController.dispose();
     super.dispose();
   }
 
@@ -295,7 +374,7 @@ class _GuidedJournalingScreenState extends State<GuidedJournalingScreen> {
     _responses[_currentPromptIndex] = _controllers[_currentPromptIndex].text;
 
     if (_currentPromptIndex < _prompts.length - 1) {
-      setState(() => _currentPromptIndex++);
+      _switchPrompt(_currentPromptIndex + 1);
     } else {
       // Show completion screen for check-ins, finish immediately for onboarding
       if (widget.isCheckIn) {
@@ -308,7 +387,7 @@ class _GuidedJournalingScreenState extends State<GuidedJournalingScreen> {
 
   void _previousPrompt() {
     if (_currentPromptIndex > 0) {
-      setState(() => _currentPromptIndex--);
+      _switchPrompt(_currentPromptIndex - 1);
     }
   }
 
@@ -505,7 +584,7 @@ Keep your tone warm, encouraging, and focused on growth. Be specific and referen
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                            color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -552,13 +631,74 @@ Keep your tone warm, encouraging, and focused on growth. Be specific and referen
                           textCapitalization: TextCapitalization.sentences,
                         ),
 
+                        // Cognitive distortion suggestion
+                        ListenableBuilder(
+                          listenable: _suggestionController,
+                          builder: (context, _) {
+                            if (!_suggestionController.hasSuggestion) {
+                              return const SizedBox.shrink();
+                            }
+
+                            return DistortionSuggestionWidget(
+                              detection: _suggestionController.currentDetection!,
+                              onExplore: _exploreDistortion,
+                              onDismiss: () => _suggestionController.dismiss(),
+                            );
+                          },
+                        ),
+
+                        // Alternative thought confirmation (if user completed reframing)
+                        if (_alternativeThought != null) ...[
+                          Container(
+                            margin: const EdgeInsets.only(top: 8, bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.psychology_outlined,
+                                      size: 20,
+                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Your Balanced Thought',
+                                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '"$_alternativeThought"',
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
                         const SizedBox(height: 24),
 
                         // Encouragement
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -591,7 +731,7 @@ Keep your tone warm, encouraging, and focused on growth. Be specific and referen
                       color: Theme.of(context).colorScheme.surface,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withValues(alpha: 0.05),
                           blurRadius: 10,
                           offset: const Offset(0, -5),
                         ),
@@ -644,7 +784,7 @@ Keep your tone warm, encouraging, and focused on growth. Be specific and referen
                   child: Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -721,7 +861,7 @@ Keep your tone warm, encouraging, and focused on growth. Be specific and referen
                 // Mentor feedback section
                 if (_mentorFeedback == null && !_isFetchingFeedback)
                   Card(
-                    color: Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.3),
                     child: Padding(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -748,7 +888,7 @@ Keep your tone warm, encouraging, and focused on growth. Be specific and referen
                           Text(
                             'Get AI-powered insights on your reflection, including patterns, observations, and actionable suggestions.',
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                                 ),
                           ),
                           const SizedBox(height: 16),
@@ -781,7 +921,7 @@ Keep your tone warm, encouraging, and focused on growth. Be specific and referen
 
                 if (_mentorFeedback != null)
                   Card(
-                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.2),
                     child: ExpansionTile(
                       initiallyExpanded: true,
                       leading: Icon(
@@ -831,7 +971,7 @@ Keep your tone warm, encouraging, and focused on growth. Be specific and referen
               color: Theme.of(context).colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, -5),
                 ),
