@@ -31,10 +31,11 @@ class Habit {
   final bool isActive;  // Deprecated: Use status instead
   final HabitStatus status;
   final DateTime createdAt;
+  final DateTime updatedAt;  // Last modification timestamp
   final bool isSystemCreated; // True if created by system (onboarding, suggestions)
   final String? systemType; // e.g., 'daily_reflection', 'suggested', null for user-created
   final int sortOrder; // For drag-and-drop reordering
-  
+
   Habit({
     String? id,
     required this.title,
@@ -48,12 +49,14 @@ class Habit {
     bool? isActive,  // Deprecated - auto-syncs with status if not provided
     this.status = HabitStatus.active,
     DateTime? createdAt,
+    DateTime? updatedAt,
     this.isSystemCreated = false,
     this.systemType,
     this.sortOrder = 0,
   })  : id = id ?? const Uuid().v4(),
         completionDates = completionDates ?? [],
         createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? createdAt ?? DateTime.now(),
         isActive = isActive ?? (status == HabitStatus.active);
 
   Map<String, dynamic> toJson() {
@@ -70,6 +73,7 @@ class Habit {
       'isActive': isActive,
       'status': status.toString(),
       'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
       'isSystemCreated': isSystemCreated,
       'systemType': systemType,
       'sortOrder': sortOrder,
@@ -85,6 +89,8 @@ class Habit {
         orElse: () => HabitStatus.active,
       );
     }
+
+    final createdAt = DateTime.parse(json['createdAt']);
 
     return Habit(
       id: json['id'],
@@ -102,7 +108,10 @@ class Habit {
       longestStreak: json['longestStreak'],
       isActive: json['isActive'],
       status: parsedStatus,
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: createdAt,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : createdAt, // Backward compatibility: use createdAt if updatedAt missing
       isSystemCreated: json['isSystemCreated'] ?? false, // Default false for backwards compatibility
       systemType: json['systemType'],
       sortOrder: json['sortOrder'] ?? 0, // Default 0 for backwards compatibility
@@ -142,6 +151,7 @@ class Habit {
       isActive: newIsActive,
       status: newStatus,
       createdAt: createdAt,
+      updatedAt: DateTime.now(),  // Always update timestamp on modification
       isSystemCreated: isSystemCreated ?? this.isSystemCreated,
       systemType: systemType ?? this.systemType,
       sortOrder: sortOrder ?? this.sortOrder,
