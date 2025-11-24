@@ -3473,6 +3473,85 @@ Migration happens automatically in `PulseEntry.fromJson()`:
 
 ---
 
+## Android Release Signing (CI/CD)
+
+### Why Signing Matters
+
+Android requires APKs to be signed with the same key to allow updates. Without consistent signing:
+- Users must **uninstall** the app before installing a new version
+- App data is **lost** on uninstall
+- Poor user experience
+
+### Setting Up Release Signing for CI/CD
+
+The CI/CD workflows support release signing via GitHub Secrets. Follow these steps:
+
+**1. Generate a Keystore (one-time setup):**
+
+```bash
+keytool -genkey -v -keystore release-key.jks -keyalg RSA -keysize 2048 -validity 10000 -alias mentor-me
+
+# You'll be prompted for:
+# - Keystore password (save this!)
+# - Key password (can be same as keystore password)
+# - Your name, organization, etc.
+```
+
+**2. Base64 Encode the Keystore:**
+
+```bash
+base64 -i release-key.jks | tr -d '\n' > keystore-base64.txt
+```
+
+**3. Add GitHub Secrets:**
+
+Go to your repository → Settings → Secrets and variables → Actions → New repository secret
+
+Add these 4 secrets:
+
+| Secret Name | Value |
+|-------------|-------|
+| `KEYSTORE_BASE64` | Contents of `keystore-base64.txt` |
+| `KEYSTORE_PASSWORD` | Your keystore password |
+| `KEY_ALIAS` | `mentor-me` (or whatever alias you used) |
+| `KEY_PASSWORD` | Your key password |
+
+**4. Verify Setup:**
+
+Push a commit and check the CI/CD logs for:
+```
+✓ Release signing configured (key.properties exists)
+```
+
+### Local Development Signing
+
+For local builds, create `android/key.properties`:
+
+```properties
+storeFile=release-key.jks
+storePassword=your_keystore_password
+keyAlias=mentor-me
+keyPassword=your_key_password
+```
+
+Place your `release-key.jks` in `android/app/`.
+
+**Important:** Both `key.properties` and `*.jks` files are in `.gitignore` - never commit them!
+
+### Troubleshooting Signing Issues
+
+**"Must uninstall before installing":**
+- CI/CD secrets not configured (check workflow logs)
+- Different keystore used for different builds
+- Solution: Configure GitHub Secrets with a consistent keystore
+
+**"Keystore was tampered with":**
+- Wrong password in secrets
+- Corrupted base64 encoding
+- Re-encode the keystore and update the secret
+
+---
+
 ## Troubleshooting
 
 ### Common Issues

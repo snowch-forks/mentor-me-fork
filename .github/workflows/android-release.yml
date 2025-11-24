@@ -81,6 +81,44 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
+      - name: Set up release signing
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          # Decode the keystore from base64
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release-key.jks
+
+          # Create key.properties file for Gradle
+          cat > android/key.properties <<EOF
+          storeFile=release-key.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+          echo "✓ Release signing configured"
+
+      - name: Verify signing configuration
+        run: |
+          if [ -f "android/key.properties" ]; then
+            echo "✓ Release signing configured (key.properties exists)"
+          else
+            echo "⚠️ WARNING: No signing secrets configured - APK will be signed with CI debug key"
+            echo "This means users will need to uninstall before installing new versions!"
+            echo ""
+            echo "To fix this, configure these GitHub Secrets:"
+            echo "  - KEYSTORE_BASE64: Base64-encoded .jks keystore file"
+            echo "  - KEYSTORE_PASSWORD: Keystore password"
+            echo "  - KEY_ALIAS: Key alias in keystore"
+            echo "  - KEY_PASSWORD: Key password"
+            echo ""
+            echo "See: https://docs.flutter.dev/deployment/android#signing-the-app"
+          fi
+
       - name: Run Flutter analyzer
         run: flutter analyze
         continue-on-error: true

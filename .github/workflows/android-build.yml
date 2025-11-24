@@ -65,6 +65,35 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
+      - name: Set up release signing
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          # Decode the keystore from base64
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release-key.jks
+
+          # Create key.properties file for Gradle
+          cat > android/key.properties <<EOF
+          storeFile=release-key.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+          echo "✓ Release signing configured"
+
+      - name: Verify signing configuration
+        run: |
+          if [ -f "android/key.properties" ]; then
+            echo "✓ Release signing configured (key.properties exists)"
+          else
+            echo "⚠️ No signing secrets - using CI debug key (install conflicts expected)"
+          fi
+
       - name: Run Flutter analyzer
         run: |
           # Run analyzer and capture output
@@ -213,9 +242,30 @@ jobs:
       - name: Get Flutter dependencies
         run: flutter pub get
 
+      - name: Set up release signing
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          # Decode the keystore from base64
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release-key.jks
+
+          # Create key.properties file for Gradle
+          cat > android/key.properties <<EOF
+          storeFile=release-key.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+          echo "✓ Release signing configured"
+
       - name: Build App Bundle (AAB)
         run: flutter build appbundle --release --target-platform android-arm,android-arm64
-        # Note: For Play Store publishing, you'll need to configure signing
+        # Note: For Play Store publishing, configure signing via GitHub Secrets
         # Targeting only ARM architectures (x86 is deprecated in Flutter 3.27+)
 
       - name: Upload App Bundle artifact
