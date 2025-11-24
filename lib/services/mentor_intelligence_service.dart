@@ -2473,6 +2473,51 @@ class MentorIntelligenceService {
   Map<String, dynamic> _shouldSuggestHaltCheck(List<JournalEntry> journals) {
     final now = DateTime.now();
 
+    // FIRST: Check for recent HALT checks - implement cooldown period
+    // Don't suggest another HALT check if one was done in the last 24 hours
+    final haltJournals = journals.where((j) {
+      // Check if journal is a HALT check (reflectionType: 'halt' in metadata)
+      if (j.type == JournalEntryType.guidedJournal && j.qaPairs != null) {
+        final guidedData = j.toJson()['guidedJournalData'];
+        if (guidedData != null && guidedData is Map) {
+          final reflectionType = guidedData['reflectionType'];
+          return reflectionType == 'halt';
+        }
+      }
+      return false;
+    }).toList();
+
+    if (haltJournals.isNotEmpty) {
+      final lastHaltDate = haltJournals
+          .reduce((a, b) => a.createdAt.isAfter(b.createdAt) ? a : b)
+          .createdAt;
+      final hoursSinceLastHalt = now.difference(lastHaltDate).inHours;
+      final daysSinceLastHalt = now.difference(lastHaltDate).inDays;
+
+      // COOLDOWN: If HALT check done in last 24 hours, don't suggest another
+      if (hoursSinceLastHalt < 24) {
+        return {'needed': false, 'reason': 'recent_halt_cooldown'};
+      }
+
+      // If it's been 7+ days since last HALT check, suggest one
+      if (daysSinceLastHalt >= 7) {
+        return {
+          'needed': true,
+          'reason': 'periodic_check',
+          'daysSinceLastHalt': daysSinceLastHalt,
+        };
+      }
+    } else {
+      // No HALT checks ever done, suggest one if they have 5+ journals
+      if (journals.length >= 5) {
+        return {
+          'needed': true,
+          'reason': 'first_halt',
+          'daysSinceLastHalt': null,
+        };
+      }
+    }
+
     // Keywords that suggest stress or unmet basic needs
     const stressKeywords = [
       'stress', 'overwhelm', 'exhausted', 'tired', 'frustrated',
@@ -2481,9 +2526,20 @@ class MentorIntelligenceService {
     ];
 
     // Check last 7 days of journals for stress keywords
+    // But exclude HALT check journals themselves from this check
     final recentJournals = journals.where((j) {
       final daysAgo = now.difference(j.createdAt).inDays;
-      return daysAgo <= 7;
+      if (daysAgo > 7) return false;
+
+      // Exclude HALT check journals from stress keyword search
+      // (they often contain stress keywords by design)
+      if (j.type == JournalEntryType.guidedJournal && j.qaPairs != null) {
+        final guidedData = j.toJson()['guidedJournalData'];
+        if (guidedData != null && guidedData is Map) {
+          if (guidedData['reflectionType'] == 'halt') return false;
+        }
+      }
+      return true;
     }).toList();
 
     // Check for stress keywords in recent journals
@@ -2512,43 +2568,6 @@ class MentorIntelligenceService {
           'needed': true,
           'reason': 'no_journaling',
           'daysSinceLastJournal': daysSinceLastJournal,
-        };
-      }
-    }
-
-    // Check for no HALT check in last 7 days
-    final haltJournals = journals.where((j) {
-      // Check if journal is a HALT check (reflectionType: 'halt' in metadata)
-      if (j.type == JournalEntryType.guidedJournal && j.qaPairs != null) {
-        final guidedData = j.toJson()['guidedJournalData'];
-        if (guidedData != null && guidedData is Map) {
-          final reflectionType = guidedData['reflectionType'];
-          return reflectionType == 'halt';
-        }
-      }
-      return false;
-    }).toList();
-
-    if (haltJournals.isNotEmpty) {
-      final lastHaltDate = haltJournals
-          .reduce((a, b) => a.createdAt.isAfter(b.createdAt) ? a : b)
-          .createdAt;
-      final daysSinceLastHalt = now.difference(lastHaltDate).inDays;
-
-      if (daysSinceLastHalt >= 7) {
-        return {
-          'needed': true,
-          'reason': 'periodic_check',
-          'daysSinceLastHalt': daysSinceLastHalt,
-        };
-      }
-    } else {
-      // No HALT checks ever done, suggest one if they have 5+ journals
-      if (journals.length >= 5) {
-        return {
-          'needed': true,
-          'reason': 'first_halt',
-          'daysSinceLastHalt': null,
         };
       }
     }
