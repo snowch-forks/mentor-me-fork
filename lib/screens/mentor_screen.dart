@@ -18,6 +18,7 @@ import '../models/goal.dart';
 import '../models/habit.dart';
 import '../models/journal_entry.dart';
 import 'chat_screen.dart';
+import 'guided_journaling_screen.dart';
 import 'mentor_reminders_screen.dart';
 import 'reflection_session_screen.dart';
 import '../widgets/quick_halt_widget.dart';
@@ -524,6 +525,19 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
             context,
             MaterialPageRoute(
               builder: (context) => const ReflectionSessionScreen(),
+            ),
+          );
+        } else if (destination == 'GuidedJournalingScreen') {
+          // Handle HALT check and regular check-in navigation
+          final isHaltCheck = action.context?['isHaltCheck'] == true;
+          final isCheckIn = action.context?['isCheckIn'] == true;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => GuidedJournalingScreen(
+                isHaltCheck: isHaltCheck,
+                isCheckIn: isCheckIn,
+              ),
             ),
           );
         }
