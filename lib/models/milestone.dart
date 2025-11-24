@@ -9,6 +9,8 @@ class Milestone {
   final DateTime? completedDate;
   final int order;
   final bool isCompleted;
+  final DateTime createdAt;
+  final DateTime updatedAt;  // Last modification timestamp
 
   Milestone({
     String? id,
@@ -19,7 +21,11 @@ class Milestone {
     this.completedDate,
     required this.order,
     this.isCompleted = false,
-  }) : id = id ?? const Uuid().v4();
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) : id = id ?? const Uuid().v4(),
+       createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() {
     return {
@@ -31,10 +37,17 @@ class Milestone {
       'completedDate': completedDate?.toIso8601String(),
       'order': order,
       'isCompleted': isCompleted,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
   factory Milestone.fromJson(Map<String, dynamic> json) {
+    // Backward compatibility: use createdAt if available, else use DateTime.now()
+    final createdAt = json['createdAt'] != null
+        ? DateTime.parse(json['createdAt'])
+        : DateTime.now();
+
     return Milestone(
       id: json['id'],
       goalId: json['goalId'],
@@ -48,6 +61,10 @@ class Milestone {
           : null,
       order: json['order'],
       isCompleted: json['isCompleted'] ?? false,
+      createdAt: createdAt,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : createdAt, // Backward compatibility: use createdAt if updatedAt missing
     );
   }
 
@@ -75,6 +92,8 @@ class Milestone {
       completedDate: completedDate ?? this.completedDate,
       order: order ?? this.order,
       isCompleted: isCompleted ?? this.isCompleted,
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),  // Always update timestamp on modification
     );
   }
 }

@@ -34,7 +34,7 @@ class MentorScreen extends StatefulWidget {
   State<MentorScreen> createState() => _MentorScreenState();
 }
 
-class _MentorScreenState extends State<MentorScreen> {
+class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver {
   String _userName = '';
   mentor.MentorCoachingCard? _cachedCoachingCard;
   String _lastStateHash = '';
@@ -43,7 +43,32 @@ class _MentorScreenState extends State<MentorScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserName();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // Reload userName and refresh card when app resumes
+    // This handles settings changes, restores, and other background updates
+    if (state == AppLifecycleState.resumed) {
+      _loadUserName();
+
+      // Force a rebuild to check if data has changed (stale cache detection will run)
+      if (mounted) {
+        setState(() {
+          // Force rebuild - stale cache detection in build will catch any changes
+        });
+      }
+    }
   }
 
   Future<void> _loadUserName() async {
@@ -52,6 +77,24 @@ class _MentorScreenState extends State<MentorScreen> {
     if (mounted) {
       setState(() {
         _userName = settings['userName'] as String? ?? 'there';
+      });
+    }
+  }
+
+  /// Public method to force reload userName (called after restore operations)
+  void reloadUserName() {
+    _loadUserName();
+  }
+
+  /// Public method to force refresh the mentor coaching card
+  /// Called after significant data changes (e.g., restore, bulk updates)
+  void refreshMentorCard() {
+    if (mounted) {
+      setState(() {
+        // Clear the cache and reset loading state to force regeneration
+        _cachedCoachingCard = null;
+        _lastStateHash = '';
+        _isLoadingCard = false;
       });
     }
   }
@@ -95,15 +138,27 @@ class _MentorScreenState extends State<MentorScreen> {
 
     // SAFEGUARD: Detect stale cache that doesn't match data
     // If we have a cached card but the current state has data and our
-    // last hash doesn't, force regeneration (handles app upgrade scenarios)
+    // last hash doesn't, force regeneration (handles app upgrade scenarios, restores, etc.)
     final hasActualData = goalProvider.goals.isNotEmpty ||
                           habitProvider.habits.isNotEmpty ||
                           journalProvider.entries.isNotEmpty;
     final lastHashIndicatesEmpty = _lastStateHash.isEmpty ||
                                     _lastStateHash.startsWith('0:|0:|0:');
+
+    // Additional checks for stale cache scenarios
+    final lastHashMissingJournals = journalProvider.entries.isNotEmpty &&
+                                     !_lastStateHash.contains(':') ||
+                                     _lastStateHash.split('|').length < 3;
+    final lastHashMissingGoals = goalProvider.goals.isNotEmpty &&
+                                  _lastStateHash.startsWith('0:');
+    final lastHashMissingHabits = habitProvider.habits.isNotEmpty &&
+                                   _lastStateHash.split('|').elementAtOrNull(1)?.startsWith('0:') == true;
+
     final staleCacheDetected = _cachedCoachingCard != null &&
-                                hasActualData &&
-                                lastHashIndicatesEmpty;
+                                (hasActualData && lastHashIndicatesEmpty ||
+                                 lastHashMissingJournals ||
+                                 lastHashMissingGoals ||
+                                 lastHashMissingHabits);
 
     if (staleCacheDetected) {
       // Clear stale cache and force regeneration

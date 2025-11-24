@@ -26,6 +26,7 @@ class Goal {
   final String description;
   final GoalCategory category;
   final DateTime createdAt;
+  final DateTime updatedAt;  // Last modification timestamp
   final DateTime? targetDate;
   final List<String> milestones;
   final List<Milestone> milestonesDetailed;
@@ -34,13 +35,14 @@ class Goal {
   final GoalStatus status;
   final int sortOrder; // For drag-and-drop reordering
   final List<String>? linkedValueIds; // Values this goal serves (optional)
-  
+
   Goal({
     String? id,
     required this.title,
     required this.description,
     required this.category,
     DateTime? createdAt,
+    DateTime? updatedAt,
     this.targetDate,
     List<String>? milestones,
     List<Milestone>? milestonesDetailed,
@@ -51,6 +53,7 @@ class Goal {
     this.linkedValueIds,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? createdAt ?? DateTime.now(),
         milestones = milestones ?? [],
         milestonesDetailed = milestonesDetailed ?? [],
         isActive = isActive ?? (status == GoalStatus.active);
@@ -62,6 +65,7 @@ class Goal {
       'description': description,
       'category': category.toString(),
       'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
       'targetDate': targetDate?.toIso8601String(),
       'milestones': milestones,
       'milestonesDetailed': milestonesDetailed.map((m) => m.toJson()).toList(),
@@ -83,6 +87,8 @@ class Goal {
       );
     }
 
+    final createdAt = DateTime.parse(json['createdAt']);
+
     return Goal(
       id: json['id'],
       title: json['title'],
@@ -90,7 +96,10 @@ class Goal {
       category: GoalCategory.values.firstWhere(
         (e) => e.toString() == json['category'],
       ),
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: createdAt,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : createdAt, // Backward compatibility: use createdAt if updatedAt missing
       targetDate: json['targetDate'] != null
           ? DateTime.parse(json['targetDate'])
           : null,
@@ -132,6 +141,7 @@ class Goal {
       description: description ?? this.description,
       category: category ?? this.category,
       createdAt: createdAt,
+      updatedAt: DateTime.now(),  // Always update timestamp on modification
       targetDate: targetDate ?? this.targetDate,
       milestones: milestones ?? this.milestones,
       milestonesDetailed: milestonesDetailed ?? this.milestonesDetailed,

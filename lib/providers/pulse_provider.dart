@@ -28,6 +28,10 @@ class PulseProvider extends ChangeNotifier {
 
     _entries = await _storage.loadPulseEntries();
 
+    // DEFENSIVE: Always sort by timestamp (most recent first)
+    // This ensures correct order even after restore operations
+    _entries.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
     _isLoading = false;
     notifyListeners();
   }

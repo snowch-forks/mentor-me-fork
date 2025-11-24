@@ -33,6 +33,10 @@ class JournalProvider extends ChangeNotifier {
 
     _entries = await _storage.loadJournalEntries();
 
+    // DEFENSIVE: Always sort by creation date (most recent first)
+    // This ensures correct order even after restore operations
+    _entries.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
     _isLoading = false;
     notifyListeners();
   }
