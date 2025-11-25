@@ -559,6 +559,70 @@ extension BackupServiceTestExtension on BackupService {
       ));
     }
 
+    // Import meditation sessions
+    try {
+      if (data.containsKey('meditation_sessions') && data['meditation_sessions'] != null) {
+        final sessionsJson = json.decode(data['meditation_sessions'] as String) as List;
+        await storage.saveMeditationSessions(sessionsJson);
+        await debug.info('BackupService', 'Imported ${sessionsJson.length} meditation sessions');
+        results.add(ImportItemResult(
+          dataType: 'Meditation Sessions',
+          success: true,
+          count: sessionsJson.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Meditation Sessions',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await debug.error(
+        'BackupService',
+        'Failed to import meditation sessions: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Meditation Sessions',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import urge surfing sessions
+    try {
+      if (data.containsKey('urge_surfing_sessions') && data['urge_surfing_sessions'] != null) {
+        final sessionsJson = json.decode(data['urge_surfing_sessions'] as String) as List;
+        await storage.saveUrgeSurfingSessions(sessionsJson);
+        await debug.info('BackupService', 'Imported ${sessionsJson.length} urge surfing sessions');
+        results.add(ImportItemResult(
+          dataType: 'Urge Surfing Sessions',
+          success: true,
+          count: sessionsJson.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Urge Surfing Sessions',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await debug.error(
+        'BackupService',
+        'Failed to import urge surfing sessions: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Urge Surfing Sessions',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
     return results;
   }
 }

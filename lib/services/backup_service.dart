@@ -39,6 +39,8 @@ import '../models/worry_session.dart';
 import '../models/self_compassion.dart';
 import '../models/values_and_smart_goals.dart';
 import '../models/implementation_intention.dart';
+import '../models/meditation.dart';
+import '../models/urge_surfing.dart';
 import '../config/build_info.dart';
 
 // Conditional import: web implementation when dart:html is available, stub otherwise
@@ -84,6 +86,8 @@ class BackupService {
     final selfCompassionEntries = await _storage.getSelfCompassionEntries() ?? [];
     final personalValues = await _storage.getPersonalValues() ?? [];
     final implementationIntentions = await _storage.getImplementationIntentions() ?? [];
+    final meditationSessions = await _storage.getMeditationSessions() ?? [];
+    final urgeSurfingSessions = await _storage.getUrgeSurfingSessions() ?? [];
 
     // Remove sensitive data (API key, HF token) from export
     // Note: Auto-backup location settings (autoBackupLocation, autoBackupCustomPath)
@@ -134,6 +138,8 @@ class BackupService {
       'self_compassion_entries': json.encode(selfCompassionEntries.map((s) => s.toJson()).toList()),
       'personal_values': json.encode(personalValues.map((p) => p.toJson()).toList()),
       'implementation_intentions': json.encode(implementationIntentions.map((i) => i.toJson()).toList()),
+      'meditation_sessions': json.encode(meditationSessions),
+      'urge_surfing_sessions': json.encode(urgeSurfingSessions),
 
       // Statistics for UI display
       'statistics': {
@@ -157,6 +163,8 @@ class BackupService {
         'totalSelfCompassionEntries': selfCompassionEntries.length,
         'totalPersonalValues': personalValues.length,
         'totalImplementationIntentions': implementationIntentions.length,
+        'totalMeditationSessions': meditationSessions.length,
+        'totalUrgeSurfingSessions': urgeSurfingSessions.length,
       },
     };
 
@@ -1354,6 +1362,72 @@ class BackupService {
       );
       results.add(ImportItemResult(
         dataType: 'Implementation Intentions',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import meditation sessions
+    try {
+      if (data.containsKey('meditation_sessions') && data['meditation_sessions'] != null) {
+        final sessionsJson = json.decode(data['meditation_sessions'] as String) as List;
+        final sessions = sessionsJson.map((json) => MeditationSession.fromJson(json)).toList();
+        await _storage.saveMeditationSessions(sessions);
+        await _debug.info('BackupService', 'Imported ${sessions.length} meditation sessions');
+        results.add(ImportItemResult(
+          dataType: 'Meditation Sessions',
+          success: true,
+          count: sessions.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Meditation Sessions',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import meditation sessions: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Meditation Sessions',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import urge surfing sessions
+    try {
+      if (data.containsKey('urge_surfing_sessions') && data['urge_surfing_sessions'] != null) {
+        final sessionsJson = json.decode(data['urge_surfing_sessions'] as String) as List;
+        final sessions = sessionsJson.map((json) => UrgeSurfingSession.fromJson(json)).toList();
+        await _storage.saveUrgeSurfingSessions(sessions);
+        await _debug.info('BackupService', 'Imported ${sessions.length} urge surfing sessions');
+        results.add(ImportItemResult(
+          dataType: 'Urge Surfing Sessions',
+          success: true,
+          count: sessions.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Urge Surfing Sessions',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import urge surfing sessions: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Urge Surfing Sessions',
         success: false,
         count: 0,
         errorMessage: e.toString(),

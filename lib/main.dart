@@ -22,6 +22,8 @@ import 'providers/self_compassion_provider.dart';
 import 'providers/values_provider.dart';
 import 'providers/implementation_intention_provider.dart';
 import 'providers/intervention_provider.dart';
+import 'providers/meditation_provider.dart';
+import 'providers/urge_surfing_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/notification_service.dart';
@@ -190,6 +192,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ValuesProvider()),
         ChangeNotifierProvider(create: (_) => ImplementationIntentionProvider()),
         ChangeNotifierProvider(create: (_) => InterventionProvider()),
+        ChangeNotifierProvider(create: (_) => MeditationProvider()),
+        ChangeNotifierProvider(create: (_) => UrgeSurfingProvider()),
         ChangeNotifierProvider(create: (_) {
           final provider = JournalTemplateProvider();
           // Initialize system templates
