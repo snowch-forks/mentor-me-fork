@@ -13,6 +13,8 @@ import 'assessment_dashboard_screen.dart';
 import 'analytics_screen.dart';
 import 'safety_plan_screen.dart';
 import 'crisis_resources_screen.dart';
+import 'meditation_screen.dart';
+import 'urge_surfing_screen.dart';
 
 class WellnessDashboardScreen extends StatelessWidget {
   const WellnessDashboardScreen({super.key});
@@ -117,6 +119,17 @@ class WellnessDashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
 
+          // Mindfulness & Meditation
+          _buildFeatureCard(
+            context,
+            icon: Icons.self_improvement,
+            title: 'Mindfulness & Meditation',
+            description: 'Breathing exercises, body scan, and guided meditation',
+            color: Colors.teal,
+            onTap: () => _navigate(context, const MeditationScreen()),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
           // Gratitude
           _buildFeatureCard(
             context,
@@ -136,6 +149,17 @@ class WellnessDashboardScreen extends StatelessWidget {
             description: 'Contain anxiety with designated worry practice',
             color: Colors.deepPurple,
             onTap: () => _navigate(context, const WorryTimeScreen()),
+          ),
+          const SizedBox(height: AppSpacing.md),
+
+          // Urge Surfing
+          _buildFeatureCard(
+            context,
+            icon: Icons.waves,
+            title: 'Urge Surfing',
+            description: 'Manage cravings and impulses with mindfulness techniques',
+            color: Colors.cyan,
+            onTap: () => _navigate(context, const UrgeSurfingScreen()),
           ),
           const SizedBox(height: AppSpacing.md),
 

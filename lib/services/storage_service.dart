@@ -46,6 +46,8 @@ class StorageService {
   static const String _selfCompassionEntriesKey = 'self_compassion_entries';
   static const String _personalValuesKey = 'personal_values';
   static const String _implementationIntentionsKey = 'implementation_intentions';
+  static const String _meditationSessionsKey = 'meditation_sessions';
+  static const String _urgeSurfingSessionsKey = 'urge_surfing_sessions';
 
   // Lazy initialization of dependencies to avoid eager construction
   MigrationService? _migrationServiceInstance;
@@ -765,6 +767,32 @@ class StorageService {
   Future<List<dynamic>?> getImplementationIntentions() async {
     final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString(_implementationIntentionsKey);
+    return data != null ? json.decode(data) : null;
+  }
+
+  // Meditation Sessions
+  Future<void> saveMeditationSessions(List<dynamic> sessions) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_meditationSessionsKey, json.encode(sessions));
+    await _notifyPersistence('meditation_sessions');
+  }
+
+  Future<List<dynamic>?> getMeditationSessions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_meditationSessionsKey);
+    return data != null ? json.decode(data) : null;
+  }
+
+  // Urge Surfing Sessions
+  Future<void> saveUrgeSurfingSessions(List<dynamic> sessions) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_urgeSurfingSessionsKey, json.encode(sessions));
+    await _notifyPersistence('urge_surfing_sessions');
+  }
+
+  Future<List<dynamic>?> getUrgeSurfingSessions() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_urgeSurfingSessionsKey);
     return data != null ? json.decode(data) : null;
   }
 }
