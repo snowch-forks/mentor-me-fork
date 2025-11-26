@@ -321,8 +321,6 @@ class _WorryDecisionTreeScreenState extends State<WorryDecisionTreeScreen> {
   }
 
   Widget _buildActionNowNode() {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return _buildOutcomeNode(
       icon: Icons.play_arrow,
       iconColor: Colors.green,
@@ -335,8 +333,6 @@ class _WorryDecisionTreeScreenState extends State<WorryDecisionTreeScreen> {
   }
 
   Widget _buildScheduleLaterNode() {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return _buildOutcomeNode(
       icon: Icons.event,
       iconColor: Colors.blue,
