@@ -91,9 +91,11 @@ class DistortionSuggestionWidget extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // Action buttons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          // Action buttons - using Wrap to handle narrow screens
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               // Dismiss button
               TextButton(
@@ -104,7 +106,6 @@ class DistortionSuggestionWidget extends StatelessWidget {
                 ),
                 child: const Text('No, keep writing'),
               ),
-              const SizedBox(width: 8),
 
               // Explore button (primary action)
               FilledButton.tonal(
