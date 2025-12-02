@@ -12,6 +12,7 @@ import '../models/pulse_entry.dart';
 import '../models/pulse_type.dart';
 import '../models/hydration_entry.dart';
 import '../models/user_context_summary.dart';
+import '../models/win.dart';
 import 'package:mentor_me/services/migration_service.dart';
 import 'package:mentor_me/services/debug_service.dart';
 
@@ -55,6 +56,7 @@ class StorageService {
   static const String _unplugSessionsKey = 'unplug_sessions';
   static const String _deviceBoundariesKey = 'device_boundaries';
   static const String _userContextSummaryKey = 'user_context_summary';
+  static const String _winsKey = 'wins';
 
   // Lazy initialization of dependencies to avoid eager construction
   MigrationService? _migrationServiceInstance;
@@ -295,6 +297,29 @@ class StorageService {
       debugPrint('Warning: Corrupted user context summary, returning null. Error: $e');
       await prefs.remove(_userContextSummaryKey);
       return null;
+    }
+  }
+
+  // Save/Load Wins
+  Future<void> saveWins(List<Win> wins) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = wins.map((win) => win.toJson()).toList();
+    await prefs.setString(_winsKey, json.encode(jsonList));
+    await _notifyPersistence('wins');
+  }
+
+  Future<List<Win>> loadWins() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_winsKey);
+    if (jsonString == null) return [];
+
+    try {
+      final List<dynamic> jsonList = json.decode(jsonString);
+      return jsonList.map((json) => Win.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('Warning: Corrupted wins data, returning empty list. Error: $e');
+      await prefs.remove(_winsKey);
+      return [];
     }
   }
 
