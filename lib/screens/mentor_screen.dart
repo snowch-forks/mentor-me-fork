@@ -24,6 +24,7 @@ import 'mentor_reminders_screen.dart';
 import 'reflection_session_screen.dart';
 import '../widgets/quick_halt_widget.dart';
 import '../widgets/hydration_widget.dart';
+import '../widgets/recent_wins_widget.dart';
 
 class MentorScreen extends StatefulWidget {
   final Function(int) onNavigateToTab;
@@ -671,6 +672,10 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
 
         // Hydration Tracking Widget
         const HydrationWidget(),
+        AppSpacing.gapLg,
+
+        // Recent Wins Widget (only shows if there are wins this week)
+        const RecentWinsWidget(),
         AppSpacing.gapLg,
 
         // Glanceable Goals Section
