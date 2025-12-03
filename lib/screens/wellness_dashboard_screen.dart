@@ -39,7 +39,7 @@ class WellnessDashboardScreen extends StatelessWidget {
           left: AppSpacing.md,
           right: AppSpacing.md,
           top: AppSpacing.md,
-          bottom: 100, // Extra padding for bottom nav (80px) + spacing (20px)
+          bottom: 120, // Extra padding for bottom nav bar
         ),
         children: [
           Text(
