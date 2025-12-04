@@ -23,6 +23,7 @@ import 'worry_decision_tree_screen.dart';
 import 'exposure_ladder_screen.dart';
 import 'weight_tracking_screen.dart';
 import 'food_log_screen.dart';
+import 'exercise_plans_screen.dart';
 
 class WellnessDashboardScreen extends StatelessWidget {
   const WellnessDashboardScreen({super.key});
@@ -39,7 +40,7 @@ class WellnessDashboardScreen extends StatelessWidget {
           left: AppSpacing.md,
           right: AppSpacing.md,
           top: AppSpacing.md,
-          bottom: 100, // Extra padding for bottom nav (80px) + spacing (20px)
+          bottom: 120, // Extra padding for bottom nav bar
         ),
         children: [
           Text(
@@ -355,6 +356,16 @@ class WellnessDashboardScreen extends StatelessWidget {
             description: 'Track meals with AI-powered nutrition estimation',
             color: Colors.orange,
             onTap: () => _navigate(context, const FoodLogScreen()),
+          const SizedBox(height: AppSpacing.md),
+
+          // Exercise Tracking
+          _buildFeatureCard(
+            context,
+            icon: Icons.fitness_center,
+            title: 'Exercise Tracking',
+            description: 'Create workout plans and track your exercise routines',
+            color: Colors.orange,
+            onTap: () => _navigate(context, const ExercisePlansScreen()),
           ),
           const SizedBox(height: AppSpacing.xl),
 

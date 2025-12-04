@@ -100,6 +100,7 @@ class DashboardSettingsScreen extends StatelessWidget {
                         ? () => settings.toggleDashboardWidget(config.id)
                         : null,
                     showDragHandle: true,
+                    index: index,
                   );
                 },
               ),
@@ -194,6 +195,7 @@ class _WidgetListItem extends StatelessWidget {
   final bool canHide;
   final VoidCallback? onToggle;
   final bool showDragHandle;
+  final int index;
 
   const _WidgetListItem({
     super.key,
@@ -202,6 +204,7 @@ class _WidgetListItem extends StatelessWidget {
     required this.canHide,
     this.onToggle,
     required this.showDragHandle,
+    this.index = 0,
   });
 
   @override
@@ -275,7 +278,7 @@ class _WidgetListItem extends StatelessWidget {
               if (showDragHandle) ...[
                 const SizedBox(width: 8),
                 ReorderableDragStartListener(
-                  index: 0, // This will be overridden by the parent
+                  index: index,
                   child: Icon(
                     Icons.drag_handle,
                     color: colorScheme.onSurfaceVariant,
