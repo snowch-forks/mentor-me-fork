@@ -69,15 +69,15 @@ class SymptomType {
   final int sortOrder;
   final bool isActive; // false if user has hidden this type
 
-  const SymptomType({
-    required this.id,
+  SymptomType({
+    String? id,
     required this.name,
     required this.emoji,
     this.category = SymptomCategory.other,
     this.isSystemDefined = false,
     this.sortOrder = 0,
     this.isActive = true,
-  });
+  }) : id = id ?? const Uuid().v4();
 
   SymptomType copyWith({
     String? id,
@@ -107,7 +107,7 @@ class SymptomType {
   /// Default symptom types for common symptoms
   static List<SymptomType> get defaults => [
         // Physical
-        const SymptomType(
+        SymptomType(
           id: 'headache',
           name: 'Headache',
           emoji: '🤕',
@@ -115,7 +115,7 @@ class SymptomType {
           isSystemDefined: true,
           sortOrder: 0,
         ),
-        const SymptomType(
+        SymptomType(
           id: 'fatigue',
           name: 'Fatigue',
           emoji: '😫',
@@ -123,7 +123,7 @@ class SymptomType {
           isSystemDefined: true,
           sortOrder: 1,
         ),
-        const SymptomType(
+        SymptomType(
           id: 'nausea',
           name: 'Nausea',
           emoji: '🤢',
@@ -131,7 +131,7 @@ class SymptomType {
           isSystemDefined: true,
           sortOrder: 2,
         ),
-        const SymptomType(
+        SymptomType(
           id: 'dizziness',
           name: 'Dizziness',
           emoji: '💫',
@@ -140,7 +140,7 @@ class SymptomType {
           sortOrder: 3,
         ),
         // Pain
-        const SymptomType(
+        SymptomType(
           id: 'back_pain',
           name: 'Back Pain',
           emoji: '🔙',
@@ -148,7 +148,7 @@ class SymptomType {
           isSystemDefined: true,
           sortOrder: 4,
         ),
-        const SymptomType(
+        SymptomType(
           id: 'joint_pain',
           name: 'Joint Pain',
           emoji: '🦴',
@@ -156,7 +156,7 @@ class SymptomType {
           isSystemDefined: true,
           sortOrder: 5,
         ),
-        const SymptomType(
+        SymptomType(
           id: 'muscle_pain',
           name: 'Muscle Pain',
           emoji: '💪',
@@ -165,7 +165,7 @@ class SymptomType {
           sortOrder: 6,
         ),
         // Mental/Emotional
-        const SymptomType(
+        SymptomType(
           id: 'anxiety',
           name: 'Anxiety',
           emoji: '😰',
@@ -173,7 +173,7 @@ class SymptomType {
           isSystemDefined: true,
           sortOrder: 7,
         ),
-        const SymptomType(
+        SymptomType(
           id: 'brain_fog',
           name: 'Brain Fog',
           emoji: '🌫️',
@@ -181,7 +181,7 @@ class SymptomType {
           isSystemDefined: true,
           sortOrder: 8,
         ),
-        const SymptomType(
+        SymptomType(
           id: 'irritability',
           name: 'Irritability',
           emoji: '😤',
@@ -190,7 +190,7 @@ class SymptomType {
           sortOrder: 9,
         ),
         // Sleep
-        const SymptomType(
+        SymptomType(
           id: 'insomnia',
           name: 'Insomnia',
           emoji: '🌙',
@@ -198,7 +198,7 @@ class SymptomType {
           isSystemDefined: true,
           sortOrder: 10,
         ),
-        const SymptomType(
+        SymptomType(
           id: 'drowsiness',
           name: 'Drowsiness',
           emoji: '😴',
@@ -207,7 +207,7 @@ class SymptomType {
           sortOrder: 11,
         ),
         // Digestive
-        const SymptomType(
+        SymptomType(
           id: 'stomach_pain',
           name: 'Stomach Pain',
           emoji: '🤮',
@@ -215,7 +215,7 @@ class SymptomType {
           isSystemDefined: true,
           sortOrder: 12,
         ),
-        const SymptomType(
+        SymptomType(
           id: 'appetite_change',
           name: 'Appetite Change',
           emoji: '🍽️',

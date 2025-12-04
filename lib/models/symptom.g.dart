@@ -7,7 +7,7 @@ part of 'symptom.dart';
 // **************************************************************************
 
 SymptomType _$SymptomTypeFromJson(Map<String, dynamic> json) => SymptomType(
-      id: json['id'] as String,
+      id: json['id'] as String?,
       name: json['name'] as String,
       emoji: json['emoji'] as String,
       category: $enumDecodeNullable(_$SymptomCategoryEnumMap, json['category'],
