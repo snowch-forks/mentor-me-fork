@@ -48,6 +48,8 @@ import '../models/food_entry.dart';
 import '../models/weight_entry.dart';
 import '../models/exercise.dart';
 import '../models/digital_wellness.dart';
+import '../models/medication.dart';
+import '../models/symptom.dart';
 import '../config/build_info.dart';
 
 // Conditional import: web implementation when dart:html is available, stub otherwise
@@ -116,6 +118,14 @@ class BackupService {
     // Digital wellness data
     final unplugSessions = await _storage.getUnplugSessions() ?? [];
     final deviceBoundaries = await _storage.getDeviceBoundaries() ?? [];
+
+    // Medication tracking data
+    final medications = await _storage.loadMedications();
+    final medicationLogs = await _storage.loadMedicationLogs();
+
+    // Symptom tracking data
+    final symptomTypes = await _storage.loadSymptomTypes();
+    final symptomEntries = await _storage.loadSymptomEntries();
 
     // Safety plan
     final safetyPlan = await _storage.getSafetyPlan();
@@ -207,6 +217,14 @@ class BackupService {
       // Safety plan
       'safety_plan': safetyPlan != null ? json.encode(safetyPlan) : null,
 
+      // Medication tracking
+      'medications': json.encode(medications.map((m) => m.toJson()).toList()),
+      'medication_logs': json.encode(medicationLogs.map((l) => l.toJson()).toList()),
+
+      // Symptom tracking
+      'symptom_types': json.encode(symptomTypes.map((t) => t.toJson()).toList()),
+      'symptom_entries': json.encode(symptomEntries.map((e) => e.toJson()).toList()),
+
       // Statistics for UI display
       'statistics': {
         'totalGoals': goals.length,
@@ -249,6 +267,12 @@ class BackupService {
         'totalDeviceBoundaries': deviceBoundaries.length,
         // Safety plan
         'hasSafetyPlan': safetyPlan != null,
+        // Medication tracking
+        'totalMedications': medications.length,
+        'totalMedicationLogs': medicationLogs.length,
+        // Symptom tracking
+        'totalSymptomTypes': symptomTypes.length,
+        'totalSymptomEntries': symptomEntries.length,
       },
     };
 
@@ -2057,6 +2081,138 @@ class BackupService {
       );
       results.add(ImportItemResult(
         dataType: 'Safety Plan',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import medications
+    try {
+      if (data.containsKey('medications') && data['medications'] != null) {
+        final medicationsJson = json.decode(data['medications'] as String) as List;
+        final medications = medicationsJson.map((j) => Medication.fromJson(j)).toList();
+        await _storage.saveMedications(medications);
+        await _debug.info('BackupService', 'Imported ${medications.length} medications');
+        results.add(ImportItemResult(
+          dataType: 'Medications',
+          success: true,
+          count: medications.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Medications',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import medications: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Medications',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import medication logs
+    try {
+      if (data.containsKey('medication_logs') && data['medication_logs'] != null) {
+        final logsJson = json.decode(data['medication_logs'] as String) as List;
+        final logs = logsJson.map((j) => MedicationLog.fromJson(j)).toList();
+        await _storage.saveMedicationLogs(logs);
+        await _debug.info('BackupService', 'Imported ${logs.length} medication logs');
+        results.add(ImportItemResult(
+          dataType: 'Medication Logs',
+          success: true,
+          count: logs.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Medication Logs',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import medication logs: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Medication Logs',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import symptom types
+    try {
+      if (data.containsKey('symptom_types') && data['symptom_types'] != null) {
+        final typesJson = json.decode(data['symptom_types'] as String) as List;
+        final types = typesJson.map((j) => SymptomType.fromJson(j)).toList();
+        await _storage.saveSymptomTypes(types);
+        await _debug.info('BackupService', 'Imported ${types.length} symptom types');
+        results.add(ImportItemResult(
+          dataType: 'Symptom Types',
+          success: true,
+          count: types.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Symptom Types',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import symptom types: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Symptom Types',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import symptom entries
+    try {
+      if (data.containsKey('symptom_entries') && data['symptom_entries'] != null) {
+        final entriesJson = json.decode(data['symptom_entries'] as String) as List;
+        final entries = entriesJson.map((j) => SymptomEntry.fromJson(j)).toList();
+        await _storage.saveSymptomEntries(entries);
+        await _debug.info('BackupService', 'Imported ${entries.length} symptom entries');
+        results.add(ImportItemResult(
+          dataType: 'Symptom Entries',
+          success: true,
+          count: entries.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Symptom Entries',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import symptom entries: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Symptom Entries',
         success: false,
         count: 0,
         errorMessage: e.toString(),

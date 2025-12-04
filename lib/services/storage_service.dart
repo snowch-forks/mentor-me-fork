@@ -16,6 +16,8 @@ import '../models/weight_entry.dart';
 import '../models/win.dart';
 import '../models/exercise.dart';
 import '../models/food_entry.dart';
+import '../models/medication.dart';
+import '../models/symptom.dart';
 import 'package:mentor_me/services/migration_service.dart';
 import 'package:mentor_me/services/debug_service.dart';
 
@@ -75,6 +77,14 @@ class StorageService {
   // Food logging
   static const String _foodEntriesKey = 'food_entries';
   static const String _nutritionGoalKey = 'nutrition_goal';
+
+  // Medication tracking
+  static const String _medicationsKey = 'medications';
+  static const String _medicationLogsKey = 'medication_logs';
+
+  // Symptom tracking
+  static const String _symptomTypesKey = 'symptom_types';
+  static const String _symptomEntriesKey = 'symptom_entries';
 
   /// All storage keys that contain USER DATA and should be backed up.
   /// This is the SINGLE SOURCE OF TRUTH for backup coverage.
@@ -136,6 +146,14 @@ class StorageService {
     // Food logging
     'food_entries',
     'nutrition_goal',
+
+    // Medication tracking
+    'medications',
+    'medication_logs',
+
+    // Symptom tracking
+    'symptom_types',
+    'symptom_entries',
 
     // Safety plan
     'safety_plan',
@@ -586,6 +604,106 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_nutritionGoalKey);
     await _notifyPersistence('nutrition_goal');
+  }
+
+  // ============================================================================
+  // Medication Tracking
+  // ============================================================================
+
+  // Save/Load Medications
+  Future<void> saveMedications(List<Medication> medications) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = medications.map((m) => m.toJson()).toList();
+    await prefs.setString(_medicationsKey, json.encode(jsonList));
+    await _notifyPersistence('medications');
+  }
+
+  Future<List<Medication>> loadMedications() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_medicationsKey);
+    if (jsonString == null) return [];
+
+    try {
+      final List<dynamic> jsonList = json.decode(jsonString);
+      return jsonList.map((j) => Medication.fromJson(j)).toList();
+    } catch (e) {
+      debugPrint('Warning: Corrupted medications data, returning empty list. Error: $e');
+      await prefs.remove(_medicationsKey);
+      return [];
+    }
+  }
+
+  // Save/Load Medication Logs
+  Future<void> saveMedicationLogs(List<MedicationLog> logs) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = logs.map((l) => l.toJson()).toList();
+    await prefs.setString(_medicationLogsKey, json.encode(jsonList));
+    await _notifyPersistence('medication_logs');
+  }
+
+  Future<List<MedicationLog>> loadMedicationLogs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_medicationLogsKey);
+    if (jsonString == null) return [];
+
+    try {
+      final List<dynamic> jsonList = json.decode(jsonString);
+      return jsonList.map((j) => MedicationLog.fromJson(j)).toList();
+    } catch (e) {
+      debugPrint('Warning: Corrupted medication logs data, returning empty list. Error: $e');
+      await prefs.remove(_medicationLogsKey);
+      return [];
+    }
+  }
+
+  // ============================================================================
+  // Symptom Tracking
+  // ============================================================================
+
+  // Save/Load Symptom Types
+  Future<void> saveSymptomTypes(List<SymptomType> types) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = types.map((t) => t.toJson()).toList();
+    await prefs.setString(_symptomTypesKey, json.encode(jsonList));
+    await _notifyPersistence('symptom_types');
+  }
+
+  Future<List<SymptomType>> loadSymptomTypes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_symptomTypesKey);
+    if (jsonString == null) return [];
+
+    try {
+      final List<dynamic> jsonList = json.decode(jsonString);
+      return jsonList.map((j) => SymptomType.fromJson(j)).toList();
+    } catch (e) {
+      debugPrint('Warning: Corrupted symptom types data, returning empty list. Error: $e');
+      await prefs.remove(_symptomTypesKey);
+      return [];
+    }
+  }
+
+  // Save/Load Symptom Entries
+  Future<void> saveSymptomEntries(List<SymptomEntry> entries) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = entries.map((e) => e.toJson()).toList();
+    await prefs.setString(_symptomEntriesKey, json.encode(jsonList));
+    await _notifyPersistence('symptom_entries');
+  }
+
+  Future<List<SymptomEntry>> loadSymptomEntries() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_symptomEntriesKey);
+    if (jsonString == null) return [];
+
+    try {
+      final List<dynamic> jsonList = json.decode(jsonString);
+      return jsonList.map((j) => SymptomEntry.fromJson(j)).toList();
+    } catch (e) {
+      debugPrint('Warning: Corrupted symptom entries data, returning empty list. Error: $e');
+      await prefs.remove(_symptomEntriesKey);
+      return [];
+    }
   }
 
   // Save/Load User Context Summary (rolling AI-generated profile)
