@@ -104,6 +104,7 @@ class BackupService {
     final weightEntries = await _storage.loadWeightEntries();
     final weightGoal = await _storage.loadWeightGoal();
     final weightUnit = await _storage.loadWeightUnit();
+    final height = await _storage.loadHeight();
 
     // Remove sensitive/installation-specific data from export
     // Note: Auto-backup location settings (autoBackupLocation, autoBackupCustomPath)
@@ -178,6 +179,7 @@ class BackupService {
       'weight_entries': json.encode(weightEntries.map((w) => w.toJson()).toList()),
       'weight_goal': weightGoal != null ? json.encode(weightGoal.toJson()) : null,
       'weight_unit': weightUnit.name,
+      'height': height,
 
       // Statistics for UI display
       'statistics': {
@@ -211,6 +213,7 @@ class BackupService {
         'totalWeightEntries': weightEntries.length,
         'hasWeightGoal': weightGoal != null,
         'weightUnit': weightUnit.name,
+        'hasHeight': height != null,
       },
     };
 
@@ -1790,6 +1793,38 @@ class BackupService {
       );
       results.add(ImportItemResult(
         dataType: 'Weight Unit',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import height (for BMI calculation)
+    try {
+      if (data.containsKey('height') && data['height'] != null) {
+        final height = (data['height'] as num).toDouble();
+        await _storage.saveHeight(height);
+        await _debug.info('BackupService', 'Imported height: $height cm');
+        results.add(ImportItemResult(
+          dataType: 'Height',
+          success: true,
+          count: 1,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Height',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import height: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Height',
         success: false,
         count: 0,
         errorMessage: e.toString(),
