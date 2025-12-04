@@ -28,6 +28,8 @@ import '../models/ai_provider.dart';
 import '../models/pulse_entry.dart';
 import '../models/habit.dart';
 import '../models/chat_message.dart';
+import '../models/exercise.dart';
+import '../models/weight_entry.dart';
 import 'storage_service.dart';
 import 'debug_service.dart';
 import 'local_ai_service.dart';
@@ -312,6 +314,10 @@ class AIService {
     List<JournalEntry>? recentEntries,
     List<PulseEntry>? pulseEntries,
     List<ChatMessage>? conversationHistory,
+    List<ExercisePlan>? exercisePlans,
+    List<WorkoutLog>? workoutLogs,
+    List<WeightEntry>? weightEntries,
+    WeightGoal? weightGoal,
   }) async {
     // Route to local or cloud based on provider selection
     if (_selectedProvider == AIProvider.local) {
@@ -324,7 +330,10 @@ class AIService {
           "or switch to Cloud AI if you have an API key."
         );
       }
-      return _getLocalResponse(prompt, goals, habits, recentEntries, pulseEntries, conversationHistory);
+      return _getLocalResponse(
+        prompt, goals, habits, recentEntries, pulseEntries, conversationHistory,
+        workoutLogs, weightEntries,
+      );
     }
 
     // Cloud provider requires API key
@@ -336,7 +345,10 @@ class AIService {
       );
     }
 
-    return _getCloudResponse(prompt, goals, habits, recentEntries, pulseEntries);
+    return _getCloudResponse(
+      prompt, goals, habits, recentEntries, pulseEntries,
+      exercisePlans, workoutLogs, weightEntries, weightGoal,
+    );
   }
 
   /// Get response from local on-device AI (Gemma 3-1B)
@@ -347,6 +359,8 @@ class AIService {
     List<JournalEntry>? recentEntries,
     List<PulseEntry>? pulseEntries,
     List<ChatMessage>? conversationHistory,
+    List<WorkoutLog>? workoutLogs,
+    List<WeightEntry>? weightEntries,
   ) async {
     final localAI = LocalAIService();
 
@@ -357,6 +371,8 @@ class AIService {
       journalEntries: recentEntries ?? [],
       pulseEntries: pulseEntries ?? [],
       conversationHistory: conversationHistory,
+      workoutLogs: workoutLogs,
+      weightEntries: weightEntries,
     );
 
     final fullPrompt = '''You are a supportive AI mentor helping with goals and habits.
@@ -422,6 +438,10 @@ CRITICAL: Keep responses under 150 words. Be warm but concise. 2-3 sentences for
     List<Habit>? habits,
     List<JournalEntry>? recentEntries,
     List<PulseEntry>? pulseEntries,
+    List<ExercisePlan>? exercisePlans,
+    List<WorkoutLog>? workoutLogs,
+    List<WeightEntry>? weightEntries,
+    WeightGoal? weightGoal,
   ) async {
     try {
       // Build comprehensive context for cloud AI (large context window)
@@ -430,6 +450,10 @@ CRITICAL: Keep responses under 150 words. Be warm but concise. 2-3 sentences for
         habits: habits ?? [],
         journalEntries: recentEntries ?? [],
         pulseEntries: pulseEntries ?? [],
+        exercisePlans: exercisePlans,
+        workoutLogs: workoutLogs,
+        weightEntries: weightEntries,
+        weightGoal: weightGoal,
       );
 
       final fullPrompt = '''You are an empathetic AI mentor and coach helping someone achieve their goals and build better habits.
