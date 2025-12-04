@@ -9,6 +9,9 @@ import '../models/journal_entry.dart';
 import '../models/pulse_entry.dart';
 import '../models/ai_provider.dart';
 import '../models/mentor_message.dart';
+import '../models/exercise.dart';
+import '../models/weight_entry.dart';
+import '../models/food_entry.dart';
 import '../services/storage_service.dart';
 import '../services/ai_service.dart';
 import '../services/local_ai_service.dart';
@@ -278,6 +281,12 @@ class ChatProvider extends ChangeNotifier {
     required List<Habit> habits,
     required List<JournalEntry> journalEntries,
     List<PulseEntry>? pulseEntries,
+    List<ExercisePlan>? exercisePlans,
+    List<WorkoutLog>? workoutLogs,
+    List<WeightEntry>? weightEntries,
+    WeightGoal? weightGoal,
+    List<FoodEntry>? foodEntries,
+    NutritionGoal? nutritionGoal,
   }) async {
     // Get current AI provider
     final aiProvider = _ai.getProvider();
@@ -326,6 +335,12 @@ class ChatProvider extends ChangeNotifier {
         recentEntries: journalEntries,
         pulseEntries: pulseEntries,
         conversationHistory: _currentConversation?.messages,
+        exercisePlans: exercisePlans,
+        workoutLogs: workoutLogs,
+        weightEntries: weightEntries,
+        weightGoal: weightGoal,
+        foodEntries: foodEntries,
+        nutritionGoal: nutritionGoal,
       );
 
       await _debug.info('ChatProvider', 'AI response generated', metadata: {

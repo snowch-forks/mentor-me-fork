@@ -10,6 +10,9 @@ import '../providers/goal_provider.dart';
 import '../providers/habit_provider.dart';
 import '../providers/journal_provider.dart';
 import '../providers/pulse_provider.dart';
+import '../providers/exercise_provider.dart';
+import '../providers/weight_provider.dart';
+import '../providers/food_log_provider.dart';
 import '../models/chat_message.dart';
 import '../models/journal_entry.dart';
 import '../models/mentor_message.dart';
@@ -73,6 +76,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final habitProvider = context.read<HabitProvider>();
     final journalProvider = context.read<JournalProvider>();
     final pulseProvider = context.read<PulseProvider>();
+    final exerciseProvider = context.read<ExerciseProvider>();
+    final weightProvider = context.read<WeightProvider>();
+    final foodLogProvider = context.read<FoodLogProvider>();
 
     // Send user message (adds to conversation, sets typing state)
     await chatProvider.sendUserMessage(text, skipAutoResponse: true);
@@ -86,6 +92,12 @@ class _ChatScreenState extends State<ChatScreen> {
         habits: habitProvider.habits,
         journalEntries: journalProvider.entries,
         pulseEntries: pulseProvider.entries,
+        exercisePlans: exerciseProvider.plans,
+        workoutLogs: exerciseProvider.workoutLogs,
+        weightEntries: weightProvider.entries,
+        weightGoal: weightProvider.goal,
+        foodEntries: foodLogProvider.entries,
+        nutritionGoal: foodLogProvider.goal,
       );
 
       await chatProvider.addMentorMessage(response);

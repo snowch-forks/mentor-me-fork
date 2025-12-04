@@ -22,6 +22,7 @@ import 'grounding_exercise_screen.dart';
 import 'worry_decision_tree_screen.dart';
 import 'exposure_ladder_screen.dart';
 import 'weight_tracking_screen.dart';
+import 'food_log_screen.dart';
 import 'exercise_plans_screen.dart';
 
 class WellnessDashboardScreen extends StatelessWidget {
@@ -345,6 +346,16 @@ class WellnessDashboardScreen extends StatelessWidget {
             color: Colors.blue,
             onTap: () => _navigate(context, const WeightTrackingScreen()),
           ),
+          const SizedBox(height: AppSpacing.sm),
+
+          // Food Log
+          _buildFeatureCard(
+            context,
+            icon: Icons.restaurant_menu,
+            title: 'Food Log',
+            description: 'Track meals with AI-powered nutrition estimation',
+            color: Colors.orange,
+            onTap: () => _navigate(context, const FoodLogScreen()),
           const SizedBox(height: AppSpacing.md),
 
           // Exercise Tracking

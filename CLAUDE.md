@@ -3049,14 +3049,10 @@ When modifying data models, follow these steps IN ORDER:
 8. **Consider LLM Context Integration** (`lib/services/context_management_service.dart`)
    - **When adding NEW domain models** (e.g., a new tracking feature), evaluate if they should be included in LLM chat context
    - Ask: "Would this data help the AI mentor provide better, more personalized guidance?"
-   - **If YES**, update `ContextManagementService`:
-     - Add the new data type to `buildCloudContext()` (comprehensive inclusion)
-     - Add the new data type to `buildLocalContext()` (minimal/selective inclusion)
-     - Consider token budget: Local AI has very limited context (~1000 tokens max)
-     - Update method signatures in `ChatProvider.generateContextualResponse()` and `AIService.getCoachingResponse()`
+   - **If YES**, follow the **LLM Context Propagation Checklist** below
    - **If NO**, document why it's not relevant (e.g., technical metadata, UI state)
    - **Examples of data that SHOULD be in context:**
-     - User tracking data: goals, habits, journal, pulse/wellness, check-ins
+     - User tracking data: goals, habits, journal, pulse/wellness, check-ins, weight, exercise
      - User progress: milestones, streaks, completion rates
      - User reflections: journal entries, mood/energy patterns
    - **Examples of data that should NOT be in context:**
@@ -3064,6 +3060,73 @@ When modifying data models, follow these steps IN ORDER:
      - UI preferences (theme, notification settings)
      - Debug logs
      - API keys or credentials
+
+**LLM Context Propagation Checklist:**
+
+When adding new data types to LLM context, update ALL of these files in order:
+
+| Step | File | What to Update |
+|------|------|----------------|
+| 1 | `lib/services/context_management_service.dart` | Add parameters and formatting to `buildCloudContext()` and `buildLocalContext()` |
+| 2 | `lib/services/ai_service.dart` | Add parameters to `getCoachingResponse()`, `_getLocalResponse()`, and `_getCloudResponse()` |
+| 3 | `lib/providers/chat_provider.dart` | Add parameters to `generateContextualResponse()` and pass to `_ai.getCoachingResponse()` |
+| 4 | `lib/screens/chat_screen.dart` | Import provider, read data, pass to `generateContextualResponse()` |
+| 5 | (Optional) `lib/services/reflection_session_service.dart` | If data should be in reflection sessions |
+
+**Example: Adding Weight Tracking to LLM Context**
+
+```dart
+// Step 1: context_management_service.dart
+ContextBuildResult buildCloudContext({
+  // ... existing params
+  List<WeightEntry>? weightEntries,  // ADD
+  WeightGoal? weightGoal,            // ADD
+}) {
+  // Format and include in context string
+  if (weightEntries != null && weightEntries.isNotEmpty) {
+    buffer.writeln('## Weight Tracking');
+    // ... formatting
+  }
+}
+
+// Step 2: ai_service.dart
+Future<String> getCoachingResponse({
+  // ... existing params
+  List<WeightEntry>? weightEntries,  // ADD
+  WeightGoal? weightGoal,            // ADD
+}) {
+  return _getCloudResponse(..., weightEntries, weightGoal);
+}
+
+// Step 3: chat_provider.dart
+Future<String> generateContextualResponse({
+  // ... existing params
+  List<WeightEntry>? weightEntries,  // ADD
+  WeightGoal? weightGoal,            // ADD
+}) {
+  return _ai.getCoachingResponse(..., weightEntries: weightEntries, weightGoal: weightGoal);
+}
+
+// Step 4: chat_screen.dart
+final weightProvider = context.read<WeightProvider>();  // ADD
+final response = await chatProvider.generateContextualResponse(
+  // ... existing params
+  weightEntries: weightProvider.entries,  // ADD
+  weightGoal: weightProvider.goal,        // ADD
+);
+```
+
+**Common Mistakes:**
+- ❌ Adding to `ContextManagementService` but forgetting to update `AIService` parameters
+- ❌ Updating `AIService` but forgetting to update `ChatProvider`
+- ❌ Updating `ChatProvider` but forgetting to pass data from `ChatScreen`
+- ❌ Not testing with both Cloud and Local AI providers
+
+**Verification:**
+After adding new data to LLM context:
+1. Run `flutter analyze` to check for missing parameters
+2. Test with Cloud AI - ask the mentor about the new data type
+3. Test with Local AI - verify context isn't too large (check debug logs for token counts)
 
 **Linking Comments:**
 

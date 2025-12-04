@@ -44,6 +44,7 @@ import '../models/urge_surfing.dart';
 import '../models/hydration_entry.dart';
 import '../models/user_context_summary.dart';
 import '../models/win.dart';
+import '../models/food_entry.dart';
 import '../config/build_info.dart';
 
 // Conditional import: web implementation when dart:html is available, stub otherwise
@@ -95,13 +96,18 @@ class BackupService {
     final hydrationGoal = await _storage.loadHydrationGoal();
     final userContextSummary = await _storage.loadUserContextSummary();
     final wins = await _storage.loadWins();
+    final foodEntries = await _storage.loadFoodEntries();
+    final nutritionGoal = await _storage.loadNutritionGoal();
 
-    // Remove sensitive data (API key, HF token) from export
+    // Remove sensitive/installation-specific data from export
     // Note: Auto-backup location settings (autoBackupLocation, autoBackupCustomPath)
     // are intentionally INCLUDED in backups so users can restore their configuration
     final exportSettings = Map<String, dynamic>.from(settings);
     exportSettings.remove('claudeApiKey');
     exportSettings.remove('huggingfaceToken'); // Fixed: was 'hfToken', actual key is 'huggingfaceToken'
+    // SAF folder URI is installation-specific (permission grant tied to app installation)
+    // Must be re-selected after fresh install, just like API keys
+    exportSettings.remove('saf_folder_uri');
 
     // Create backup data structure (matches migration format)
     // Using string values (JSON-encoded) for data fields to match storage format
@@ -158,6 +164,10 @@ class BackupService {
       // Wins/accomplishments tracking
       'wins': json.encode(wins.map((w) => w.toJson()).toList()),
 
+      // Food log / nutrition tracking
+      'food_entries': json.encode(foodEntries.map((f) => f.toJson()).toList()),
+      'nutrition_goal': nutritionGoal != null ? json.encode(nutritionGoal.toJson()) : null,
+
       // Statistics for UI display
       'statistics': {
         'totalGoals': goals.length,
@@ -185,6 +195,8 @@ class BackupService {
         'totalHydrationEntries': hydrationEntries.length,
         'hydrationGoal': hydrationGoal,
         'totalWins': wins.length,
+        'totalFoodEntries': foodEntries.length,
+        'hasNutritionGoal': nutritionGoal != null,
       },
     };
 
@@ -853,6 +865,7 @@ class BackupService {
         // Merge: keep current API key, HF token, onboarding state, and auto-backup enabled preference
         // Note: Auto-backup LOCATION settings (autoBackupLocation, autoBackupCustomPath)
         // are RESTORED from the backup to preserve user's backup configuration
+        // BUT: saf_folder_uri is NOT restored (installation-specific permission grant)
         final mergedSettings = {
           ...exportedSettings, // Includes autoBackupLocation and autoBackupCustomPath from backup
           'claudeApiKey': currentSettings['claudeApiKey'], // Keep current API key
@@ -866,26 +879,25 @@ class BackupService {
             'autoBackupEnabled': currentSettings['autoBackupEnabled'],
         };
 
+        // Remove saf_folder_uri if it was in the backup (old backups may still have it)
+        // SAF permissions are installation-specific and must be re-granted after fresh install
+        mergedSettings.remove('saf_folder_uri');
+
         await _storage.saveSettings(mergedSettings);
 
         // Post-import validation: Check if External Storage is selected but SAF not configured
         // This happens after fresh install when restoring a backup that had external storage
         final restoredLocation = mergedSettings['autoBackupLocation'] as String?;
         if (restoredLocation == 'downloads') {
-          // Check if SAF folder access is configured
-          final safUri = await _safService.getSavedFolderUri();
-          if (safUri == null) {
-            // External storage selected but no SAF URI - reset to internal storage
-            mergedSettings['autoBackupLocation'] = 'internal';
-            await _storage.saveSettings(mergedSettings);
+          // External storage selected but no valid SAF permission - reset to internal storage
+          // (saf_folder_uri was removed above, so SAF will need to be reconfigured)
+          mergedSettings['autoBackupLocation'] = 'internal';
+          await _storage.saveSettings(mergedSettings);
 
-            await _debug.info(
-              'BackupService',
-              'Reset backup location to Internal Storage (External Storage requires folder selection)',
-            );
-
-            // Note: We'll add a warning to the import result later
-          }
+          await _debug.info(
+            'BackupService',
+            'Reset backup location to Internal Storage (External Storage requires folder selection after fresh install)',
+          );
         }
 
         await _debug.info('BackupService', 'Imported settings (preserved API key, HF token, onboarding state, auto-backup enabled; restored backup location settings)');
@@ -1598,6 +1610,71 @@ class BackupService {
       );
       results.add(ImportItemResult(
         dataType: 'Wins',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import food entries
+    try {
+      if (data.containsKey('food_entries') && data['food_entries'] != null) {
+        final foodEntriesJson = json.decode(data['food_entries'] as String) as List;
+        final foodEntries = foodEntriesJson.map((json) => FoodEntry.fromJson(json)).toList();
+        await _storage.saveFoodEntries(foodEntries);
+        await _debug.info('BackupService', 'Imported ${foodEntries.length} food entries');
+        results.add(ImportItemResult(
+          dataType: 'Food Entries',
+          success: true,
+          count: foodEntries.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Food Entries',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import food entries: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Food Entries',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import nutrition goal
+    try {
+      if (data.containsKey('nutrition_goal') && data['nutrition_goal'] != null) {
+        final nutritionGoal = NutritionGoal.fromJson(json.decode(data['nutrition_goal'] as String));
+        await _storage.saveNutritionGoal(nutritionGoal);
+        await _debug.info('BackupService', 'Imported nutrition goal');
+        results.add(ImportItemResult(
+          dataType: 'Nutrition Goal',
+          success: true,
+          count: 1,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Nutrition Goal',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import nutrition goal: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Nutrition Goal',
         success: false,
         count: 0,
         errorMessage: e.toString(),
