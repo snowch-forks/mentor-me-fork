@@ -110,7 +110,7 @@ class _LogTabState extends State<_LogTab> {
     final activeTypes = widget.provider.activeTypes;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -480,7 +480,7 @@ class _HistoryTab extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
       itemCount: groupedEntries.length,
       itemBuilder: (context, index) {
         final dateKey = groupedEntries.keys.elementAt(index);
@@ -809,7 +809,7 @@ class _TrendsTab extends StatelessWidget {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

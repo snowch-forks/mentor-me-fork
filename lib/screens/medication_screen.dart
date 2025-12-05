@@ -123,7 +123,7 @@ class _TodayTab extends StatelessWidget {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -160,7 +160,7 @@ class _TodayTab extends StatelessWidget {
               ),
             ),
             AppSpacing.gapSm,
-            ...todayLogs.map((log) => _LogCard(log: log)),
+            ...todayLogs.map((log) => _LogCard(log: log, onUndo: () => _undoLog(context, log))),
           ],
 
           AppSpacing.gapXl,
@@ -236,6 +236,35 @@ class _TodayTab extends StatelessWidget {
         ),
       );
     }
+  }
+
+  void _undoLog(BuildContext context, MedicationLog log) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Undo Log'),
+        content: Text('Remove the log for ${log.medicationName}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              context.read<MedicationProvider>().deleteLog(log.id);
+              Navigator.pop(dialogContext);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${log.medicationName} log removed'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            child: const Text('Undo'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSkipDialog(BuildContext context, Medication med) {
@@ -330,7 +359,7 @@ class _AllMedicationsTab extends StatelessWidget {
     final inactive = meds.where((m) => !m.isActive).toList();
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
       children: [
         if (active.isNotEmpty) ...[
           Text(
@@ -462,8 +491,9 @@ class _MedicationCard extends StatelessWidget {
 /// Log entry card
 class _LogCard extends StatelessWidget {
   final MedicationLog log;
+  final VoidCallback? onUndo;
 
-  const _LogCard({required this.log});
+  const _LogCard({required this.log, this.onUndo});
 
   @override
   Widget build(BuildContext context) {
@@ -496,16 +526,29 @@ class _LogCard extends StatelessWidget {
             color: colorScheme.onSurfaceVariant,
           ),
         ),
-        trailing: log.skipReason != null
-            ? Tooltip(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (log.skipReason != null)
+              Tooltip(
                 message: log.skipReason!,
                 child: Icon(
                   Icons.info_outline,
                   size: 20,
                   color: colorScheme.onSurfaceVariant,
                 ),
-              )
-            : null,
+              ),
+            if (onUndo != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.undo, size: 20),
+                onPressed: onUndo,
+                tooltip: 'Undo',
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
