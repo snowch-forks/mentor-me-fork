@@ -68,6 +68,7 @@ class StorageService {
   static const String _weightGoalKey = 'weight_goal';
   static const String _weightUnitKey = 'weight_unit';
   static const String _heightKey = 'user_height';
+  static const String _genderKey = 'user_gender';
 
   // Exercise tracking
   static const String _customExercisesKey = 'custom_exercises';
@@ -137,6 +138,7 @@ class StorageService {
     'weight_goal',
     'weight_unit',
     'user_height',  // height in backup
+    'user_gender',  // gender in backup
 
     // Exercise tracking
     'custom_exercises',
@@ -477,6 +479,23 @@ class StorageService {
   Future<double?> loadHeight() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getDouble(_heightKey);
+  }
+
+  // Save/Load Gender (for BMR calculations, etc.)
+  // Values: 'male', 'female', 'other', or null if not set
+  Future<void> saveGender(String? gender) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (gender != null) {
+      await prefs.setString(_genderKey, gender);
+    } else {
+      await prefs.remove(_genderKey);
+    }
+    await _notifyPersistence('gender');
+  }
+
+  Future<String?> loadGender() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_genderKey);
   }
 
   // ============================================================================
@@ -851,6 +870,7 @@ class StorageService {
       'weightGoal': await loadWeightGoal(),
       'weightUnit': (await loadWeightUnit()).name,
       'height': await loadHeight(),
+      'gender': await loadGender(),
       'customExercises': await loadCustomExercises(),
       'exercisePlans': await loadExercisePlans(),
       'workoutLogs': await loadWorkoutLogs(),
@@ -936,6 +956,10 @@ class StorageService {
 
     if (data['height'] != null) {
       await saveHeight((data['height'] as num).toDouble());
+    }
+
+    if (data['gender'] != null) {
+      await saveGender(data['gender'] as String);
     }
 
     if (data['customExercises'] != null) {
