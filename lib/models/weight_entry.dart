@@ -37,9 +37,13 @@ enum WeightUnit {
 class WeightEntry {
   final String id;
   final DateTime timestamp;
-  final double weight; // Stored in the user's preferred unit
+  final double weight; // Stored in the user's preferred unit (or total lbs for stone)
   final WeightUnit unit;
   final String? note;
+
+  // For stone unit: store exact integer values to avoid floating point rounding
+  final int? stones; // Exact stone value (e.g., 10 for "10 st 7 lbs")
+  final int? pounds; // Exact remaining pounds (0-13, e.g., 7 for "10 st 7 lbs")
 
   WeightEntry({
     String? id,
@@ -47,12 +51,36 @@ class WeightEntry {
     required this.weight,
     required this.unit,
     this.note,
+    this.stones,
+    this.pounds,
   })  : id = id ?? const Uuid().v4(),
         timestamp = timestamp ?? DateTime.now();
+
+  /// Get total weight in pounds (exact for stone entries)
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  double get _totalLbs {
+    // For stone entries with exact integers, use those for precision
+    if (unit == WeightUnit.stone && stones != null) {
+      return ((stones! * 14) + (pounds ?? 0)).toDouble();
+    }
+    // Fall back to conversion
+    switch (unit) {
+      case WeightUnit.lbs:
+        return weight;
+      case WeightUnit.kg:
+        return weight * 2.20462;
+      case WeightUnit.stone:
+        return weight * 14.0;
+    }
+  }
 
   /// Convert weight to kilograms
   @JsonKey(includeFromJson: false, includeToJson: false)
   double get weightInKg {
+    // For stone entries with exact integers, convert via pounds for precision
+    if (unit == WeightUnit.stone && stones != null) {
+      return _totalLbs * 0.453592;
+    }
     switch (unit) {
       case WeightUnit.kg:
         return weight;
@@ -66,19 +94,16 @@ class WeightEntry {
   /// Convert weight to pounds
   @JsonKey(includeFromJson: false, includeToJson: false)
   double get weightInLbs {
-    switch (unit) {
-      case WeightUnit.lbs:
-        return weight;
-      case WeightUnit.kg:
-        return weight * 2.20462;
-      case WeightUnit.stone:
-        return weight * 14.0;
-    }
+    return _totalLbs;
   }
 
   /// Convert weight to stone (decimal)
   @JsonKey(includeFromJson: false, includeToJson: false)
   double get weightInStone {
+    // For stone entries with exact integers, compute from integers
+    if (unit == WeightUnit.stone && stones != null) {
+      return stones! + ((pounds ?? 0) / 14.0);
+    }
     switch (unit) {
       case WeightUnit.stone:
         return weight;
@@ -89,9 +114,29 @@ class WeightEntry {
     }
   }
 
+  /// Get exact stone value (integer) for stone entries
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  int get exactStones {
+    if (unit == WeightUnit.stone && stones != null) {
+      return stones!;
+    }
+    // Fall back to calculation from pounds
+    return (_totalLbs / 14).floor();
+  }
+
+  /// Get exact remaining pounds (integer, 0-13) for stone entries
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  int get exactPounds {
+    if (unit == WeightUnit.stone && pounds != null) {
+      return pounds!;
+    }
+    // Fall back to calculation from total pounds
+    return (_totalLbs % 14).round();
+  }
+
   /// Get weight in specified unit
   double weightIn(WeightUnit targetUnit) {
-    if (unit == targetUnit) return weight;
+    if (unit == targetUnit && targetUnit != WeightUnit.stone) return weight;
     switch (targetUnit) {
       case WeightUnit.kg:
         return weightInKg;
@@ -105,13 +150,13 @@ class WeightEntry {
   /// Format weight in stone as "X st Y lbs" (commonly used in UK)
   @JsonKey(includeFromJson: false, includeToJson: false)
   String get weightInStoneFormatted {
-    final totalLbs = weightInLbs;
-    final stones = (totalLbs / 14).floor();
-    final remainingLbs = (totalLbs % 14).round();
-    if (remainingLbs == 0) {
-      return '$stones st';
+    // Use exact integers if available
+    final st = exactStones;
+    final lbs = exactPounds;
+    if (lbs == 0) {
+      return '$st st';
     }
-    return '$stones st $remainingLbs lbs';
+    return '$st st $lbs lbs';
   }
 
   /// Auto-generated serialization - ensures all fields are included
@@ -124,6 +169,8 @@ class WeightEntry {
     double? weight,
     WeightUnit? unit,
     String? note,
+    int? stones,
+    int? pounds,
   }) {
     return WeightEntry(
       id: id ?? this.id,
@@ -131,6 +178,8 @@ class WeightEntry {
       weight: weight ?? this.weight,
       unit: unit ?? this.unit,
       note: note ?? this.note,
+      stones: stones ?? this.stones,
+      pounds: pounds ?? this.pounds,
     );
   }
 }

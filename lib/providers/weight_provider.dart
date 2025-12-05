@@ -50,16 +50,21 @@ class WeightProvider extends ChangeNotifier {
   }
 
   /// Add a new weight entry
+  /// For stone unit: pass stones and pounds as separate integers for exact storage
   Future<void> addEntry({
     required double weight,
     String? note,
     DateTime? timestamp,
+    int? stones, // For stone unit: exact stone value
+    int? pounds, // For stone unit: exact remaining pounds (0-13)
   }) async {
     final entry = WeightEntry(
       weight: weight,
       unit: _preferredUnit,
       note: note,
       timestamp: timestamp,
+      stones: stones,
+      pounds: pounds,
     );
     _entries.insert(0, entry);
     _entries.sort((a, b) => b.timestamp.compareTo(a.timestamp));

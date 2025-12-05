@@ -14,6 +14,8 @@ WeightEntry _$WeightEntryFromJson(Map<String, dynamic> json) => WeightEntry(
       weight: (json['weight'] as num).toDouble(),
       unit: $enumDecode(_$WeightUnitEnumMap, json['unit']),
       note: json['note'] as String?,
+      stones: (json['stones'] as num?)?.toInt(),
+      pounds: (json['pounds'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$WeightEntryToJson(WeightEntry instance) =>
@@ -23,6 +25,8 @@ Map<String, dynamic> _$WeightEntryToJson(WeightEntry instance) =>
       'weight': instance.weight,
       'unit': _$WeightUnitEnumMap[instance.unit]!,
       'note': instance.note,
+      'stones': instance.stones,
+      'pounds': instance.pounds,
     };
 
 const _$WeightUnitEnumMap = {
