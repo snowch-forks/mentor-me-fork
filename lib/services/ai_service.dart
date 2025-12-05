@@ -1167,20 +1167,30 @@ JSON:''';
       final jsonString = jsonMatch.group(0)!;
       final Map<String, dynamic> parsed = json.decode(jsonString);
 
+      // Helper to safely parse numbers from various formats
+      int parseIntSafe(dynamic value, [int defaultValue = 0]) {
+        if (value == null) return defaultValue;
+        if (value is int) return value;
+        if (value is double) return value.toInt();
+        if (value is String) return int.tryParse(value) ?? defaultValue;
+        return defaultValue;
+      }
+
       // Normalize field names - map old names to new names if needed
-      // Also handle case where AI returns null or missing required fields
+      // Handle both old field names (protein) and new field names (proteinGrams)
+      // Also handle string vs numeric values from AI response
       final normalized = <String, dynamic>{
-        'calories': parsed['calories'] ?? parsed['cal'] ?? 0,
-        'proteinGrams': parsed['proteinGrams'] ?? parsed['protein'] ?? 0,
-        'carbsGrams': parsed['carbsGrams'] ?? parsed['carbs'] ?? 0,
-        'fatGrams': parsed['fatGrams'] ?? parsed['fat'] ?? 0,
-        'saturatedFatGrams': parsed['saturatedFatGrams'] ?? parsed['saturatedFat'],
-        'unsaturatedFatGrams': parsed['unsaturatedFatGrams'] ?? parsed['unsaturatedFat'],
-        'transFatGrams': parsed['transFatGrams'] ?? parsed['transFat'],
-        'fiberGrams': parsed['fiberGrams'] ?? parsed['fiber'],
-        'sugarGrams': parsed['sugarGrams'] ?? parsed['sugar'],
-        'confidence': parsed['confidence'],
-        'notes': parsed['notes'],
+        'calories': parseIntSafe(parsed['calories'] ?? parsed['cal']),
+        'proteinGrams': parseIntSafe(parsed['proteinGrams'] ?? parsed['protein']),
+        'carbsGrams': parseIntSafe(parsed['carbsGrams'] ?? parsed['carbs']),
+        'fatGrams': parseIntSafe(parsed['fatGrams'] ?? parsed['fat']),
+        'saturatedFatGrams': parseIntSafe(parsed['saturatedFatGrams'] ?? parsed['saturatedFat']),
+        'unsaturatedFatGrams': parseIntSafe(parsed['unsaturatedFatGrams'] ?? parsed['unsaturatedFat']),
+        'transFatGrams': parseIntSafe(parsed['transFatGrams'] ?? parsed['transFat']),
+        'fiberGrams': parseIntSafe(parsed['fiberGrams'] ?? parsed['fiber']),
+        'sugarGrams': parseIntSafe(parsed['sugarGrams'] ?? parsed['sugar']),
+        'confidence': parsed['confidence']?.toString(),
+        'notes': parsed['notes']?.toString(),
       };
 
       final estimate = NutritionEstimate.fromJson(normalized);
