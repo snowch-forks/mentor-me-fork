@@ -908,6 +908,7 @@ class _EditExercisePlanScreenState extends State<EditExercisePlanScreen> {
   void _showCreateCustomExerciseDialog() {
     final nameController = TextEditingController();
     ExerciseCategory category = _category;
+    ExerciseType exerciseType = _getDefaultExerciseType(_category);
 
     showDialog(
       context: context,
@@ -947,7 +948,36 @@ class _EditExercisePlanScreenState extends State<EditExercisePlanScreen> {
                 }).toList(),
                 onChanged: (value) {
                   if (value != null) {
-                    setDialogState(() => category = value);
+                    setDialogState(() {
+                      category = value;
+                      // Auto-select appropriate exercise type based on category
+                      exerciseType = _getDefaultExerciseType(value);
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<ExerciseType>(
+                value: exerciseType,
+                decoration: const InputDecoration(
+                  labelText: 'Tracking Type',
+                  border: OutlineInputBorder(),
+                ),
+                items: ExerciseType.values.map((type) {
+                  return DropdownMenuItem(
+                    value: type,
+                    child: Row(
+                      children: [
+                        Text(type.emoji),
+                        const SizedBox(width: 8),
+                        Text(type.displayName),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setDialogState(() => exerciseType = value);
                   }
                 },
               ),
@@ -966,6 +996,7 @@ class _EditExercisePlanScreenState extends State<EditExercisePlanScreen> {
                   id: _uuid.v4(),
                   name: nameController.text.trim(),
                   category: category,
+                  exerciseType: exerciseType,
                   isCustom: true,
                 );
 
@@ -980,6 +1011,22 @@ class _EditExercisePlanScreenState extends State<EditExercisePlanScreen> {
         ),
       ),
     );
+  }
+
+  /// Returns the default exercise type based on category
+  ExerciseType _getDefaultExerciseType(ExerciseCategory category) {
+    switch (category) {
+      case ExerciseCategory.cardio:
+        return ExerciseType.cardio;
+      case ExerciseCategory.flexibility:
+        return ExerciseType.timed;
+      case ExerciseCategory.upperBody:
+      case ExerciseCategory.lowerBody:
+      case ExerciseCategory.core:
+      case ExerciseCategory.fullBody:
+      case ExerciseCategory.other:
+        return ExerciseType.strength;
+    }
   }
 
   void _savePlan() {

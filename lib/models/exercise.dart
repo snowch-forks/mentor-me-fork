@@ -33,6 +33,17 @@ enum ExerciseType {
         return 'Duration + Level/Distance';
     }
   }
+
+  String get emoji {
+    switch (this) {
+      case ExerciseType.strength:
+        return '🏋️';
+      case ExerciseType.timed:
+        return '⏱️';
+      case ExerciseType.cardio:
+        return '🏃';
+    }
+  }
 }
 
 /// Categories for exercises
