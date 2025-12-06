@@ -183,6 +183,51 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
                 ),
               ],
             ),
+
+            // Fat breakdown (if goal has fat targets)
+            if (goal.hasFatBreakdownTargets ||
+                summary.totalSaturatedFat > 0 ||
+                summary.totalUnsaturatedFat > 0) ...[
+              AppSpacing.gapVerticalMd,
+              Divider(color: theme.colorScheme.outlineVariant),
+              AppSpacing.gapVerticalSm,
+              Text(
+                'Fat Breakdown',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+              AppSpacing.gapVerticalSm,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildFatIndicator(
+                    context,
+                    'Saturated',
+                    summary.totalSaturatedFat,
+                    goal.maxSaturatedFatGrams,
+                    isMax: true,
+                    color: Colors.red.shade400,
+                  ),
+                  _buildFatIndicator(
+                    context,
+                    'Unsaturated',
+                    summary.totalUnsaturatedFat,
+                    goal.minUnsaturatedFatGrams,
+                    isMax: false,
+                    color: Colors.green.shade600,
+                  ),
+                  _buildFatIndicator(
+                    context,
+                    'Trans',
+                    summary.totalTransFat,
+                    goal.maxTransFatGrams,
+                    isMax: true,
+                    color: Colors.red.shade700,
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -231,6 +276,50 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
         if (target > 0)
           Text(
             '/$target$unit',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+              fontSize: 10,
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Build a fat type indicator (saturated, unsaturated, trans)
+  /// isMax: true for saturated/trans (want to stay under), false for unsaturated (want to meet minimum)
+  Widget _buildFatIndicator(
+    BuildContext context,
+    String label,
+    int current,
+    int? target, {
+    required bool isMax,
+    required Color color,
+  }) {
+    final theme = Theme.of(context);
+    // For max targets: over is bad, for min targets: under is bad
+    final hasTarget = target != null && target > 0;
+    final isOver = hasTarget && current > target;
+    final isUnder = hasTarget && current < target;
+    final isWarning = isMax ? isOver : isUnder;
+
+    return Column(
+      children: [
+        Text(
+          '${current}g',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: isWarning ? theme.colorScheme.error : color,
+          ),
+        ),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: color,
+          ),
+        ),
+        if (hasTarget)
+          Text(
+            isMax ? '≤$target g' : '≥$target g',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
               fontSize: 10,
@@ -438,13 +527,22 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
     final description = _descriptionController.text.trim();
     if (description.isEmpty) return;
 
+    final ai = AIService();
+
+    // Check if Claude API key is configured
+    if (!ai.hasApiKey()) {
+      setState(() {
+        _estimateError = 'Claude API key not configured. Go to Settings → AI Settings to add your API key.';
+      });
+      return;
+    }
+
     setState(() {
       _isEstimating = true;
       _estimateError = null;
     });
 
     try {
-      final ai = AIService();
       final estimate = await ai.estimateNutrition(description);
 
       if (mounted) {
@@ -452,7 +550,7 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
           _nutrition = estimate;
           _isEstimating = false;
           if (estimate == null) {
-            _estimateError = 'Could not estimate nutrition. Try being more specific.';
+            _estimateError = 'Could not estimate nutrition. Try being more specific about the food and portion size.';
           }
         });
       }
@@ -613,14 +711,7 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
             ),
             AppSpacing.gapVerticalMd,
 
-            // Meal type selector with label
-            Text(
-              'Meal Type: ${_selectedMealType.displayName}',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            AppSpacing.gapVerticalSm,
+            // Meal type selector with label below
             SegmentedButton<MealType>(
               segments: MealType.values
                   .map((type) => ButtonSegment(
@@ -634,6 +725,13 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
                 setState(() => _selectedMealType = selected.first);
               },
               showSelectedIcon: false,
+            ),
+            AppSpacing.gapVerticalSm,
+            Text(
+              'Meal Type: ${_selectedMealType.displayName}',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
             ),
             AppSpacing.gapVerticalMd,
 
@@ -731,6 +829,44 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
                           _buildNutritionValue('Fat', '${_nutrition!.fatGrams}', 'g'),
                         ],
                       ),
+                      // Fat breakdown row (if available)
+                      if (_nutrition!.saturatedFatGrams != null ||
+                          _nutrition!.unsaturatedFatGrams != null ||
+                          _nutrition!.transFatGrams != null) ...[
+                        AppSpacing.gapVerticalSm,
+                        Divider(color: theme.colorScheme.outlineVariant),
+                        AppSpacing.gapVerticalSm,
+                        Text(
+                          'Fat Breakdown',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                        AppSpacing.gapVerticalXs,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildNutritionValue(
+                              'Saturated',
+                              '${_nutrition!.saturatedFatGrams ?? 0}',
+                              'g',
+                              color: theme.colorScheme.error.withValues(alpha: 0.8),
+                            ),
+                            _buildNutritionValue(
+                              'Unsaturated',
+                              '${_nutrition!.unsaturatedFatGrams ?? 0}',
+                              'g',
+                              color: Colors.green.shade700,
+                            ),
+                            _buildNutritionValue(
+                              'Trans',
+                              '${_nutrition!.transFatGrams ?? 0}',
+                              'g',
+                              color: theme.colorScheme.error,
+                            ),
+                          ],
+                        ),
+                      ],
                       if (_nutrition!.notes != null) ...[
                         AppSpacing.gapVerticalSm,
                         Text(
@@ -763,7 +899,7 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
     );
   }
 
-  Widget _buildNutritionValue(String label, String value, String unit) {
+  Widget _buildNutritionValue(String label, String value, String unit, {Color? color}) {
     final theme = Theme.of(context);
 
     return Column(
@@ -772,12 +908,13 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
           value,
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
+            color: color,
           ),
         ),
         Text(
           '$label ($unit)',
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
+            color: color ?? theme.colorScheme.outline,
           ),
         ),
       ],
