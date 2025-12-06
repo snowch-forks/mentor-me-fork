@@ -73,6 +73,9 @@ Add these secrets:
 | `KEYSTORE_PASSWORD` | Password for the keystore | `your-keystore-password` |
 | `KEY_ALIAS` | Alias name for the key | `upload` |
 | `KEY_PASSWORD` | Password for the key | `your-key-password` |
+| `PLAY_STORE_SERVICE_ACCOUNT_JSON` | (Optional) Service account JSON for Play Store uploads | (JSON contents) |
+
+> **Note:** The `PLAY_STORE_SERVICE_ACCOUNT_JSON` secret is optional. Without it, the workflow still builds and uploads the AAB to GitHub Releases - you just need to upload to Play Store manually.
 
 ### Verifying Secrets
 
@@ -259,6 +262,16 @@ jobs:
             build/app/outputs/bundle/release/app-release.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload to Google Play Store
+        uses: r0adkll/upload-google-play@v1
+        continue-on-error: true  # Don't fail if Play Store upload fails
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
+          packageName: com.example.ai_mentor_coach
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
 
       - name: Clean up signing files
         if: always()
