@@ -41,6 +41,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   bool _autoBackupEnabled = false;
   DateTime? _lastAutoBackupTime;
   BackupLocation _backupLocation = BackupLocation.internal;
+  String? _externalFolderName;
   Map<String, dynamic>? _currentDataCounts;
 
   // Share backup state
@@ -159,11 +160,18 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     final locationString = settings['autoBackupLocation'] as String? ?? BackupLocation.internal.name;
     final location = backupLocationFromString(locationString);
 
+    // Load external folder name if using external storage
+    String? folderName;
+    if (location == BackupLocation.downloads) {
+      folderName = await _safService.getFolderDisplayName();
+    }
+
     if (mounted) {
       setState(() {
         _autoBackupEnabled = settings['autoBackupEnabled'] as bool? ?? false;
         _lastAutoBackupTime = lastBackupTime;
         _backupLocation = location;
+        _externalFolderName = folderName;
       });
     }
   }
@@ -610,6 +618,43 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                 color: Colors.green,
                               ),
                         ),
+                      // Show external folder path when using external storage
+                      if (_autoBackupEnabled && _backupLocation == BackupLocation.downloads && _externalFolderName != null)
+                        InkWell(
+                          onTap: _changeExternalFolder,
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.folder,
+                                  size: 14,
+                                  color: Colors.blue.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    _externalFolderName!,
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: Colors.blue.shade600,
+                                          decoration: TextDecoration.underline,
+                                          decorationColor: Colors.blue.shade600,
+                                        ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.edit,
+                                  size: 12,
+                                  color: Colors.blue.shade400,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -765,17 +810,55 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     settings['autoBackupLocation'] = newLocation.name;
     await _storage.saveSettings(settings);
 
+    // Get the folder display name for external storage
+    String? folderName;
+    if (newLocation == BackupLocation.downloads) {
+      folderName = await _safService.getFolderDisplayName();
+    }
+
     setState(() {
       _backupLocation = newLocation;
+      _externalFolderName = folderName;
     });
-
-    // Reload current backup path
-    await _loadAutoBackupSettings();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppStrings.backupLocationUpdated),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Change the external backup folder by re-requesting folder access
+  Future<void> _changeExternalFolder() async {
+    final uri = await _safService.requestFolderAccess();
+    if (uri == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Folder selection cancelled.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Get the new folder display name
+    final folderName = await _safService.getFolderDisplayName();
+
+    setState(() {
+      _externalFolderName = folderName;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Backup folder changed to: ${folderName ?? 'External folder'}'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),

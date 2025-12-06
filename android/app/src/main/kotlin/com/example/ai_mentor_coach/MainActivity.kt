@@ -219,6 +219,20 @@ class MainActivity : FlutterActivity() {
                         result.error("INVALID_ARGUMENT", "URI is required", null)
                     }
                 }
+                "getFolderDisplayName" -> {
+                    val uriString = call.argument<String>("uri")
+                    if (uriString != null) {
+                        try {
+                            val displayName = getSAFFolderDisplayName(uriString)
+                            result.success(displayName)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to get folder display name: ${e.message}")
+                            result.success(null)
+                        }
+                    } else {
+                        result.error("INVALID_ARGUMENT", "URI is required", null)
+                    }
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -701,6 +715,45 @@ class MainActivity : FlutterActivity() {
         } catch (e: Exception) {
             Log.e(TAG, "SAF permission validation error: ${e.message}")
             return false
+        }
+    }
+
+    /// Get a human-readable display name/path for the SAF folder URI
+    /// Returns a path like "Downloads" or "Documents/Backups" based on the URI
+    private fun getSAFFolderDisplayName(uriString: String): String? {
+        val uri = Uri.parse(uriString)
+
+        try {
+            val treeDocumentId = DocumentsContract.getTreeDocumentId(uri)
+            val documentUri = DocumentsContract.buildDocumentUriUsingTree(uri, treeDocumentId)
+
+            // Query for the display name of the folder
+            contentResolver.query(
+                documentUri,
+                arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val displayName = cursor.getString(0)
+                    Log.d(TAG, "SAF folder display name: $displayName")
+                    return displayName
+                }
+            }
+
+            // Fallback: try to extract a meaningful path from the URI
+            // URI typically looks like: content://com.android.externalstorage.documents/tree/primary:Downloads
+            val path = treeDocumentId.substringAfter(":", "")
+            if (path.isNotEmpty()) {
+                Log.d(TAG, "SAF folder path from URI: $path")
+                return path
+            }
+
+            return null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting SAF folder display name: ${e.message}")
+            return null
         }
     }
 

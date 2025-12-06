@@ -176,6 +176,36 @@ class SAFService {
     return uri != null && uri.isNotEmpty;
   }
 
+  /// Get a human-readable display name/path for the saved folder
+  /// Returns a name like "Downloads" or "Documents/Backups"
+  Future<String?> getFolderDisplayName() async {
+    if (kIsWeb) return null;
+
+    final uri = await getSavedFolderUri();
+    if (uri == null || uri.isEmpty) {
+      return null;
+    }
+
+    try {
+      final displayName = await _channel.invokeMethod<String>('getFolderDisplayName', {
+        'uri': uri,
+      });
+
+      await _debug.info('SAFService', 'Got folder display name', metadata: {
+        'displayName': displayName,
+      });
+
+      return displayName;
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'SAFService',
+        'Failed to get folder display name: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      return null;
+    }
+  }
+
   /// Validate that the saved SAF folder URI still has valid permissions
   /// Returns true if permissions are valid, false if expired/invalid
   /// This is important after fresh install when URI may be restored from backup
