@@ -17,6 +17,9 @@ NutritionEstimate _$NutritionEstimateFromJson(Map<String, dynamic> json) =>
       transFatGrams: (json['transFatGrams'] as num?)?.toInt(),
       fiberGrams: (json['fiberGrams'] as num?)?.toInt(),
       sugarGrams: (json['sugarGrams'] as num?)?.toInt(),
+      sodiumMg: (json['sodiumMg'] as num?)?.toInt(),
+      potassiumMg: (json['potassiumMg'] as num?)?.toInt(),
+      cholesterolMg: (json['cholesterolMg'] as num?)?.toInt(),
       confidence: json['confidence'] as String?,
       notes: json['notes'] as String?,
     );
@@ -32,6 +35,9 @@ Map<String, dynamic> _$NutritionEstimateToJson(NutritionEstimate instance) =>
       'transFatGrams': instance.transFatGrams,
       'fiberGrams': instance.fiberGrams,
       'sugarGrams': instance.sugarGrams,
+      'sodiumMg': instance.sodiumMg,
+      'potassiumMg': instance.potassiumMg,
+      'cholesterolMg': instance.cholesterolMg,
       'confidence': instance.confidence,
       'notes': instance.notes,
     };
@@ -78,6 +84,18 @@ NutritionGoal _$NutritionGoalFromJson(Map<String, dynamic> json) =>
       targetProteinGrams: (json['targetProteinGrams'] as num?)?.toInt(),
       targetCarbsGrams: (json['targetCarbsGrams'] as num?)?.toInt(),
       targetFatGrams: (json['targetFatGrams'] as num?)?.toInt(),
+      maxSodiumMg: (json['maxSodiumMg'] as num?)?.toInt(),
+      maxSugarGrams: (json['maxSugarGrams'] as num?)?.toInt(),
+      minFiberGrams: (json['minFiberGrams'] as num?)?.toInt(),
+      maxCholesterolMg: (json['maxCholesterolMg'] as num?)?.toInt(),
+      minPotassiumMg: (json['minPotassiumMg'] as num?)?.toInt(),
+      healthConcerns: json['healthConcerns'] as String?,
+      aiReasoning: json['aiReasoning'] as String?,
+      isAiGenerated: json['isAiGenerated'] as bool? ?? false,
+      generatedAt: json['generatedAt'] == null
+          ? null
+          : DateTime.parse(json['generatedAt'] as String),
+      activityLevel: json['activityLevel'] as String?,
     );
 
 Map<String, dynamic> _$NutritionGoalToJson(NutritionGoal instance) =>
@@ -86,4 +104,14 @@ Map<String, dynamic> _$NutritionGoalToJson(NutritionGoal instance) =>
       'targetProteinGrams': instance.targetProteinGrams,
       'targetCarbsGrams': instance.targetCarbsGrams,
       'targetFatGrams': instance.targetFatGrams,
+      'maxSodiumMg': instance.maxSodiumMg,
+      'maxSugarGrams': instance.maxSugarGrams,
+      'minFiberGrams': instance.minFiberGrams,
+      'maxCholesterolMg': instance.maxCholesterolMg,
+      'minPotassiumMg': instance.minPotassiumMg,
+      'healthConcerns': instance.healthConcerns,
+      'aiReasoning': instance.aiReasoning,
+      'isAiGenerated': instance.isAiGenerated,
+      'generatedAt': instance.generatedAt?.toIso8601String(),
+      'activityLevel': instance.activityLevel,
     };
