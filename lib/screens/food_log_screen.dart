@@ -904,6 +904,7 @@ class _GoalSettingsSheetState extends State<_GoalSettingsSheet> {
         weightKg: weightProvider.latestEntry?.weightInKg,
         heightCm: weightProvider.height,
         gender: weightProvider.gender,
+        age: weightProvider.age,
         activityLevel: _activityLevel,
         weightGoal: weightProvider.goal,
         healthConcerns: _healthConcernsController.text.trim().isNotEmpty

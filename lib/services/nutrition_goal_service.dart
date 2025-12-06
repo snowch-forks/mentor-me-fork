@@ -42,7 +42,7 @@ class NutritionProfile {
   final double? weightKg;
   final double? heightCm;
   final String? gender; // 'male', 'female'
-  final int? age;
+  final int? age; // Age in years
   final String? activityLevel; // 'sedentary', 'light', 'moderate', 'active', 'very_active'
   final WeightGoal? weightGoal;
   final String? healthConcerns; // Free text like "I want to lower triglycerides"
@@ -181,6 +181,11 @@ class NutritionGoalService {
         targetProteinGrams: parseIntSafe(parsed['targetProteinGrams'], 50),
         targetCarbsGrams: parseIntSafe(parsed['targetCarbsGrams'], 250),
         targetFatGrams: parseIntSafe(parsed['targetFatGrams'], 65),
+        // Fat breakdown for heart health
+        maxSaturatedFatGrams: parsed['maxSaturatedFatGrams'] != null ? parseIntSafe(parsed['maxSaturatedFatGrams'], 20) : null,
+        maxTransFatGrams: parsed['maxTransFatGrams'] != null ? parseIntSafe(parsed['maxTransFatGrams'], 2) : null,
+        minUnsaturatedFatGrams: parsed['minUnsaturatedFatGrams'] != null ? parseIntSafe(parsed['minUnsaturatedFatGrams'], 25) : null,
+        // Micronutrients
         maxSodiumMg: parsed['maxSodiumMg'] != null ? parseIntSafe(parsed['maxSodiumMg'], 2300) : null,
         maxSugarGrams: parsed['maxSugarGrams'] != null ? parseIntSafe(parsed['maxSugarGrams'], 50) : null,
         minFiberGrams: parsed['minFiberGrams'] != null ? parseIntSafe(parsed['minFiberGrams'], 25) : null,
@@ -201,6 +206,8 @@ class NutritionGoalService {
         'protein': goal.targetProteinGrams,
         'carbs': goal.targetCarbsGrams,
         'fat': goal.targetFatGrams,
+        'saturatedFat': goal.maxSaturatedFatGrams,
+        'hasFatBreakdown': goal.hasFatBreakdownTargets,
         'hasMicroTargets': goal.hasMicronutrientTargets,
       });
 
@@ -258,6 +265,9 @@ class NutritionGoalService {
     buffer.writeln('  "targetProteinGrams": 120,');
     buffer.writeln('  "targetCarbsGrams": 200,');
     buffer.writeln('  "targetFatGrams": 65,');
+    buffer.writeln('  "maxSaturatedFatGrams": 20,');
+    buffer.writeln('  "maxTransFatGrams": 2,');
+    buffer.writeln('  "minUnsaturatedFatGrams": 25,');
     buffer.writeln('  "maxSodiumMg": 2300,');
     buffer.writeln('  "maxSugarGrams": 36,');
     buffer.writeln('  "minFiberGrams": 30,');

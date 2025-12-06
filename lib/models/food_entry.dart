@@ -231,6 +231,10 @@ class NutritionGoal {
   final int? targetProteinGrams;
   final int? targetCarbsGrams;
   final int? targetFatGrams;
+  // Fat breakdown targets for heart health
+  final int? maxSaturatedFatGrams; // Upper limit - bad fat (animal fat, butter)
+  final int? maxTransFatGrams; // Upper limit - worst fat (processed foods)
+  final int? minUnsaturatedFatGrams; // Minimum - good fat (olive oil, fish, nuts)
   // Micronutrient targets for health-specific goals
   final int? maxSodiumMg; // Upper limit for blood pressure management
   final int? maxSugarGrams; // Upper limit for diabetes/triglycerides
@@ -250,6 +254,9 @@ class NutritionGoal {
     this.targetProteinGrams,
     this.targetCarbsGrams,
     this.targetFatGrams,
+    this.maxSaturatedFatGrams,
+    this.maxTransFatGrams,
+    this.minUnsaturatedFatGrams,
     this.maxSodiumMg,
     this.maxSugarGrams,
     this.minFiberGrams,
@@ -271,6 +278,9 @@ class NutritionGoal {
     int? targetProteinGrams,
     int? targetCarbsGrams,
     int? targetFatGrams,
+    int? maxSaturatedFatGrams,
+    int? maxTransFatGrams,
+    int? minUnsaturatedFatGrams,
     int? maxSodiumMg,
     int? maxSugarGrams,
     int? minFiberGrams,
@@ -287,6 +297,9 @@ class NutritionGoal {
       targetProteinGrams: targetProteinGrams ?? this.targetProteinGrams,
       targetCarbsGrams: targetCarbsGrams ?? this.targetCarbsGrams,
       targetFatGrams: targetFatGrams ?? this.targetFatGrams,
+      maxSaturatedFatGrams: maxSaturatedFatGrams ?? this.maxSaturatedFatGrams,
+      maxTransFatGrams: maxTransFatGrams ?? this.maxTransFatGrams,
+      minUnsaturatedFatGrams: minUnsaturatedFatGrams ?? this.minUnsaturatedFatGrams,
       maxSodiumMg: maxSodiumMg ?? this.maxSodiumMg,
       maxSugarGrams: maxSugarGrams ?? this.maxSugarGrams,
       minFiberGrams: minFiberGrams ?? this.minFiberGrams,
@@ -306,10 +319,19 @@ class NutritionGoal {
     targetProteinGrams: 50,
     targetCarbsGrams: 250,
     targetFatGrams: 65,
+    maxSaturatedFatGrams: 20, // AHA recommendation (<10% of calories)
+    maxTransFatGrams: 2, // Should be as low as possible
     maxSodiumMg: 2300, // FDA recommendation
     maxSugarGrams: 50, // WHO recommendation
     minFiberGrams: 25, // General recommendation
   );
+
+  /// Check if any fat breakdown targets are set
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  bool get hasFatBreakdownTargets =>
+      maxSaturatedFatGrams != null ||
+      maxTransFatGrams != null ||
+      minUnsaturatedFatGrams != null;
 
   /// Check if any micronutrient targets are set
   @JsonKey(includeFromJson: false, includeToJson: false)

@@ -34,6 +34,9 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   // Gender
   String? _selectedGender;
 
+  // Age
+  final _ageController = TextEditingController();
+
   // Nutrition goals
   String? _activityLevel;
   final _healthConcernsController = TextEditingController();
@@ -51,6 +54,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     _heightCmController.dispose();
     _heightFeetController.dispose();
     _heightInchesController.dispose();
+    _ageController.dispose();
     _healthConcernsController.dispose();
     super.dispose();
   }
@@ -83,6 +87,12 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
 
     _selectedGender = gender;
+
+    // Load age
+    final age = weightProvider.age;
+    if (age != null) {
+      _ageController.text = age.toString();
+    }
 
     // Load nutrition goal settings
     final foodLogProvider = context.read<FoodLogProvider>();
@@ -206,6 +216,33 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     });
   }
 
+  Future<void> _saveAge() async {
+    final age = int.tryParse(_ageController.text);
+    if (age != null && age > 0 && age < 150) {
+      final weightProvider = context.read<WeightProvider>();
+      await weightProvider.setAge(age);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Age saved'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else if (_ageController.text.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid age'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _generateNutritionGoals() async {
     setState(() => _isGeneratingNutritionGoals = true);
 
@@ -219,6 +256,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         weightKg: weightProvider.latestEntry?.weightInKg,
         heightCm: weightProvider.height,
         gender: weightProvider.gender,
+        age: weightProvider.age,
         activityLevel: _activityLevel,
         weightGoal: weightProvider.goal,
         healthConcerns: _healthConcernsController.text.trim().isNotEmpty
@@ -406,6 +444,52 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             onSelectionChanged: (Set<String?> selection) {
               _saveGender(selection.first);
             },
+          ),
+
+          AppSpacing.gapXl,
+
+          const Divider(),
+
+          AppSpacing.gapXl,
+
+          // Age Section
+          Text(
+            'Age',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          AppSpacing.gapMd,
+          Text(
+            'Used for more accurate calorie and BMR calculations',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+          ),
+          AppSpacing.gapLg,
+
+          // Age input
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ageController,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Age',
+                    hintText: 'e.g., 30',
+                    prefixIcon: Icon(Icons.cake),
+                    suffixText: 'years',
+                  ),
+                  keyboardType: TextInputType.number,
+                  onSubmitted: (_) => _saveAge(),
+                ),
+              ),
+              AppSpacing.gapHorizontalMd,
+              IconButton.filled(
+                onPressed: _saveAge,
+                icon: const Icon(Icons.check),
+                tooltip: 'Save age',
+              ),
+            ],
           ),
 
           AppSpacing.gapXl,

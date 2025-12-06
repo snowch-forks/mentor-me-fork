@@ -1240,6 +1240,8 @@ JSON:''';
     int? totalSets,
     int? totalReps,
     double? userWeightKg,
+    double? userHeightCm,
+    int? userAge,
     String? userGender,
   }) async {
     if (!hasApiKey()) {
@@ -1278,6 +1280,14 @@ JSON:''';
       final userInfo = StringBuffer();
       if (userWeightKg != null) {
         userInfo.write('User weight: ${userWeightKg.toStringAsFixed(1)} kg');
+      }
+      if (userHeightCm != null) {
+        if (userInfo.isNotEmpty) userInfo.write(', ');
+        userInfo.write('Height: ${userHeightCm.toStringAsFixed(0)} cm');
+      }
+      if (userAge != null) {
+        if (userInfo.isNotEmpty) userInfo.write(', ');
+        userInfo.write('Age: $userAge years');
       }
       if (userGender != null) {
         if (userInfo.isNotEmpty) userInfo.write(', ');
