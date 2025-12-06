@@ -257,25 +257,17 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ),
         );
 
-        // Show info about backup location reset if applicable
+        // Show success dialog with detailed results
+        _showImportResultDialog(result);
+
+        // Show folder selection dialog if external storage was configured but permission is missing
         if (wasReset && _autoBackupEnabled) {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Note: Backup location set to Internal Storage. To use External Storage, select it below and choose a folder.',
-                  ),
-                  backgroundColor: Colors.blue,
-                  duration: Duration(seconds: 5),
-                ),
-              );
+              _showFolderSelectionPrompt();
             }
           });
         }
-
-        // Show success dialog with detailed results
-        _showImportResultDialog(result);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -367,6 +359,40 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             ],
           ),
         );
+  }
+
+  /// Show a dialog prompting the user to select a folder for external backups
+  /// Called after restore when external storage was configured but SAF permission is missing
+  void _showFolderSelectionPrompt() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          Icons.folder_open,
+          color: Theme.of(dialogContext).colorScheme.primary,
+          size: 48,
+        ),
+        title: const Text('Select Backup Folder'),
+        content: const Text(
+          'Your backup was configured to use External Storage, but folder access needs to be re-granted after reinstalling the app.\n\n'
+          'Would you like to select a folder now?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Later'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              // Update location to downloads to trigger folder picker
+              await _updateBackupLocation(BackupLocation.downloads);
+            },
+            child: const Text('Select Folder'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _reloadAllProviders() async {
