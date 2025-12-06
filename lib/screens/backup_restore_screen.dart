@@ -688,6 +688,51 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     'Accessible via file manager',
                     Icons.folder_open,
                   ),
+                  // Show current external folder path with change option
+                  if (_backupLocation == BackupLocation.downloads) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16, top: 8),
+                      child: InkWell(
+                        onTap: _changeExternalFolder,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.folder, size: 18, color: Colors.blue.shade700),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Current folder:',
+                                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                            color: Colors.blue.shade600,
+                                          ),
+                                    ),
+                                    Text(
+                                      _externalFolderName ?? 'Not set',
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                            color: Colors.blue.shade800,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(Icons.edit, size: 16, color: Colors.blue.shade600),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   AppSpacing.gapMd,
                   // Show icon toggle
                   Consumer<SettingsProvider>(
@@ -889,6 +934,9 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             children: [
               _buildDiagnosticRow('Auto-backup enabled', diagnostics['isEnabled'] ? '✅ Yes' : '❌ No'),
               _buildDiagnosticRow('Platform', diagnostics['isWeb'] ? '🌐 Web (not supported)' : '📱 Android'),
+              _buildDiagnosticRow('Backup location', _backupLocation == BackupLocation.downloads ? '📁 External' : '🔒 Internal'),
+              if (_backupLocation == BackupLocation.downloads)
+                _buildDiagnosticRow('External folder', _externalFolderName ?? '❌ Not set'),
               _buildDiagnosticRow('Backup scheduled', diagnostics['isScheduled'] ? '⏰ Yes' : 'No'),
               _buildDiagnosticRow('Backup in progress', diagnostics['isBackingUp'] ? '🔄 Yes' : 'No'),
               _buildDiagnosticRow('Pending timer active', diagnostics['hasPendingTimer'] ? '⏲️  Yes' : 'No'),
