@@ -41,6 +41,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
   bool _autoBackupEnabled = false;
   DateTime? _lastAutoBackupTime;
   BackupLocation _backupLocation = BackupLocation.internal;
+  String? _externalFolderName;
   Map<String, dynamic>? _currentDataCounts;
 
   // Share backup state
@@ -159,12 +160,31 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     final locationString = settings['autoBackupLocation'] as String? ?? BackupLocation.internal.name;
     final location = backupLocationFromString(locationString);
 
+    // Load external folder name if using external storage
+    String? folderName;
+    if (location == BackupLocation.downloads) {
+      folderName = await _safService.getFolderDisplayName();
+    }
+
+    // Check if folder reauthorization is needed (e.g., backup failed due to missing permissions)
+    final needsReauth = await _autoBackupService.checkNeedsFolderReauthorization();
+
     if (mounted) {
       setState(() {
         _autoBackupEnabled = settings['autoBackupEnabled'] as bool? ?? false;
         _lastAutoBackupTime = lastBackupTime;
         _backupLocation = location;
+        _externalFolderName = folderName;
       });
+
+      // Show prompt if reauthorization is needed and auto-backup is enabled
+      if (needsReauth && _autoBackupEnabled && location == BackupLocation.downloads) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _showFolderReauthorizationPrompt();
+          }
+        });
+      }
     }
   }
 
@@ -395,6 +415,39 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     );
   }
 
+  /// Show prompt when auto-backup failed due to missing folder permissions
+  void _showFolderReauthorizationPrompt() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          Icons.warning_amber,
+          color: Theme.of(dialogContext).colorScheme.error,
+          size: 48,
+        ),
+        title: const Text('Backup Folder Access Lost'),
+        content: const Text(
+          'Auto-backup was unable to save to your external folder because permissions are missing.\n\n'
+          'This can happen after reinstalling the app or restoring a backup.\n\n'
+          'Please re-select your backup folder to continue automatic backups.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Later'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              await _changeExternalFolder();
+            },
+            child: const Text('Select Folder'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _reloadAllProviders() async {
     // Reload all providers to refresh UI with imported data
     if (mounted) {
@@ -610,6 +663,65 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                                 color: Colors.green,
                               ),
                         ),
+                      // Show external folder path when using external storage
+                      if (_autoBackupEnabled && _backupLocation == BackupLocation.downloads)
+                        InkWell(
+                          onTap: _changeExternalFolder,
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Folder: ',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: (_externalFolderName?.isNotEmpty == true)
+                                            ? Colors.blue.shade600
+                                            : Colors.orange.shade700,
+                                      ),
+                                ),
+                                Icon(
+                                  (_externalFolderName?.isNotEmpty == true)
+                                      ? Icons.folder
+                                      : Icons.warning_amber,
+                                  size: 14,
+                                  color: (_externalFolderName?.isNotEmpty == true)
+                                      ? Colors.blue.shade600
+                                      : Colors.orange.shade700,
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    (_externalFolderName?.isNotEmpty == true)
+                                        ? _externalFolderName!
+                                        : 'Tap to select folder',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: (_externalFolderName?.isNotEmpty == true)
+                                              ? Colors.blue.shade600
+                                              : Colors.orange.shade700,
+                                          decoration: TextDecoration.underline,
+                                          decorationColor: (_externalFolderName?.isNotEmpty == true)
+                                              ? Colors.blue.shade600
+                                              : Colors.orange.shade700,
+                                        ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  (_externalFolderName?.isNotEmpty == true)
+                                      ? Icons.edit
+                                      : Icons.folder_open,
+                                  size: 12,
+                                  color: (_externalFolderName?.isNotEmpty == true)
+                                      ? Colors.blue.shade400
+                                      : Colors.orange.shade600,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -643,6 +755,81 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                     'Accessible via file manager',
                     Icons.folder_open,
                   ),
+                  // Show current external folder path with change option
+                  if (_backupLocation == BackupLocation.downloads) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16, top: 8),
+                      child: InkWell(
+                        onTap: _changeExternalFolder,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: (_externalFolderName?.isNotEmpty == true)
+                                ? Colors.blue.shade50
+                                : Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: (_externalFolderName?.isNotEmpty == true)
+                                  ? Colors.blue.shade200
+                                  : Colors.orange.shade300,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                (_externalFolderName?.isNotEmpty == true)
+                                    ? Icons.folder
+                                    : Icons.warning_amber,
+                                size: 18,
+                                color: (_externalFolderName?.isNotEmpty == true)
+                                    ? Colors.blue.shade700
+                                    : Colors.orange.shade700,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      (_externalFolderName?.isNotEmpty == true)
+                                          ? 'Current folder:'
+                                          : 'Folder access needed:',
+                                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                            color: (_externalFolderName?.isNotEmpty == true)
+                                                ? Colors.blue.shade600
+                                                : Colors.orange.shade700,
+                                          ),
+                                    ),
+                                    Text(
+                                      (_externalFolderName?.isNotEmpty == true)
+                                          ? _externalFolderName!
+                                          : 'Tap to select folder',
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                            color: (_externalFolderName?.isNotEmpty == true)
+                                                ? Colors.blue.shade800
+                                                : Colors.orange.shade800,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                (_externalFolderName?.isNotEmpty == true)
+                                    ? Icons.edit
+                                    : Icons.folder_open,
+                                size: 16,
+                                color: (_externalFolderName?.isNotEmpty == true)
+                                    ? Colors.blue.shade600
+                                    : Colors.orange.shade700,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   AppSpacing.gapMd,
                   // Show icon toggle
                   Consumer<SettingsProvider>(
@@ -765,17 +952,58 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     settings['autoBackupLocation'] = newLocation.name;
     await _storage.saveSettings(settings);
 
+    // Get the folder display name for external storage
+    String? folderName;
+    if (newLocation == BackupLocation.downloads) {
+      folderName = await _safService.getFolderDisplayName();
+    }
+
     setState(() {
       _backupLocation = newLocation;
+      _externalFolderName = folderName;
     });
-
-    // Reload current backup path
-    await _loadAutoBackupSettings();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(AppStrings.backupLocationUpdated),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Change the external backup folder by re-requesting folder access
+  Future<void> _changeExternalFolder() async {
+    final uri = await _safService.requestFolderAccess();
+    if (uri == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Folder selection cancelled.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Clear the reauthorization flag since user has re-selected a folder
+    await _autoBackupService.clearFolderReauthorization();
+
+    // Get the new folder display name
+    final folderName = await _safService.getFolderDisplayName();
+
+    setState(() {
+      _externalFolderName = folderName;
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Backup folder changed to: ${folderName ?? 'External folder'}'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),
@@ -806,6 +1034,11 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             children: [
               _buildDiagnosticRow('Auto-backup enabled', diagnostics['isEnabled'] ? '✅ Yes' : '❌ No'),
               _buildDiagnosticRow('Platform', diagnostics['isWeb'] ? '🌐 Web (not supported)' : '📱 Android'),
+              _buildDiagnosticRow('Backup location', _backupLocation == BackupLocation.downloads ? '📁 External' : '🔒 Internal'),
+              if (_backupLocation == BackupLocation.downloads)
+                _buildDiagnosticRow('External folder', _externalFolderName ?? '❌ Not set'),
+              if (diagnostics['lastBackupFellBack'] == true)
+                _buildDiagnosticRow('⚠️ Last backup', 'Fell back to internal (SAF issue)'),
               _buildDiagnosticRow('Backup scheduled', diagnostics['isScheduled'] ? '⏰ Yes' : 'No'),
               _buildDiagnosticRow('Backup in progress', diagnostics['isBackingUp'] ? '🔄 Yes' : 'No'),
               _buildDiagnosticRow('Pending timer active', diagnostics['hasPendingTimer'] ? '⏲️  Yes' : 'No'),
