@@ -616,12 +616,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             // Header with toggle
             Row(
               children: [
-                Icon(
-                  Icons.sync,
-                  color: _autoBackupEnabled ? Colors.green : Theme.of(context).colorScheme.outline,
-                  size: 20,
-                ),
-                AppSpacing.gapHorizontalSm,
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
