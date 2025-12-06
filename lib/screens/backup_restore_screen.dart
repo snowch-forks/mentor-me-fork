@@ -243,10 +243,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         // Reload backup settings to check if location was reset
         await _loadAutoBackupSettings();
 
-        // Check if backup location was reset to internal (happens when restoring
-        // a backup that had external storage but SAF URI is not available)
+        // Check if External Storage is selected but SAF permission is missing
+        // This happens after fresh install when restoring a backup that had external storage
         final settings = await _storage.loadSettings();
-        final wasReset = settings['autoBackupLocation'] == 'internal' &&
+        final needsFolderSelection = settings['autoBackupLocation'] == 'downloads' &&
             !(await _safService.hasFolderAccess());
 
         if (!mounted) return;
@@ -257,25 +257,17 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
           ),
         );
 
-        // Show info about backup location reset if applicable
-        if (wasReset && _autoBackupEnabled) {
+        // Show success dialog with detailed results
+        _showImportResultDialog(result);
+
+        // Show folder selection dialog if external storage was configured but permission is missing
+        if (needsFolderSelection && _autoBackupEnabled) {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Note: Backup location set to Internal Storage. To use External Storage, select it below and choose a folder.',
-                  ),
-                  backgroundColor: Colors.blue,
-                  duration: Duration(seconds: 5),
-                ),
-              );
+              _showFolderSelectionPrompt();
             }
           });
         }
-
-        // Show success dialog with detailed results
-        _showImportResultDialog(result);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -367,6 +359,40 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
             ],
           ),
         );
+  }
+
+  /// Show a dialog prompting the user to select a folder for external backups
+  /// Called after restore when external storage was configured but SAF permission is missing
+  void _showFolderSelectionPrompt() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: Icon(
+          Icons.folder_open,
+          color: Theme.of(dialogContext).colorScheme.primary,
+          size: 48,
+        ),
+        title: const Text('Select Backup Folder'),
+        content: const Text(
+          'Your backup was configured to use External Storage, but folder access needs to be re-granted after reinstalling the app.\n\n'
+          'Would you like to select a folder now?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Later'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              // Update location to downloads to trigger folder picker
+              await _updateBackupLocation(BackupLocation.downloads);
+            },
+            child: const Text('Select Folder'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _reloadAllProviders() async {
@@ -547,11 +573,35 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Auto-Backup',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
+                      Row(
+                        children: [
+                          Text(
+                            'Auto-Backup',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          if (_autoBackupEnabled) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _backupLocation == BackupLocation.downloads
+                                    ? Colors.blue.shade50
+                                    : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                _backupLocation == BackupLocation.downloads ? 'External' : 'Internal',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      color: _backupLocation == BackupLocation.downloads
+                                          ? Colors.blue.shade700
+                                          : Colors.grey.shade700,
+                                    ),
+                              ),
                             ),
+                          ],
+                        ],
                       ),
                       if (_lastAutoBackupTime != null)
                         Text(

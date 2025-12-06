@@ -110,6 +110,7 @@ class BackupService {
     final weightUnit = await _storage.loadWeightUnit();
     final height = await _storage.loadHeight();
     final gender = await _storage.loadGender();
+    final age = await _storage.loadAge();
 
     // Exercise tracking data
     final customExercises = await _storage.loadCustomExercises();
@@ -206,6 +207,7 @@ class BackupService {
       'weight_unit': weightUnit.name,
       'height': height,
       'gender': gender,
+      'user_age': age,
 
       // Exercise tracking
       'custom_exercises': json.encode(customExercises.map((e) => e.toJson()).toList()),
@@ -260,6 +262,7 @@ class BackupService {
         'hasWeightGoal': weightGoal != null,
         'weightUnit': weightUnit.name,
         'hasHeight': height != null,
+        'hasAge': age != null,
         // Exercise tracking
         'totalCustomExercises': customExercises.length,
         'totalExercisePlans': exercisePlans.length,
@@ -963,18 +966,14 @@ class BackupService {
 
         await _storage.saveSettings(mergedSettings);
 
-        // Post-import validation: Check if External Storage is selected but SAF not configured
-        // This happens after fresh install when restoring a backup that had external storage
+        // Note: If External Storage was selected in the backup, we keep that setting
+        // The UI will prompt the user to re-select a folder since SAF permissions
+        // are installation-specific and need to be re-granted after reinstall
         final restoredLocation = mergedSettings['autoBackupLocation'] as String?;
         if (restoredLocation == 'downloads') {
-          // External storage selected but no valid SAF permission - reset to internal storage
-          // (saf_folder_uri was removed above, so SAF will need to be reconfigured)
-          mergedSettings['autoBackupLocation'] = 'internal';
-          await _storage.saveSettings(mergedSettings);
-
           await _debug.info(
             'BackupService',
-            'Reset backup location to Internal Storage (External Storage requires folder selection after fresh install)',
+            'External Storage setting restored - user will need to re-select folder (SAF permission required after fresh install)',
           );
         }
 
@@ -1918,6 +1917,38 @@ class BackupService {
       );
       results.add(ImportItemResult(
         dataType: 'Gender',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import age (for BMR/TDEE calculations)
+    try {
+      if (data.containsKey('user_age') && data['user_age'] != null) {
+        final age = data['user_age'] as int;
+        await _storage.saveAge(age);
+        await _debug.info('BackupService', 'Imported age: $age');
+        results.add(ImportItemResult(
+          dataType: 'Age',
+          success: true,
+          count: 1,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Age',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import age: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Age',
         success: false,
         count: 0,
         errorMessage: e.toString(),

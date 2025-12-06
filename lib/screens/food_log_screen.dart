@@ -7,7 +7,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/food_entry.dart';
 import '../providers/food_log_provider.dart';
+import '../providers/weight_provider.dart';
 import '../services/ai_service.dart';
+import '../services/nutrition_goal_service.dart';
 import '../theme/app_spacing.dart';
 
 class FoodLogScreen extends StatefulWidget {
@@ -181,6 +183,51 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
                 ),
               ],
             ),
+
+            // Fat breakdown (if goal has fat targets)
+            if (goal.hasFatBreakdownTargets ||
+                summary.totalSaturatedFat > 0 ||
+                summary.totalUnsaturatedFat > 0) ...[
+              AppSpacing.gapVerticalMd,
+              Divider(color: theme.colorScheme.outlineVariant),
+              AppSpacing.gapVerticalSm,
+              Text(
+                'Fat Breakdown',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+              AppSpacing.gapVerticalSm,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildFatIndicator(
+                    context,
+                    'Saturated',
+                    summary.totalSaturatedFat,
+                    goal.maxSaturatedFatGrams,
+                    isMax: true,
+                    color: Colors.red.shade400,
+                  ),
+                  _buildFatIndicator(
+                    context,
+                    'Unsaturated',
+                    summary.totalUnsaturatedFat,
+                    goal.minUnsaturatedFatGrams,
+                    isMax: false,
+                    color: Colors.green.shade600,
+                  ),
+                  _buildFatIndicator(
+                    context,
+                    'Trans',
+                    summary.totalTransFat,
+                    goal.maxTransFatGrams,
+                    isMax: true,
+                    color: Colors.red.shade700,
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -229,6 +276,50 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
         if (target > 0)
           Text(
             '/$target$unit',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+              fontSize: 10,
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Build a fat type indicator (saturated, unsaturated, trans)
+  /// isMax: true for saturated/trans (want to stay under), false for unsaturated (want to meet minimum)
+  Widget _buildFatIndicator(
+    BuildContext context,
+    String label,
+    int current,
+    int? target, {
+    required bool isMax,
+    required Color color,
+  }) {
+    final theme = Theme.of(context);
+    // For max targets: over is bad, for min targets: under is bad
+    final hasTarget = target != null && target > 0;
+    final isOver = hasTarget && current > target;
+    final isUnder = hasTarget && current < target;
+    final isWarning = isMax ? isOver : isUnder;
+
+    return Column(
+      children: [
+        Text(
+          '${current}g',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: isWarning ? theme.colorScheme.error : color,
+          ),
+        ),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: color,
+          ),
+        ),
+        if (hasTarget)
+          Text(
+            isMax ? '≤$target g' : '≥$target g',
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.outline,
               fontSize: 10,
@@ -436,13 +527,22 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
     final description = _descriptionController.text.trim();
     if (description.isEmpty) return;
 
+    final ai = AIService();
+
+    // Check if Claude API key is configured
+    if (!ai.hasApiKey()) {
+      setState(() {
+        _estimateError = 'Claude API key not configured. Go to Settings → AI Settings to add your API key.';
+      });
+      return;
+    }
+
     setState(() {
       _isEstimating = true;
       _estimateError = null;
     });
 
     try {
-      final ai = AIService();
       final estimate = await ai.estimateNutrition(description);
 
       if (mounted) {
@@ -450,7 +550,7 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
           _nutrition = estimate;
           _isEstimating = false;
           if (estimate == null) {
-            _estimateError = 'Could not estimate nutrition. Try being more specific.';
+            _estimateError = 'Could not estimate nutrition. Try being more specific about the food and portion size.';
           }
         });
       }
@@ -611,7 +711,7 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
             ),
             AppSpacing.gapVerticalMd,
 
-            // Meal type selector
+            // Meal type selector with label below
             SegmentedButton<MealType>(
               segments: MealType.values
                   .map((type) => ButtonSegment(
@@ -625,6 +725,13 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
                 setState(() => _selectedMealType = selected.first);
               },
               showSelectedIcon: false,
+            ),
+            AppSpacing.gapVerticalSm,
+            Text(
+              'Meal Type: ${_selectedMealType.displayName}',
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
             ),
             AppSpacing.gapVerticalMd,
 
@@ -722,6 +829,44 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
                           _buildNutritionValue('Fat', '${_nutrition!.fatGrams}', 'g'),
                         ],
                       ),
+                      // Fat breakdown row (if available)
+                      if (_nutrition!.saturatedFatGrams != null ||
+                          _nutrition!.unsaturatedFatGrams != null ||
+                          _nutrition!.transFatGrams != null) ...[
+                        AppSpacing.gapVerticalSm,
+                        Divider(color: theme.colorScheme.outlineVariant),
+                        AppSpacing.gapVerticalSm,
+                        Text(
+                          'Fat Breakdown',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                          ),
+                        ),
+                        AppSpacing.gapVerticalXs,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildNutritionValue(
+                              'Saturated',
+                              '${_nutrition!.saturatedFatGrams ?? 0}',
+                              'g',
+                              color: theme.colorScheme.error.withValues(alpha: 0.8),
+                            ),
+                            _buildNutritionValue(
+                              'Unsaturated',
+                              '${_nutrition!.unsaturatedFatGrams ?? 0}',
+                              'g',
+                              color: Colors.green.shade700,
+                            ),
+                            _buildNutritionValue(
+                              'Trans',
+                              '${_nutrition!.transFatGrams ?? 0}',
+                              'g',
+                              color: theme.colorScheme.error,
+                            ),
+                          ],
+                        ),
+                      ],
                       if (_nutrition!.notes != null) ...[
                         AppSpacing.gapVerticalSm,
                         Text(
@@ -754,7 +899,7 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
     );
   }
 
-  Widget _buildNutritionValue(String label, String value, String unit) {
+  Widget _buildNutritionValue(String label, String value, String unit, {Color? color}) {
     final theme = Theme.of(context);
 
     return Column(
@@ -763,12 +908,13 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
           value,
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
+            color: color,
           ),
         ),
         Text(
           '$label ($unit)',
           style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.outline,
+            color: color ?? theme.colorScheme.outline,
           ),
         ),
       ],
@@ -841,6 +987,16 @@ class _GoalSettingsSheetState extends State<_GoalSettingsSheet> {
   final _proteinController = TextEditingController();
   final _carbsController = TextEditingController();
   final _fatController = TextEditingController();
+  final _healthConcernsController = TextEditingController();
+
+  // Micronutrient controllers
+  final _sodiumController = TextEditingController();
+  final _sugarController = TextEditingController();
+  final _fiberController = TextEditingController();
+
+  String? _activityLevel;
+  bool _isGenerating = false;
+  bool _showMicronutrients = false;
 
   @override
   void initState() {
@@ -851,6 +1007,21 @@ class _GoalSettingsSheetState extends State<_GoalSettingsSheet> {
     _proteinController.text = (goal.targetProteinGrams ?? 0).toString();
     _carbsController.text = (goal.targetCarbsGrams ?? 0).toString();
     _fatController.text = (goal.targetFatGrams ?? 0).toString();
+    _activityLevel = goal.activityLevel;
+    if (goal.healthConcerns != null) {
+      _healthConcernsController.text = goal.healthConcerns!;
+    }
+    // Micronutrients
+    if (goal.maxSodiumMg != null) {
+      _sodiumController.text = goal.maxSodiumMg.toString();
+    }
+    if (goal.maxSugarGrams != null) {
+      _sugarController.text = goal.maxSugarGrams.toString();
+    }
+    if (goal.minFiberGrams != null) {
+      _fiberController.text = goal.minFiberGrams.toString();
+    }
+    _showMicronutrients = goal.hasMicronutrientTargets;
   }
 
   @override
@@ -859,7 +1030,86 @@ class _GoalSettingsSheetState extends State<_GoalSettingsSheet> {
     _proteinController.dispose();
     _carbsController.dispose();
     _fatController.dispose();
+    _healthConcernsController.dispose();
+    _sodiumController.dispose();
+    _sugarController.dispose();
+    _fiberController.dispose();
     super.dispose();
+  }
+
+  Future<void> _generateWithAI() async {
+    setState(() => _isGenerating = true);
+
+    try {
+      final weightProvider = context.read<WeightProvider>();
+      final nutritionService = NutritionGoalService();
+
+      final profile = NutritionProfile(
+        weightKg: weightProvider.latestEntry?.weightInKg,
+        heightCm: weightProvider.height,
+        gender: weightProvider.gender,
+        age: weightProvider.age,
+        activityLevel: _activityLevel,
+        weightGoal: weightProvider.goal,
+        healthConcerns: _healthConcernsController.text.trim().isNotEmpty
+            ? _healthConcernsController.text.trim()
+            : null,
+      );
+
+      final result = await nutritionService.generateNutritionGoals(profile);
+
+      if (!mounted) return;
+
+      if (result.success) {
+        final goal = result.goal;
+        setState(() {
+          _caloriesController.text = goal.targetCalories.toString();
+          _proteinController.text = (goal.targetProteinGrams ?? 0).toString();
+          _carbsController.text = (goal.targetCarbsGrams ?? 0).toString();
+          _fatController.text = (goal.targetFatGrams ?? 0).toString();
+          if (goal.maxSodiumMg != null) {
+            _sodiumController.text = goal.maxSodiumMg.toString();
+            _showMicronutrients = true;
+          }
+          if (goal.maxSugarGrams != null) {
+            _sugarController.text = goal.maxSugarGrams.toString();
+            _showMicronutrients = true;
+          }
+          if (goal.minFiberGrams != null) {
+            _fiberController.text = goal.minFiberGrams.toString();
+            _showMicronutrients = true;
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.reasoning),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage ?? 'Failed to generate goals'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
+    }
   }
 
   void _save() {
@@ -868,6 +1118,13 @@ class _GoalSettingsSheetState extends State<_GoalSettingsSheet> {
       targetProteinGrams: int.tryParse(_proteinController.text),
       targetCarbsGrams: int.tryParse(_carbsController.text),
       targetFatGrams: int.tryParse(_fatController.text),
+      maxSodiumMg: int.tryParse(_sodiumController.text),
+      maxSugarGrams: int.tryParse(_sugarController.text),
+      minFiberGrams: int.tryParse(_fiberController.text),
+      healthConcerns: _healthConcernsController.text.trim().isNotEmpty
+          ? _healthConcernsController.text.trim()
+          : null,
+      activityLevel: _activityLevel,
     );
 
     context.read<FoodLogProvider>().setGoal(goal);
@@ -898,7 +1155,104 @@ class _GoalSettingsSheetState extends State<_GoalSettingsSheet> {
                 ),
               ],
             ),
+
             AppSpacing.gapVerticalMd,
+
+            // AI Assistance section
+            Card(
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.auto_awesome,
+                            size: 20, color: theme.colorScheme.primary),
+                        AppSpacing.gapHorizontalSm,
+                        Text(
+                          'AI-Assisted Goals',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    AppSpacing.gapVerticalSm,
+                    TextField(
+                      controller: _healthConcernsController,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g., "lower triglycerides" or "manage blood pressure"',
+                        labelText: 'Health Concerns (Optional)',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      maxLines: 2,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                    AppSpacing.gapVerticalSm,
+                    DropdownButtonFormField<String>(
+                      value: _activityLevel,
+                      decoration: const InputDecoration(
+                        labelText: 'Activity Level',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'sedentary',
+                          child: Text('Sedentary'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'light',
+                          child: Text('Light (1-3 days/week)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'moderate',
+                          child: Text('Moderate (3-5 days/week)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'active',
+                          child: Text('Active (6-7 days/week)'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'very_active',
+                          child: Text('Very Active'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _activityLevel = value);
+                      },
+                    ),
+                    AppSpacing.gapVerticalSm,
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _isGenerating ? null : _generateWithAI,
+                        icon: _isGenerating
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.auto_awesome, size: 18),
+                        label: Text(_isGenerating
+                            ? 'Generating...'
+                            : 'Generate Goals with AI'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            AppSpacing.gapVerticalLg,
+
+            // Macros section
+            Text('Macros', style: theme.textTheme.titleSmall),
+            AppSpacing.gapVerticalSm,
+
             TextField(
               controller: _caloriesController,
               decoration: const InputDecoration(
@@ -948,6 +1302,72 @@ class _GoalSettingsSheetState extends State<_GoalSettingsSheet> {
                 ),
               ],
             ),
+
+            AppSpacing.gapVerticalMd,
+
+            // Micronutrients toggle
+            InkWell(
+              onTap: () => setState(() => _showMicronutrients = !_showMicronutrients),
+              child: Row(
+                children: [
+                  Icon(
+                    _showMicronutrients
+                        ? Icons.expand_less
+                        : Icons.expand_more,
+                    size: 20,
+                  ),
+                  AppSpacing.gapHorizontalSm,
+                  Text(
+                    'Micronutrients',
+                    style: theme.textTheme.titleSmall,
+                  ),
+                ],
+              ),
+            ),
+
+            if (_showMicronutrients) ...[
+              AppSpacing.gapVerticalSm,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _sodiumController,
+                      decoration: const InputDecoration(
+                        labelText: 'Sodium (max)',
+                        suffixText: 'mg',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  AppSpacing.gapHorizontalSm,
+                  Expanded(
+                    child: TextField(
+                      controller: _sugarController,
+                      decoration: const InputDecoration(
+                        labelText: 'Sugar (max)',
+                        suffixText: 'g',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  AppSpacing.gapHorizontalSm,
+                  Expanded(
+                    child: TextField(
+                      controller: _fiberController,
+                      decoration: const InputDecoration(
+                        labelText: 'Fiber (min)',
+                        suffixText: 'g',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
             AppSpacing.gapVerticalLg,
             FilledButton(
               onPressed: _save,

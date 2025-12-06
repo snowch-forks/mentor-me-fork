@@ -4,7 +4,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/storage_service.dart';
+import '../services/nutrition_goal_service.dart';
 import '../providers/weight_provider.dart';
+import '../providers/food_log_provider.dart';
 import '../theme/app_spacing.dart';
 import '../constants/app_strings.dart';
 
@@ -32,6 +34,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   // Gender
   String? _selectedGender;
 
+  // Age
+  final _ageController = TextEditingController();
+
+  // Nutrition goals
+  String? _activityLevel;
+  final _healthConcernsController = TextEditingController();
+  bool _isGeneratingNutritionGoals = false;
+
   @override
   void initState() {
     super.initState();
@@ -44,6 +54,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     _heightCmController.dispose();
     _heightFeetController.dispose();
     _heightInchesController.dispose();
+    _ageController.dispose();
+    _healthConcernsController.dispose();
     super.dispose();
   }
 
@@ -75,6 +87,22 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
 
     _selectedGender = gender;
+
+    // Load age
+    final age = weightProvider.age;
+    if (age != null) {
+      _ageController.text = age.toString();
+    }
+
+    // Load nutrition goal settings
+    final foodLogProvider = context.read<FoodLogProvider>();
+    final goal = foodLogProvider.goal;
+    if (goal != null) {
+      _activityLevel = goal.activityLevel;
+      if (goal.healthConcerns != null) {
+        _healthConcernsController.text = goal.healthConcerns!;
+      }
+    }
 
     setState(() => _isLoading = false);
   }
@@ -186,6 +214,92 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     setState(() {
       _selectedGender = gender;
     });
+  }
+
+  Future<void> _saveAge() async {
+    final age = int.tryParse(_ageController.text);
+    if (age != null && age > 0 && age < 150) {
+      final weightProvider = context.read<WeightProvider>();
+      await weightProvider.setAge(age);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Age saved'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } else if (_ageController.text.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid age'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _generateNutritionGoals() async {
+    setState(() => _isGeneratingNutritionGoals = true);
+
+    try {
+      final weightProvider = context.read<WeightProvider>();
+      final foodLogProvider = context.read<FoodLogProvider>();
+      final nutritionService = NutritionGoalService();
+
+      // Build profile from available data
+      final profile = NutritionProfile(
+        weightKg: weightProvider.latestEntry?.weightInKg,
+        heightCm: weightProvider.height,
+        gender: weightProvider.gender,
+        age: weightProvider.age,
+        activityLevel: _activityLevel,
+        weightGoal: weightProvider.goal,
+        healthConcerns: _healthConcernsController.text.trim().isNotEmpty
+            ? _healthConcernsController.text.trim()
+            : null,
+      );
+
+      final result = await nutritionService.generateNutritionGoals(profile);
+
+      if (!mounted) return;
+
+      if (result.success) {
+        await foodLogProvider.setGoal(result.goal);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Nutrition goals generated! ${result.reasoning}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage ?? 'Failed to generate goals'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGeneratingNutritionGoals = false);
+      }
+    }
   }
 
   @override
@@ -338,6 +452,52 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
           AppSpacing.gapXl,
 
+          // Age Section
+          Text(
+            'Age',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          AppSpacing.gapMd,
+          Text(
+            'Used for more accurate calorie and BMR calculations',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+          ),
+          AppSpacing.gapLg,
+
+          // Age input
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ageController,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Age',
+                    hintText: 'e.g., 30',
+                    prefixIcon: Icon(Icons.cake),
+                    suffixText: 'years',
+                  ),
+                  keyboardType: TextInputType.number,
+                  onSubmitted: (_) => _saveAge(),
+                ),
+              ),
+              AppSpacing.gapHorizontalMd,
+              IconButton.filled(
+                onPressed: _saveAge,
+                icon: const Icon(Icons.check),
+                tooltip: 'Save age',
+              ),
+            ],
+          ),
+
+          AppSpacing.gapXl,
+
+          const Divider(),
+
+          AppSpacing.gapXl,
+
           // Height Section
           Text(
             'Height',
@@ -434,8 +594,276 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
             ),
           ),
 
+          AppSpacing.gapXl,
+
+          const Divider(),
+
+          AppSpacing.gapXl,
+
+          // Nutrition Goals Section
+          Text(
+            'Nutrition Goals',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          AppSpacing.gapMd,
+          Text(
+            'Set personalized nutrition targets with AI assistance based on your profile and health concerns.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+          ),
+          AppSpacing.gapLg,
+
+          // Activity Level
+          Text(
+            'Activity Level',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          AppSpacing.gapSm,
+          DropdownButtonFormField<String>(
+            value: _activityLevel,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'Select your activity level',
+              prefixIcon: Icon(Icons.directions_run),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: 'sedentary',
+                child: Text('Sedentary (little or no exercise)'),
+              ),
+              DropdownMenuItem(
+                value: 'light',
+                child: Text('Light (1-3 days/week)'),
+              ),
+              DropdownMenuItem(
+                value: 'moderate',
+                child: Text('Moderate (3-5 days/week)'),
+              ),
+              DropdownMenuItem(
+                value: 'active',
+                child: Text('Active (6-7 days/week)'),
+              ),
+              DropdownMenuItem(
+                value: 'very_active',
+                child: Text('Very Active (physical job)'),
+              ),
+            ],
+            onChanged: (value) {
+              setState(() => _activityLevel = value);
+            },
+          ),
+
+          AppSpacing.gapLg,
+
+          // Health Concerns
+          Text(
+            'Health Concerns (Optional)',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          AppSpacing.gapSm,
+          Text(
+            'Tell us about any health goals or concerns, and we\'ll adjust your nutrition targets accordingly.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+          ),
+          AppSpacing.gapSm,
+          TextField(
+            controller: _healthConcernsController,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'e.g., "I want to lower triglycerides" or "managing blood pressure"',
+              prefixIcon: Icon(Icons.health_and_safety),
+            ),
+            maxLines: 3,
+            textCapitalization: TextCapitalization.sentences,
+          ),
+
+          AppSpacing.gapLg,
+
+          // Generate Goals Button
+          FilledButton.icon(
+            onPressed: _isGeneratingNutritionGoals ? null : _generateNutritionGoals,
+            icon: _isGeneratingNutritionGoals
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome),
+            label: Text(_isGeneratingNutritionGoals
+                ? 'Generating...'
+                : 'Generate AI Nutrition Goals'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+              minimumSize: const Size(double.infinity, 56),
+            ),
+          ),
+
+          AppSpacing.gapLg,
+
+          // Current Goals Display
+          Consumer<FoodLogProvider>(
+            builder: (context, foodLogProvider, child) {
+              final goal = foodLogProvider.goal;
+              if (goal == null) {
+                return Card(
+                  child: Padding(
+                    padding: AppSpacing.paddingLg,
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 32,
+                        ),
+                        AppSpacing.gapMd,
+                        Text(
+                          'No nutrition goals set',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        AppSpacing.gapSm,
+                        Text(
+                          'Use the button above to generate personalized goals based on your profile.',
+                          style: Theme.of(context).textTheme.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return Card(
+                child: Padding(
+                  padding: AppSpacing.paddingLg,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          AppSpacing.gapHorizontalSm,
+                          Text(
+                            'Current Nutrition Goals',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          if (goal.isAiGenerated) ...[
+                            AppSpacing.gapHorizontalSm,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'AI',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      AppSpacing.gapMd,
+
+                      // Macros
+                      _buildGoalRow('Calories', '${goal.targetCalories} kcal'),
+                      if (goal.targetProteinGrams != null)
+                        _buildGoalRow('Protein', '${goal.targetProteinGrams}g'),
+                      if (goal.targetCarbsGrams != null)
+                        _buildGoalRow('Carbs', '${goal.targetCarbsGrams}g'),
+                      if (goal.targetFatGrams != null)
+                        _buildGoalRow('Fat', '${goal.targetFatGrams}g'),
+
+                      // Micronutrients (if set)
+                      if (goal.hasMicronutrientTargets) ...[
+                        AppSpacing.gapMd,
+                        Text(
+                          'Micronutrients',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        AppSpacing.gapSm,
+                        if (goal.maxSodiumMg != null)
+                          _buildGoalRow('Sodium (max)', '${goal.maxSodiumMg}mg'),
+                        if (goal.maxSugarGrams != null)
+                          _buildGoalRow('Sugar (max)', '${goal.maxSugarGrams}g'),
+                        if (goal.minFiberGrams != null)
+                          _buildGoalRow('Fiber (min)', '${goal.minFiberGrams}g'),
+                        if (goal.maxCholesterolMg != null)
+                          _buildGoalRow('Cholesterol (max)', '${goal.maxCholesterolMg}mg'),
+                        if (goal.minPotassiumMg != null)
+                          _buildGoalRow('Potassium (min)', '${goal.minPotassiumMg}mg'),
+                      ],
+
+                      // AI Reasoning
+                      if (goal.aiReasoning != null && goal.aiReasoning!.isNotEmpty) ...[
+                        AppSpacing.gapMd,
+                        Container(
+                          padding: AppSpacing.paddingMd,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.lightbulb_outline,
+                                size: 16,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              AppSpacing.gapHorizontalSm,
+                              Expanded(
+                                child: Text(
+                                  goal.aiReasoning!,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+
           // Extra bottom padding for nav bar
           const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoalRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
         ],
       ),
     );

@@ -10,6 +10,7 @@ class WeightProvider extends ChangeNotifier {
   WeightUnit _preferredUnit = WeightUnit.kg;
   double? _height; // In cm, for BMI calculation
   String? _gender; // 'male', 'female', 'other'
+  int? _age; // Age in years, for BMR/TDEE calculations
   bool _isLoading = false;
 
   List<WeightEntry> get entries => _entries;
@@ -17,6 +18,7 @@ class WeightProvider extends ChangeNotifier {
   WeightUnit get preferredUnit => _preferredUnit;
   double? get height => _height;
   String? get gender => _gender;
+  int? get age => _age;
   bool get isLoading => _isLoading;
 
   /// Most recent weight entry
@@ -44,6 +46,7 @@ class WeightProvider extends ChangeNotifier {
     _preferredUnit = await _storage.loadWeightUnit();
     _height = await _storage.loadHeight();
     _gender = await _storage.loadGender();
+    _age = await _storage.loadAge();
 
     // Sort by timestamp (most recent first)
     _entries.sort((a, b) => b.timestamp.compareTo(a.timestamp));
@@ -150,6 +153,13 @@ class WeightProvider extends ChangeNotifier {
   Future<void> setGender(String? gender) async {
     _gender = gender;
     await _storage.saveGender(gender);
+    notifyListeners();
+  }
+
+  /// Set age (for BMR/TDEE calculations)
+  Future<void> setAge(int? age) async {
+    _age = age;
+    await _storage.saveAge(age);
     notifyListeners();
   }
 

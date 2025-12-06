@@ -1141,7 +1141,7 @@ Goals:''';
 Food: $foodDescription
 
 Respond with ONLY valid JSON in this exact format (no markdown, no explanation):
-{"calories": 450, "proteinGrams": 35, "carbsGrams": 20, "fatGrams": 28, "saturatedFatGrams": 8, "unsaturatedFatGrams": 18, "transFatGrams": 0, "fiberGrams": 4, "sugarGrams": 3, "confidence": "medium", "notes": "Estimated based on typical caesar salad with grilled chicken"}
+{"calories": 450, "proteinGrams": 35, "carbsGrams": 20, "fatGrams": 28, "saturatedFatGrams": 8, "unsaturatedFatGrams": 18, "transFatGrams": 0, "fiberGrams": 4, "sugarGrams": 3, "sodiumMg": 850, "potassiumMg": 400, "cholesterolMg": 75, "confidence": "medium", "notes": "Estimated based on typical caesar salad with grilled chicken"}
 
 Guidelines:
 - calories: total estimated calories (integer)
@@ -1153,6 +1153,9 @@ Guidelines:
 - transFatGrams: grams of trans fat (integer) - typically 0 for whole foods
 - fiberGrams: grams of dietary fiber (integer)
 - sugarGrams: grams of sugar (integer)
+- sodiumMg: milligrams of sodium (integer) - important for blood pressure
+- potassiumMg: milligrams of potassium (integer) - heart health
+- cholesterolMg: milligrams of cholesterol (integer) - cardiovascular health
 - confidence: "high" for common foods with clear portions, "medium" for typical meals, "low" for vague descriptions
 - notes: brief explanation of your estimate (optional)
 
@@ -1195,6 +1198,10 @@ JSON:''';
         'transFatGrams': parseIntSafe(parsed['transFatGrams'] ?? parsed['transFat']),
         'fiberGrams': parseIntSafe(parsed['fiberGrams'] ?? parsed['fiber']),
         'sugarGrams': parseIntSafe(parsed['sugarGrams'] ?? parsed['sugar']),
+        // Micronutrients for health-specific tracking
+        'sodiumMg': parsed['sodiumMg'] != null ? parseIntSafe(parsed['sodiumMg'] ?? parsed['sodium']) : null,
+        'potassiumMg': parsed['potassiumMg'] != null ? parseIntSafe(parsed['potassiumMg'] ?? parsed['potassium']) : null,
+        'cholesterolMg': parsed['cholesterolMg'] != null ? parseIntSafe(parsed['cholesterolMg'] ?? parsed['cholesterol']) : null,
         'confidence': parsed['confidence']?.toString(),
         'notes': parsed['notes']?.toString(),
       };
@@ -1206,6 +1213,9 @@ JSON:''';
         'protein': estimate.proteinGrams,
         'carbs': estimate.carbsGrams,
         'fat': estimate.fatGrams,
+        'sodium': estimate.sodiumMg,
+        'potassium': estimate.potassiumMg,
+        'cholesterol': estimate.cholesterolMg,
         'confidence': estimate.confidence,
       });
 
@@ -1230,6 +1240,8 @@ JSON:''';
     int? totalSets,
     int? totalReps,
     double? userWeightKg,
+    double? userHeightCm,
+    int? userAge,
     String? userGender,
   }) async {
     if (!hasApiKey()) {
@@ -1268,6 +1280,14 @@ JSON:''';
       final userInfo = StringBuffer();
       if (userWeightKg != null) {
         userInfo.write('User weight: ${userWeightKg.toStringAsFixed(1)} kg');
+      }
+      if (userHeightCm != null) {
+        if (userInfo.isNotEmpty) userInfo.write(', ');
+        userInfo.write('Height: ${userHeightCm.toStringAsFixed(0)} cm');
+      }
+      if (userAge != null) {
+        if (userInfo.isNotEmpty) userInfo.write(', ');
+        userInfo.write('Age: $userAge years');
       }
       if (userGender != null) {
         if (userInfo.isNotEmpty) userInfo.write(', ');

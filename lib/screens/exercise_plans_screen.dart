@@ -1746,12 +1746,17 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
     BuildContext context,
     WorkoutLog workout,
   ) async {
-    // Get user weight and gender if available
-    double? userWeight;
+    // Get user weight (in kg), height, age, and gender if available
+    double? userWeightKg;
+    double? userHeightCm;
+    int? userAge;
     String? userGender;
     try {
       final weightProvider = context.read<WeightProvider>();
-      userWeight = weightProvider.currentWeight;
+      // Use weightInKg to ensure correct unit for calorie calculation
+      userWeightKg = weightProvider.latestEntry?.weightInKg;
+      userHeightCm = weightProvider.height;
+      userAge = weightProvider.age;
       userGender = weightProvider.gender;
     } catch (_) {
       // Provider not available
@@ -1784,7 +1789,9 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
       durationMinutes: durationMinutes,
       totalSets: workout.totalSetsCompleted,
       totalReps: workout.totalRepsCompleted,
-      userWeightKg: userWeight,
+      userWeightKg: userWeightKg,
+      userHeightCm: userHeightCm,
+      userAge: userAge,
       userGender: userGender,
     );
   }
