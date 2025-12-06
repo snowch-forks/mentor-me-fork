@@ -243,10 +243,10 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         // Reload backup settings to check if location was reset
         await _loadAutoBackupSettings();
 
-        // Check if backup location was reset to internal (happens when restoring
-        // a backup that had external storage but SAF URI is not available)
+        // Check if External Storage is selected but SAF permission is missing
+        // This happens after fresh install when restoring a backup that had external storage
         final settings = await _storage.loadSettings();
-        final wasReset = settings['autoBackupLocation'] == 'internal' &&
+        final needsFolderSelection = settings['autoBackupLocation'] == 'downloads' &&
             !(await _safService.hasFolderAccess());
 
         if (!mounted) return;
@@ -261,7 +261,7 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
         _showImportResultDialog(result);
 
         // Show folder selection dialog if external storage was configured but permission is missing
-        if (wasReset && _autoBackupEnabled) {
+        if (needsFolderSelection && _autoBackupEnabled) {
           Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
               _showFolderSelectionPrompt();

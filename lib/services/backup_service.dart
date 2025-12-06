@@ -966,18 +966,14 @@ class BackupService {
 
         await _storage.saveSettings(mergedSettings);
 
-        // Post-import validation: Check if External Storage is selected but SAF not configured
-        // This happens after fresh install when restoring a backup that had external storage
+        // Note: If External Storage was selected in the backup, we keep that setting
+        // The UI will prompt the user to re-select a folder since SAF permissions
+        // are installation-specific and need to be re-granted after reinstall
         final restoredLocation = mergedSettings['autoBackupLocation'] as String?;
         if (restoredLocation == 'downloads') {
-          // External storage selected but no valid SAF permission - reset to internal storage
-          // (saf_folder_uri was removed above, so SAF will need to be reconfigured)
-          mergedSettings['autoBackupLocation'] = 'internal';
-          await _storage.saveSettings(mergedSettings);
-
           await _debug.info(
             'BackupService',
-            'Reset backup location to Internal Storage (External Storage requires folder selection after fresh install)',
+            'External Storage setting restored - user will need to re-select folder (SAF permission required after fresh install)',
           );
         }
 
