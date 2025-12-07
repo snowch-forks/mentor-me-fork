@@ -734,6 +734,34 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
     );
   }
 
+  Future<void> _confirmDeleteEntry(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Entry'),
+        content: Text('Are you sure you want to delete "${widget.existingEntry?.description}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final provider = context.read<FoodLogProvider>();
+      provider.deleteEntry(widget.existingEntry!.id);
+      widget.onSaved?.call();
+      Navigator.pop(context);
+    }
+  }
+
   void _save() {
     final description = _descriptionController.text.trim();
     if (description.isEmpty) return;
@@ -790,9 +818,20 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
                   widget.existingEntry != null ? 'Edit Food' : 'Log Food',
                   style: theme.textTheme.titleLarge,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.existingEntry != null)
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red),
+                        tooltip: 'Delete entry',
+                        onPressed: () => _confirmDeleteEntry(context),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
                 ),
               ],
             ),

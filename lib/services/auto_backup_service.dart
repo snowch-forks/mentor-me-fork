@@ -179,6 +179,7 @@ class AutoBackupService extends ChangeNotifier {
       // Set flag so UI can prompt user to re-select folder
       _needsFolderReauthorization = true;
       _lastBackupFellBack = true;
+      _lastBackupError = 'Backup folder access lost. Please re-select your backup folder in Settings.';
       notifyListeners();
 
       await _debug.warning(
