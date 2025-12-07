@@ -20,6 +20,15 @@ class ExercisePlansScreen extends StatelessWidget {
         title: const Text('Exercise Plans'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.bolt),
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              builder: (context) => const _QuickLogBottomSheet(),
+            ),
+            tooltip: 'Quick Log Exercise',
+          ),
+          IconButton(
             icon: const Icon(Icons.history),
             onPressed: () => Navigator.push(
               context,
@@ -1274,7 +1283,7 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                       ),
                 ),
                 Text(
-                  '${workout.totalSetsCompleted} sets • ${workout.totalRepsCompleted} reps',
+                  _buildWorkoutSummary(workout, provider),
                   style: TextStyle(color: Colors.grey[600]),
                 ),
               ],
@@ -1312,11 +1321,54 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
     );
   }
 
+  String _buildWorkoutSummary(WorkoutLog workout, ExerciseProvider provider) {
+    int totalDurationMinutes = 0;
+    int totalSets = 0;
+    int totalReps = 0;
+    bool hasCardioOrTimed = false;
+    bool hasStrength = false;
+
+    for (final exercise in workout.exercises) {
+      final exerciseInfo = provider.findExercise(exercise.exerciseId);
+      final exerciseType = exerciseInfo?.exerciseType ?? ExerciseType.strength;
+
+      for (final set in exercise.completedSets) {
+        if (exerciseType == ExerciseType.cardio || exerciseType == ExerciseType.timed) {
+          hasCardioOrTimed = true;
+          if (set.duration != null) {
+            totalDurationMinutes += set.duration!.inMinutes;
+          }
+        } else {
+          hasStrength = true;
+          totalSets++;
+          totalReps += set.reps;
+        }
+      }
+    }
+
+    final parts = <String>[];
+    if (hasCardioOrTimed && totalDurationMinutes > 0) {
+      parts.add('${totalDurationMinutes}m activity');
+    }
+    if (hasStrength) {
+      parts.add('$totalSets sets • $totalReps reps');
+    }
+    if (parts.isEmpty) {
+      parts.add('${workout.exercises.length} exercise${workout.exercises.length == 1 ? '' : 's'}');
+    }
+    return parts.join(' | ');
+  }
+
   Widget _buildExerciseCard(
     BuildContext context,
     LoggedExercise exercise,
     ExerciseProvider provider,
   ) {
+    // Look up the exercise to determine its type
+    final exerciseInfo = provider.findExercise(exercise.exerciseId);
+    final exerciseType = exerciseInfo?.exerciseType ?? ExerciseType.strength;
+    final isStrength = exerciseType == ExerciseType.strength;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -1324,11 +1376,27 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              exercise.name,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                Icon(
+                  exerciseType == ExerciseType.cardio
+                      ? Icons.directions_run
+                      : exerciseType == ExerciseType.timed
+                          ? Icons.timer
+                          : Icons.fitness_center,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    exercise.name,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
+                ),
+              ],
             ),
             if (exercise.notes != null && exercise.notes!.isNotEmpty) ...[
               const SizedBox(height: 4),
@@ -1341,7 +1409,7 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
               ),
             ],
             const SizedBox(height: 12),
-            // Completed sets
+            // Completed sets/activities
             if (exercise.completedSets.isNotEmpty) ...[
               Wrap(
                 spacing: 8,
@@ -1349,11 +1417,7 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                 children: exercise.completedSets.asMap().entries.map((entry) {
                   final set = entry.value;
                   return Chip(
-                    label: Text(
-                      set.weight != null
-                          ? '${set.reps} × ${set.weight!.toStringAsFixed(1)}kg'
-                          : '${set.reps} reps',
-                    ),
+                    label: Text(_formatSetDisplay(set, exerciseType)),
                     deleteIcon: const Icon(Icons.close, size: 16),
                     onDeleted: () {
                       provider.removeLastSet(exercise.exerciseId);
@@ -1363,11 +1427,15 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
               ),
               const SizedBox(height: 12),
             ],
-            // Log set button
+            // Log button - different text based on exercise type
             FilledButton.tonalIcon(
               onPressed: () => _showLogSetDialog(context, exercise, provider),
               icon: const Icon(Icons.add),
-              label: Text('Log Set ${exercise.completedSets.length + 1}'),
+              label: Text(isStrength
+                  ? 'Log Set ${exercise.completedSets.length + 1}'
+                  : exercise.completedSets.isEmpty
+                      ? 'Log Activity'
+                      : 'Log Another'),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(40),
               ),
@@ -1378,7 +1446,57 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
     );
   }
 
+  String _formatSetDisplay(ExerciseSet set, ExerciseType type) {
+    switch (type) {
+      case ExerciseType.cardio:
+        final parts = <String>[];
+        if (set.duration != null) {
+          parts.add('${set.duration!.inMinutes}m');
+        }
+        if (set.distance != null) {
+          parts.add('${set.distance!.toStringAsFixed(1)}km');
+        }
+        if (set.level != null) {
+          parts.add('L${set.level}');
+        }
+        return parts.isEmpty ? 'Done' : parts.join(' · ');
+      case ExerciseType.timed:
+        if (set.duration != null) {
+          return '${set.duration!.inMinutes}m';
+        }
+        return 'Done';
+      case ExerciseType.strength:
+        if (set.weight != null) {
+          return '${set.reps} × ${set.weight!.toStringAsFixed(1)}kg';
+        }
+        return '${set.reps} reps';
+    }
+  }
+
   void _showLogSetDialog(
+    BuildContext context,
+    LoggedExercise exercise,
+    ExerciseProvider provider,
+  ) {
+    // Look up the exercise to determine its type
+    final exerciseInfo = provider.findExercise(exercise.exerciseId);
+    final exerciseType = exerciseInfo?.exerciseType ?? ExerciseType.strength;
+
+    // Show the appropriate dialog based on exercise type
+    switch (exerciseType) {
+      case ExerciseType.cardio:
+        _showCardioLogDialog(context, exercise, provider, exerciseInfo);
+        break;
+      case ExerciseType.timed:
+        _showTimedLogDialog(context, exercise, provider, exerciseInfo);
+        break;
+      case ExerciseType.strength:
+        _showStrengthLogDialog(context, exercise, provider);
+        break;
+    }
+  }
+
+  void _showStrengthLogDialog(
     BuildContext context,
     LoggedExercise exercise,
     ExerciseProvider provider,
@@ -1464,6 +1582,218 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
                 exerciseId: exercise.exerciseId,
                 reps: reps,
                 weight: weight,
+              );
+              // Update exercise notes if provided
+              if (notes != null && notes != exercise.notes) {
+                provider.setExerciseNotes(exercise.exerciseId, notes);
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Log'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCardioLogDialog(
+    BuildContext context,
+    LoggedExercise exercise,
+    ExerciseProvider provider,
+    Exercise? exerciseInfo,
+  ) {
+    final durationController = TextEditingController(
+      text: '${exerciseInfo?.defaultDurationMinutes ?? 30}',
+    );
+    final distanceController = TextEditingController(
+      text: exerciseInfo?.defaultDistance?.toStringAsFixed(1) ?? '',
+    );
+    final levelController = TextEditingController(
+      text: exerciseInfo?.defaultLevel?.toString() ?? '',
+    );
+    final notesController = TextEditingController(text: exercise.notes ?? '');
+
+    // Pre-fill from last set if available
+    if (exercise.completedSets.isNotEmpty) {
+      final lastSet = exercise.completedSets.last;
+      if (lastSet.duration != null) {
+        durationController.text = '${lastSet.duration!.inMinutes}';
+      }
+      if (lastSet.distance != null) {
+        distanceController.text = lastSet.distance!.toStringAsFixed(1);
+      }
+      if (lastSet.level != null) {
+        levelController.text = '${lastSet.level}';
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Log - ${exercise.name}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: durationController,
+                decoration: const InputDecoration(
+                  labelText: 'Duration (minutes)',
+                  border: OutlineInputBorder(),
+                  suffixText: 'min',
+                ),
+                keyboardType: TextInputType.number,
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: distanceController,
+                decoration: const InputDecoration(
+                  labelText: 'Distance (optional)',
+                  border: OutlineInputBorder(),
+                  suffixText: 'km',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: levelController,
+                decoration: const InputDecoration(
+                  labelText: 'Intensity Level (optional)',
+                  border: OutlineInputBorder(),
+                  hintText: '1-10',
+                ),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Notes (optional)',
+                  border: OutlineInputBorder(),
+                  hintText: 'How did it feel?',
+                ),
+                maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final duration = int.tryParse(durationController.text) ?? 0;
+              if (duration <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a duration')),
+                );
+                return;
+              }
+
+              final distance = double.tryParse(distanceController.text);
+              final level = int.tryParse(levelController.text);
+              final notes = notesController.text.trim().isEmpty
+                  ? null
+                  : notesController.text.trim();
+
+              provider.logSet(
+                exerciseId: exercise.exerciseId,
+                reps: 1, // Cardio uses reps=1
+                duration: Duration(minutes: duration),
+                distance: distance,
+                level: level,
+              );
+              // Update exercise notes if provided
+              if (notes != null && notes != exercise.notes) {
+                provider.setExerciseNotes(exercise.exerciseId, notes);
+              }
+              Navigator.pop(context);
+            },
+            child: const Text('Log'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTimedLogDialog(
+    BuildContext context,
+    LoggedExercise exercise,
+    ExerciseProvider provider,
+    Exercise? exerciseInfo,
+  ) {
+    final durationController = TextEditingController(
+      text: '${exerciseInfo?.defaultDurationMinutes ?? 10}',
+    );
+    final notesController = TextEditingController(text: exercise.notes ?? '');
+
+    // Pre-fill from last set if available
+    if (exercise.completedSets.isNotEmpty) {
+      final lastSet = exercise.completedSets.last;
+      if (lastSet.duration != null) {
+        durationController.text = '${lastSet.duration!.inMinutes}';
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Log - ${exercise.name}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: durationController,
+                decoration: const InputDecoration(
+                  labelText: 'Duration (minutes)',
+                  border: OutlineInputBorder(),
+                  suffixText: 'min',
+                ),
+                keyboardType: TextInputType.number,
+                autofocus: true,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Notes (optional)',
+                  border: OutlineInputBorder(),
+                  hintText: 'How did it feel?',
+                ),
+                maxLines: 2,
+                textCapitalization: TextCapitalization.sentences,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final duration = int.tryParse(durationController.text) ?? 0;
+              if (duration <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a duration')),
+                );
+                return;
+              }
+
+              final notes = notesController.text.trim().isEmpty
+                  ? null
+                  : notesController.text.trim();
+
+              provider.logSet(
+                exerciseId: exercise.exerciseId,
+                reps: 1, // Timed uses reps=1
+                duration: Duration(minutes: duration),
               );
               // Update exercise notes if provided
               if (notes != null && notes != exercise.notes) {
@@ -1805,5 +2135,314 @@ class _WorkoutSessionScreenState extends State<WorkoutSessionScreen> {
       return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     }
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+}
+
+/// Bottom sheet for quickly logging a single exercise without a plan
+class _QuickLogBottomSheet extends StatefulWidget {
+  const _QuickLogBottomSheet();
+
+  @override
+  State<_QuickLogBottomSheet> createState() => _QuickLogBottomSheetState();
+}
+
+class _QuickLogBottomSheetState extends State<_QuickLogBottomSheet> {
+  final _nameController = TextEditingController();
+  final _notesController = TextEditingController();
+  ExerciseType _exerciseType = ExerciseType.cardio;
+  int _durationMinutes = 30;
+  double? _distance;
+  int? _level;
+  bool _isSaving = false;
+
+  // For preset selection
+  Exercise? _selectedPreset;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final provider = context.read<ExerciseProvider>();
+
+    // Get cardio/timed presets for quick selection
+    final quickPresets = Exercise.presets
+        .where((e) => e.exerciseType == ExerciseType.cardio ||
+                      e.exerciseType == ExerciseType.timed)
+        .toList();
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+
+            // Title
+            Text(
+              'Quick Log Exercise',
+              style: theme.textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Log a single activity without creating a plan',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.outline,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+
+            // Quick select from presets
+            Text(
+              'Quick Select',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 40,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: quickPresets.length,
+                itemBuilder: (context, index) {
+                  final preset = quickPresets[index];
+                  final isSelected = _selectedPreset?.id == preset.id;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(preset.name),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedPreset = preset;
+                            _nameController.text = preset.name;
+                            _exerciseType = preset.exerciseType;
+                            _durationMinutes = preset.defaultDurationMinutes ?? 30;
+                            _distance = preset.defaultDistance;
+                            _level = preset.defaultLevel;
+                          } else {
+                            _selectedPreset = null;
+                          }
+                        });
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Custom name field
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Activity Name',
+                hintText: 'e.g., Cross country walk',
+                prefixIcon: Icon(Icons.directions_walk),
+              ),
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: 16),
+
+            // Exercise type
+            SegmentedButton<ExerciseType>(
+              segments: const [
+                ButtonSegment(
+                  value: ExerciseType.cardio,
+                  label: Text('Cardio'),
+                  icon: Icon(Icons.directions_run),
+                ),
+                ButtonSegment(
+                  value: ExerciseType.timed,
+                  label: Text('Timed'),
+                  icon: Icon(Icons.timer),
+                ),
+              ],
+              selected: {_exerciseType},
+              onSelectionChanged: (selection) {
+                setState(() {
+                  _exerciseType = selection.first;
+                  _selectedPreset = null;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Duration
+            Row(
+              children: [
+                const Icon(Icons.schedule, size: 20),
+                const SizedBox(width: 8),
+                const Text('Duration:'),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Slider(
+                    value: _durationMinutes.toDouble(),
+                    min: 5,
+                    max: 180,
+                    divisions: 35,
+                    label: '${_durationMinutes}m',
+                    onChanged: (value) {
+                      setState(() {
+                        _durationMinutes = value.toInt();
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(
+                  width: 50,
+                  child: Text(
+                    '${_durationMinutes}m',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+
+            // Distance (for cardio)
+            if (_exerciseType == ExerciseType.cardio) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.straighten, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Distance:'),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Slider(
+                      value: (_distance ?? 0).clamp(0, 50),
+                      min: 0,
+                      max: 50,
+                      divisions: 50,
+                      label: _distance != null ? '${_distance!.toStringAsFixed(1)} km' : 'Not set',
+                      onChanged: (value) {
+                        setState(() {
+                          _distance = value > 0 ? value : null;
+                        });
+                      },
+                    ),
+                  ),
+                  SizedBox(
+                    width: 70,
+                    child: Text(
+                      _distance != null ? '${_distance!.toStringAsFixed(1)} km' : '—',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // Notes
+            TextField(
+              controller: _notesController,
+              decoration: const InputDecoration(
+                labelText: 'Notes (optional)',
+                hintText: 'How did it feel?',
+                prefixIcon: Icon(Icons.note),
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 24),
+
+            // Save button
+            FilledButton.icon(
+              onPressed: _isSaving ? null : () => _saveQuickLog(provider),
+              icon: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check),
+              label: Text(_isSaving ? 'Saving...' : 'Log Exercise'),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _saveQuickLog(ExerciseProvider provider) async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter an activity name')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await provider.quickLogExercise(
+        exerciseName: name,
+        exerciseType: _exerciseType,
+        durationMinutes: _durationMinutes,
+        distance: _distance,
+        level: _level,
+        notes: _notesController.text.trim().isNotEmpty
+            ? _notesController.text.trim()
+            : null,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Logged: $name (${_durationMinutes}m)'),
+            action: SnackBarAction(
+              label: 'View History',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const WorkoutHistoryScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
   }
 }

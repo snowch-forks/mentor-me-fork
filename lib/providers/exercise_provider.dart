@@ -253,6 +253,8 @@ class ExerciseProvider extends ChangeNotifier {
     required int reps,
     double? weight,
     Duration? duration,
+    int? level,
+    double? distance,
   }) {
     if (_activeWorkout == null) return;
 
@@ -265,6 +267,8 @@ class ExerciseProvider extends ChangeNotifier {
       reps: reps,
       weight: weight,
       duration: duration,
+      level: level,
+      distance: distance,
     );
 
     final updatedExercise = exercise.copyWith(
@@ -349,6 +353,84 @@ class ExerciseProvider extends ChangeNotifier {
   void cancelWorkout() {
     _activeWorkout = null;
     notifyListeners();
+  }
+
+  /// Quick log a single exercise without creating a plan
+  ///
+  /// Creates a complete workout log with one exercise in a single step.
+  /// Useful for logging activities like "Cross country walk" or "Swimming"
+  /// without creating a full workout plan.
+  Future<WorkoutLog> quickLogExercise({
+    required String exerciseName,
+    required ExerciseType exerciseType,
+    ExerciseCategory category = ExerciseCategory.cardio,
+    int? durationMinutes,
+    double? distance,
+    int? level,
+    int? sets,
+    int? reps,
+    double? weight,
+    String? notes,
+    int? caloriesBurned,
+    DateTime? timestamp,
+  }) async {
+    final exerciseId = 'quick_${_uuid.v4()}';
+    final now = timestamp ?? DateTime.now();
+
+    // Create the exercise set based on type
+    final ExerciseSet exerciseSet;
+    switch (exerciseType) {
+      case ExerciseType.cardio:
+        exerciseSet = ExerciseSet.cardio(
+          duration: Duration(minutes: durationMinutes ?? 30),
+          level: level,
+          distance: distance,
+        );
+        break;
+      case ExerciseType.timed:
+        exerciseSet = ExerciseSet.timed(
+          duration: Duration(minutes: durationMinutes ?? 10),
+        );
+        break;
+      case ExerciseType.strength:
+        exerciseSet = ExerciseSet.strength(
+          reps: reps ?? 10,
+          weight: weight,
+        );
+        break;
+    }
+
+    // Create the logged exercise
+    final loggedExercise = LoggedExercise(
+      exerciseId: exerciseId,
+      name: exerciseName,
+      completedSets: [exerciseSet],
+      notes: notes,
+    );
+
+    // Calculate end time based on duration
+    final endTime = durationMinutes != null
+        ? now.add(Duration(minutes: durationMinutes))
+        : now.add(const Duration(minutes: 1));
+
+    // Create the workout log
+    final workoutLog = WorkoutLog(
+      id: _uuid.v4(),
+      planId: null, // No plan - quick log
+      planName: exerciseName, // Use exercise name as display name
+      startTime: now,
+      endTime: endTime,
+      exercises: [loggedExercise],
+      notes: notes,
+      caloriesBurned: caloriesBurned,
+    );
+
+    // Save to workout logs
+    _workoutLogs.insert(0, workoutLog);
+    await _storage.saveWorkoutLogs(_workoutLogs);
+    notifyListeners();
+
+    return workoutLog;
   }
 
   /// Delete a workout log

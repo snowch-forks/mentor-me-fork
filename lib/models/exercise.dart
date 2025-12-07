@@ -695,12 +695,16 @@ class PlanExercise {
         final weightStr = weight != null ? ' @ ${weight!.toStringAsFixed(1)}' : '';
         return '$sets × $reps$weightStr';
       case ExerciseType.timed:
-        return sets > 1 ? '$sets × ${durationMinutes}m' : '${durationMinutes}m';
+        final mins = durationMinutes ?? 0;
+        return sets > 1 ? '$sets × ${mins}m' : '${mins}m';
       case ExerciseType.cardio:
-        final parts = <String>['${durationMinutes}m'];
+        final parts = <String>[];
+        if (durationMinutes != null && durationMinutes! > 0) {
+          parts.add('${durationMinutes}m');
+        }
         if (level != null) parts.add('L$level');
         if (targetDistance != null) parts.add('${targetDistance!.toStringAsFixed(1)}km');
-        return parts.join(' · ');
+        return parts.isEmpty ? 'Not set' : parts.join(' · ');
     }
   }
 }
