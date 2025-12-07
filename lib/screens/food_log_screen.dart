@@ -8,11 +8,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import '../models/food_entry.dart';
+import '../models/food_template.dart';
 import '../providers/food_log_provider.dart';
+import '../providers/food_library_provider.dart';
 import '../providers/weight_provider.dart';
 import '../services/ai_service.dart';
 import '../services/nutrition_goal_service.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/food_picker_dialog.dart';
+import 'food_library_screen.dart';
 
 class FoodLogScreen extends StatefulWidget {
   const FoodLogScreen({super.key});
@@ -30,6 +34,14 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
       appBar: AppBar(
         title: const Text('Food Log'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.menu_book_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const FoodLibraryScreen()),
+            ),
+            tooltip: 'Food Library',
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => _showGoalSettings(context),
@@ -517,6 +529,7 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
   String? _estimateError;
   late TimeOfDay _selectedTime;
   String? _imagePath;
+  bool _saveToLibrary = false;
 
   @override
   void initState() {
@@ -734,6 +747,38 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
     );
   }
 
+  Future<void> _pickFromLibrary() async {
+    final entry = await FoodPickerDialog.show(
+      context,
+      defaultMealType: _selectedMealType,
+    );
+
+    if (entry != null && mounted) {
+      // FoodPickerDialog returns a FoodEntry with all fields filled
+      final provider = context.read<FoodLogProvider>();
+
+      // Adjust timestamp to selected date
+      final adjustedEntry = FoodEntry(
+        id: entry.id,
+        timestamp: DateTime(
+          widget.selectedDate.year,
+          widget.selectedDate.month,
+          widget.selectedDate.day,
+          entry.timestamp.hour,
+          entry.timestamp.minute,
+        ),
+        mealType: entry.mealType,
+        description: entry.description,
+        nutrition: entry.nutrition,
+        imagePath: entry.imagePath,
+      );
+
+      provider.addEntry(adjustedEntry);
+      widget.onSaved?.call();
+      Navigator.pop(context);
+    }
+  }
+
   Future<void> _confirmDeleteEntry(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -790,6 +835,21 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
       provider.updateEntry(entry);
     } else {
       provider.addEntry(entry);
+
+      // Save to library if checkbox is checked and nutrition is available
+      if (_saveToLibrary && _nutrition != null) {
+        final libraryProvider = context.read<FoodLibraryProvider>();
+        final template = FoodTemplate(
+          name: description,
+          category: FoodCategory.other, // Default category
+          nutritionPerServing: _nutrition!,
+          defaultServingSize: 1,
+          servingUnit: ServingUnit.serving,
+          source: NutritionSource.aiEstimated,
+          sourceNotes: 'Added from Food Log',
+        );
+        libraryProvider.addTemplate(template);
+      }
     }
 
     widget.onSaved?.call();
@@ -836,6 +896,35 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
               ],
             ),
             AppSpacing.gapVerticalMd,
+
+            // Pick from Library button (only for new entries)
+            if (widget.existingEntry == null) ...[
+              OutlinedButton.icon(
+                onPressed: _pickFromLibrary,
+                icon: const Icon(Icons.menu_book),
+                label: const Text('Pick from Library'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              AppSpacing.gapVerticalSm,
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'or enter manually',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              AppSpacing.gapVerticalMd,
+            ],
 
             // Meal type selector with label below
             SegmentedButton<MealType>(
@@ -1010,6 +1099,21 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
             ],
 
             AppSpacing.gapVerticalLg,
+
+            // Save to Library checkbox (only for new entries with nutrition)
+            if (widget.existingEntry == null && _nutrition != null)
+              CheckboxListTile(
+                value: _saveToLibrary,
+                onChanged: (value) => setState(() => _saveToLibrary = value ?? false),
+                title: const Text('Save to Food Library'),
+                subtitle: const Text('Quick access next time'),
+                secondary: const Icon(Icons.bookmark_add_outlined),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+
+            if (widget.existingEntry == null && _nutrition != null)
+              AppSpacing.gapVerticalSm,
 
             // Save button
             FilledButton(
