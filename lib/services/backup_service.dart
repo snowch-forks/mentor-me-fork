@@ -112,6 +112,9 @@ class BackupService {
     final gender = await _storage.loadGender();
     final age = await _storage.loadAge();
 
+    // User profile data
+    final userName = await _storage.loadUserName();
+
     // Exercise tracking data
     final customExercises = await _storage.loadCustomExercises();
     final exercisePlans = await _storage.loadExercisePlans();
@@ -208,6 +211,7 @@ class BackupService {
       'height': height,
       'gender': gender,
       'user_age': age,
+      'user_name': userName,
 
       // Exercise tracking
       'custom_exercises': json.encode(customExercises.map((e) => e.toJson()).toList()),
@@ -263,6 +267,7 @@ class BackupService {
         'weightUnit': weightUnit.name,
         'hasHeight': height != null,
         'hasAge': age != null,
+        'hasUserName': userName != null && userName.isNotEmpty,
         // Exercise tracking
         'totalCustomExercises': customExercises.length,
         'totalExercisePlans': exercisePlans.length,
@@ -1949,6 +1954,38 @@ class BackupService {
       );
       results.add(ImportItemResult(
         dataType: 'Age',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import user name (profile settings)
+    try {
+      if (data.containsKey('user_name') && data['user_name'] != null) {
+        final userName = data['user_name'] as String;
+        await _storage.saveUserName(userName);
+        await _debug.info('BackupService', 'Imported user name: $userName');
+        results.add(ImportItemResult(
+          dataType: 'User Name',
+          success: true,
+          count: 1,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'User Name',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import user name: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'User Name',
         success: false,
         count: 0,
         errorMessage: e.toString(),
