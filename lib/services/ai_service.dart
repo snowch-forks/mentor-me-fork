@@ -1680,7 +1680,7 @@ JSON:''',
         reasoning: parsed['reasoning'] as String?,
       );
     } catch (e) {
-      await _debug.error('AIService', 'Failed to classify food photo', error: e);
+      await _debug.error('AIService', 'Failed to classify food photo: $e');
       return null;
     }
   }
@@ -1808,7 +1808,7 @@ JSON:''',
         ),
       );
     } catch (e) {
-      await _debug.error('AIService', 'Failed to analyze packaged product', error: e);
+      await _debug.error('AIService', 'Failed to analyze packaged product: $e');
       return null;
     }
   }
@@ -1857,12 +1857,11 @@ JSON:''',
         case FoodPhotoType.preparedFood:
         case FoodPhotoType.restaurant:
         case FoodPhotoType.unclear:
-        default:
           // Use standard food analysis
           return await analyzeFoodImage(imageBytes);
       }
     } catch (e) {
-      await _debug.error('AIService', 'Smart food analysis failed', error: e);
+      await _debug.error('AIService', 'Smart food analysis failed: $e');
       return await analyzeFoodImage(imageBytes);
     }
   }
