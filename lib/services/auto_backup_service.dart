@@ -430,7 +430,7 @@ class AutoBackupService extends ChangeNotifier {
     try {
       final files = await autoBackupDir
           .list()
-          .where((entity) => entity is File && entity.path.endsWith('.json'))
+          .where((entity) => entity is File && (entity.path.endsWith('.json') || entity.path.endsWith('.zip')))
           .map((entity) => entity as File)
           .toList();
 
@@ -593,7 +593,7 @@ class AutoBackupService extends ChangeNotifier {
 
       final files = await autoBackupDir
           .list()
-          .where((entity) => entity is File && entity.path.endsWith('.json'))
+          .where((entity) => entity is File && (entity.path.endsWith('.json') || entity.path.endsWith('.zip')))
           .map((entity) => entity as File)
           .toList();
 

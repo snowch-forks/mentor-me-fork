@@ -46,6 +46,9 @@ dependencies:
   # Universal I/O for cross-platform File support
   universal_io: ^2.2.2
 
+  # Archive/compression for backup files
+  archive: ^3.6.1
+
   # Alarm scheduling using android_alarm_manager_plus
   android_alarm_manager_plus: ^4.0.3
   # Notification display using flutter_local_notifications

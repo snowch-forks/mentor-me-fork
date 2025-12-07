@@ -16,10 +16,12 @@
 // See CLAUDE.md "Data Schema Management" section for full checklist.
 
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:universal_io/io.dart';
+import 'package:archive/archive.dart';
 import 'storage_service.dart';
 import 'saf_service.dart';
 import 'debug_service.dart';
@@ -290,25 +292,86 @@ class BackupService {
     return JsonEncoder.withIndent('  ').convert(backupData);
   }
 
+  /// Create a compressed ZIP backup containing the JSON data
+  /// Returns the ZIP file as bytes
+  Future<Uint8List> createCompressedBackup() async {
+    final jsonString = await createBackupJson();
+
+    // Create an archive with a single file
+    final archive = Archive();
+    final jsonBytes = utf8.encode(jsonString);
+
+    archive.addFile(ArchiveFile(
+      'backup.json',
+      jsonBytes.length,
+      jsonBytes,
+    ));
+
+    // Encode as ZIP with compression
+    final zipBytes = ZipEncoder().encode(archive);
+    if (zipBytes == null) {
+      throw Exception('Failed to create ZIP archive');
+    }
+
+    await _debug.info('BackupService', 'Created compressed backup', metadata: {
+      'originalSize': jsonBytes.length,
+      'compressedSize': zipBytes.length,
+      'compressionRatio': '${((1 - zipBytes.length / jsonBytes.length) * 100).toStringAsFixed(1)}%',
+    });
+
+    return Uint8List.fromList(zipBytes);
+  }
+
+  /// Read backup data from bytes, auto-detecting JSON or ZIP format
+  /// Returns the parsed JSON data as a Map
+  Future<Map<String, dynamic>> readBackupBytes(Uint8List bytes) async {
+    String jsonString;
+
+    // Check if the file is a ZIP archive (starts with PK signature)
+    if (bytes.length >= 4 && bytes[0] == 0x50 && bytes[1] == 0x4B) {
+      // It's a ZIP file - decompress
+      await _debug.info('BackupService', 'Detected ZIP format, decompressing...');
+
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final backupFile = archive.findFile('backup.json');
+
+      if (backupFile == null) {
+        throw Exception('Invalid backup archive: backup.json not found');
+      }
+
+      jsonString = utf8.decode(backupFile.content as List<int>);
+
+      await _debug.info('BackupService', 'Decompressed backup', metadata: {
+        'compressedSize': bytes.length,
+        'decompressedSize': jsonString.length,
+      });
+    } else {
+      // Assume it's plain JSON
+      await _debug.info('BackupService', 'Detected JSON format');
+      jsonString = utf8.decode(bytes);
+    }
+
+    return json.decode(jsonString) as Map<String, dynamic>;
+  }
+
   /// Export backup for mobile (uses file picker to let user choose location)
   /// Returns tuple of (filePath, statistics)
   Future<(String?, Map<String, dynamic>?)> _exportBackupMobile() async {
     try {
       debugPrint('📦 Starting mobile backup export...');
-      final jsonString = await createBackupJson();
-      debugPrint('✓ Backup JSON created (${jsonString.length} bytes)');
 
-      // Extract statistics from backup data
+      // Create compressed backup
+      final zipBytes = await createCompressedBackup();
+      debugPrint('✓ Compressed backup created (${zipBytes.length} bytes)');
+
+      // Also get statistics from the JSON for return value
+      final jsonString = await createBackupJson();
       final backupData = json.decode(jsonString) as Map<String, dynamic>;
       final statistics = backupData['statistics'] as Map<String, dynamic>?;
 
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-      final filename = 'habits_backup_$timestamp.json';
+      final filename = 'habits_backup_$timestamp.zip';
       debugPrint('📁 Suggested filename: $filename');
-
-      // Convert string to bytes (required for Android/iOS)
-      final bytes = utf8.encode(jsonString);
-      debugPrint('📊 Converted to bytes: ${bytes.length} bytes');
 
       // Use file picker in save mode - lets user choose where to save
       // On Android/iOS, bytes must be provided
@@ -317,8 +380,8 @@ class BackupService {
         dialogTitle: 'Save Backup',
         fileName: filename,
         type: FileType.custom,
-        allowedExtensions: ['json'],
-        bytes: bytes,
+        allowedExtensions: ['zip'],
+        bytes: zipBytes,
       );
       debugPrint('📂 File picker result: ${outputPath ?? "null (cancelled)"}');
 
@@ -328,7 +391,7 @@ class BackupService {
         return (null, null);
       }
 
-      debugPrint('✓ Backup saved successfully: $outputPath (${bytes.length} bytes)');
+      debugPrint('✓ Backup saved successfully: $outputPath (${zipBytes.length} bytes)');
       return (outputPath, statistics);
     } catch (e, stackTrace) {
       await _debug.error(
@@ -425,6 +488,7 @@ class BackupService {
   }
 
   /// Import data from a specific file path (for auto-backup browsing)
+  /// Supports both JSON and ZIP formats (auto-detected)
   Future<ImportResult> importBackupFromPath(String filePath) async {
     try {
       await _debug.info('BackupService', 'Starting import from path: $filePath');
@@ -434,8 +498,10 @@ class BackupService {
         return ImportResult(success: false, message: 'File not found');
       }
 
-      final jsonString = await file.readAsString();
-      return await _processImport(jsonString);
+      // Read as bytes to support both JSON and ZIP formats
+      final bytes = await file.readAsBytes();
+      final backupData = await readBackupBytes(Uint8List.fromList(bytes));
+      return await _processImportFromMap(backupData);
     } catch (e, stackTrace) {
       await _debug.error(
         'BackupService',
@@ -495,14 +561,15 @@ class BackupService {
   }
 
   /// Import data from a backup file (using file picker)
+  /// Supports both JSON and ZIP formats (auto-detected)
   Future<ImportResult> importBackup() async {
     try {
       await _debug.info('BackupService', 'Starting import');
 
-      // Let user pick a file
+      // Let user pick a file - allow both JSON and ZIP formats
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['json'],
+        allowedExtensions: ['json', 'zip'],
         withData: true, // Important for web
       );
 
@@ -512,24 +579,26 @@ class BackupService {
 
       final pickedFile = result.files.single;
 
-      // Get file contents (works for both web and mobile)
-      String jsonString;
+      // Get file contents as bytes (works for both web and mobile)
+      Uint8List bytes;
       if (kIsWeb) {
         // Web: Use bytes from memory
         if (pickedFile.bytes == null) {
           return ImportResult(success: false, message: 'Could not read file');
         }
-        jsonString = utf8.decode(pickedFile.bytes!);
+        bytes = pickedFile.bytes!;
       } else {
         // Mobile: Read from file path
         if (pickedFile.path == null) {
           return ImportResult(success: false, message: 'Invalid file path');
         }
         final file = File(pickedFile.path!);
-        jsonString = await file.readAsString();
+        bytes = await file.readAsBytes();
       }
 
-      return await _processImport(jsonString);
+      // Auto-detect format (JSON or ZIP) and parse
+      final backupData = await readBackupBytes(bytes);
+      return await _processImportFromMap(backupData);
     } catch (e, stackTrace) {
       await _debug.error(
         'BackupService',
@@ -547,8 +616,25 @@ class BackupService {
   /// Process the import from JSON string (shared logic)
   Future<ImportResult> _processImport(String jsonString) async {
     try {
+      final backupData = json.decode(jsonString) as Map<String, dynamic>;
+      return await _processImportFromMap(backupData);
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Process import failed: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
 
-    var backupData = json.decode(jsonString) as Map<String, dynamic>;
+      return ImportResult(
+        success: false,
+        message: 'Error processing backup: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Process the import from a parsed Map (shared logic for JSON and ZIP imports)
+  Future<ImportResult> _processImportFromMap(Map<String, dynamic> backupData) async {
+    try {
 
     // Check for legacy format and migrate if needed
     if (_migrationService.isLegacyFormat(backupData)) {
