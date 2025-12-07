@@ -391,6 +391,7 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
         color: theme.colorScheme.error,
         child: Icon(Icons.delete, color: theme.colorScheme.onError),
       ),
+      confirmDismiss: (_) => _confirmDelete(context, entry.description),
       onDismissed: (_) => provider.deleteEntry(entry.id),
       child: ListTile(
         leading: Column(
@@ -427,6 +428,30 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
         onTap: () => _showEditFoodDialog(context, entry),
       ),
     );
+  }
+
+  Future<bool> _confirmDelete(BuildContext context, String description) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Entry'),
+        content: Text('Are you sure you want to delete "$description"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   void _showAddFoodDialog(BuildContext context) {

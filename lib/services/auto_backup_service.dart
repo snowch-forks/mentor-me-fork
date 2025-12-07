@@ -240,32 +240,50 @@ class AutoBackupService extends ChangeNotifier {
       // Write to SAF folder
       final fileUri = await _safService.writeFile(folderUri, filename, backupJson);
 
-      if (fileUri != null) {
-        // Update last backup time in settings
-        final settings = await _storage.loadSettings();
-        settings['lastAutoBackupTime'] = DateTime.now().toIso8601String();
-        settings['lastAutoBackupFilename'] = filename;
-        await _storage.saveSettings(settings);
+      if (fileUri == null) {
+        throw Exception('SAF backup failed: writeFile returned null');
+      }
 
-        await _debug.info(
+      // Verify file was written successfully by reading it back
+      final readContent = await _safService.readFile(fileUri);
+      if (readContent == null || readContent.isEmpty) {
+        throw Exception('SAF backup verification failed: file is empty or unreadable');
+      }
+      if (readContent.length < backupJson.length * 0.9) {
+        await _debug.warning(
           'AutoBackupService',
-          'SAF backup completed: $filename',
+          'SAF backup size mismatch',
           metadata: {
-            'filename': filename,
-            'fileUri': fileUri,
-            'sizeBytes': backupJson.length,
-            'sizeKB': (backupJson.length / 1024).toStringAsFixed(1),
-            'goals': stats?['totalGoals'] ?? 0,
-            'habits': stats?['totalHabits'] ?? 0,
-            'journalEntries': stats?['totalJournalEntries'] ?? 0,
-            'pulseEntries': stats?['totalPulseEntries'] ?? 0,
-            'conversations': stats?['totalConversations'] ?? 0,
+            'expectedSize': backupJson.length,
+            'actualSize': readContent.length,
           },
         );
-
-        // Clean up old SAF backups
-        await _rotateSAFBackups(folderUri);
       }
+
+      // Update last backup time in settings
+      final settings = await _storage.loadSettings();
+      settings['lastAutoBackupTime'] = DateTime.now().toIso8601String();
+      settings['lastAutoBackupFilename'] = filename;
+      await _storage.saveSettings(settings);
+
+      await _debug.info(
+        'AutoBackupService',
+        'SAF backup completed: $filename',
+        metadata: {
+          'filename': filename,
+          'fileUri': fileUri,
+          'sizeBytes': backupJson.length,
+          'sizeKB': (backupJson.length / 1024).toStringAsFixed(1),
+          'goals': stats?['totalGoals'] ?? 0,
+          'habits': stats?['totalHabits'] ?? 0,
+          'journalEntries': stats?['totalJournalEntries'] ?? 0,
+          'pulseEntries': stats?['totalPulseEntries'] ?? 0,
+          'conversations': stats?['totalConversations'] ?? 0,
+        },
+      );
+
+      // Clean up old SAF backups
+      await _rotateSAFBackups(folderUri);
     } catch (e, stackTrace) {
       await _debug.error(
         'AutoBackupService',
@@ -390,6 +408,26 @@ class AutoBackupService extends ChangeNotifier {
       // Write to file
       final file = File(filePath);
       await file.writeAsString(backupJson);
+
+      // Verify file was written successfully
+      if (!await file.exists()) {
+        throw Exception('Backup file was not created: $filePath');
+      }
+      final writtenSize = await file.length();
+      if (writtenSize == 0) {
+        throw Exception('Backup file is empty: $filePath');
+      }
+      if (writtenSize < backupJson.length * 0.9) {
+        // Allow some variance due to encoding, but flag if significantly smaller
+        await _debug.warning(
+          'AutoBackupService',
+          'Backup file size mismatch',
+          metadata: {
+            'expectedSize': backupJson.length,
+            'actualSize': writtenSize,
+          },
+        );
+      }
 
       // Update last backup time in settings
       final settings = await _storage.loadSettings();
