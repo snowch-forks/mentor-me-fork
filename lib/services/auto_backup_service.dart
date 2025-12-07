@@ -82,6 +82,10 @@ class AutoBackupService extends ChangeNotifier {
           'uri': uri,
         });
 
+        // Trigger an immediate backup now that folder access is restored
+        // Wait for it to complete so the caller knows if backup succeeded
+        await _performAutoBackup();
+
         return true;
       } else {
         await _debug.warning('AutoBackupService', 'Folder reauthorization cancelled or failed');

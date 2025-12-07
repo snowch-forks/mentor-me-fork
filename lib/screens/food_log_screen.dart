@@ -8,11 +8,15 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import '../models/food_entry.dart';
+import '../models/food_template.dart';
 import '../providers/food_log_provider.dart';
+import '../providers/food_library_provider.dart';
 import '../providers/weight_provider.dart';
 import '../services/ai_service.dart';
 import '../services/nutrition_goal_service.dart';
 import '../theme/app_spacing.dart';
+import '../widgets/food_picker_dialog.dart';
+import 'food_library_screen.dart';
 
 class FoodLogScreen extends StatefulWidget {
   const FoodLogScreen({super.key});
@@ -30,6 +34,14 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
       appBar: AppBar(
         title: const Text('Food Log'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.menu_book_outlined),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const FoodLibraryScreen()),
+            ),
+            tooltip: 'Food Library',
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => _showGoalSettings(context),
@@ -517,6 +529,14 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
   String? _estimateError;
   late TimeOfDay _selectedTime;
   String? _imagePath;
+  bool _saveToLibrary = false;
+
+  // Nutrition override controllers
+  final _caloriesController = TextEditingController();
+  final _proteinController = TextEditingController();
+  final _carbsController = TextEditingController();
+  final _fatController = TextEditingController();
+  bool _nutritionEdited = false; // Track if user has edited values
 
   @override
   void initState() {
@@ -527,6 +547,10 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
       _nutrition = widget.existingEntry!.nutrition;
       _selectedTime = TimeOfDay.fromDateTime(widget.existingEntry!.timestamp);
       _imagePath = widget.existingEntry!.imagePath;
+      // Populate nutrition controllers if we have existing nutrition
+      if (_nutrition != null) {
+        _populateNutritionControllers(_nutrition!);
+      }
     } else {
       // Default to current time
       _selectedTime = TimeOfDay.now();
@@ -547,7 +571,40 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _caloriesController.dispose();
+    _proteinController.dispose();
+    _carbsController.dispose();
+    _fatController.dispose();
     super.dispose();
+  }
+
+  /// Populate the nutrition text field controllers from a NutritionEstimate
+  void _populateNutritionControllers(NutritionEstimate nutrition) {
+    _caloriesController.text = nutrition.calories.toString();
+    _proteinController.text = nutrition.proteinGrams.toString();
+    _carbsController.text = nutrition.carbsGrams.toString();
+    _fatController.text = nutrition.fatGrams.toString();
+  }
+
+  /// Get the current nutrition values from text fields (with user overrides)
+  NutritionEstimate? _getCurrentNutrition() {
+    if (_nutrition == null) return null;
+
+    return NutritionEstimate(
+      calories: int.tryParse(_caloriesController.text) ?? _nutrition!.calories,
+      proteinGrams: int.tryParse(_proteinController.text) ?? _nutrition!.proteinGrams,
+      carbsGrams: int.tryParse(_carbsController.text) ?? _nutrition!.carbsGrams,
+      fatGrams: int.tryParse(_fatController.text) ?? _nutrition!.fatGrams,
+      // Preserve other fields from original estimate
+      fiberGrams: _nutrition!.fiberGrams,
+      sugarGrams: _nutrition!.sugarGrams,
+      sodiumMg: _nutrition!.sodiumMg,
+      saturatedFatGrams: _nutrition!.saturatedFatGrams,
+      unsaturatedFatGrams: _nutrition!.unsaturatedFatGrams,
+      cholesterolMg: _nutrition!.cholesterolMg,
+      potassiumMg: _nutrition!.potassiumMg,
+      confidence: _nutritionEdited ? 'User edited' : _nutrition!.confidence,
+    );
   }
 
   Future<void> _estimateNutrition() async {
@@ -576,7 +633,10 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
         setState(() {
           _nutrition = estimate;
           _isEstimating = false;
-          if (estimate == null) {
+          _nutritionEdited = false; // Reset edited flag on new estimate
+          if (estimate != null) {
+            _populateNutritionControllers(estimate);
+          } else {
             _estimateError = 'Could not estimate nutrition. Try being more specific about the food and portion size.';
           }
         });
@@ -632,6 +692,10 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
               _descriptionController.text = analysis.description;
             }
             _nutrition = analysis.nutrition;
+            _nutritionEdited = false; // Reset edited flag on new analysis
+            if (analysis.nutrition != null) {
+              _populateNutritionControllers(analysis.nutrition!);
+            }
             _isEstimating = false;
           });
         } else {
@@ -734,6 +798,38 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
     );
   }
 
+  Future<void> _pickFromLibrary() async {
+    final entry = await FoodPickerDialog.show(
+      context,
+      defaultMealType: _selectedMealType,
+    );
+
+    if (entry != null && mounted) {
+      // FoodPickerDialog returns a FoodEntry with all fields filled
+      final provider = context.read<FoodLogProvider>();
+
+      // Adjust timestamp to selected date
+      final adjustedEntry = FoodEntry(
+        id: entry.id,
+        timestamp: DateTime(
+          widget.selectedDate.year,
+          widget.selectedDate.month,
+          widget.selectedDate.day,
+          entry.timestamp.hour,
+          entry.timestamp.minute,
+        ),
+        mealType: entry.mealType,
+        description: entry.description,
+        nutrition: entry.nutrition,
+        imagePath: entry.imagePath,
+      );
+
+      provider.addEntry(adjustedEntry);
+      widget.onSaved?.call();
+      Navigator.pop(context);
+    }
+  }
+
   Future<void> _confirmDeleteEntry(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -777,12 +873,15 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
       _selectedTime.minute,
     );
 
+    // Use _getCurrentNutrition() to capture any user edits
+    final finalNutrition = _getCurrentNutrition();
+
     final entry = FoodEntry(
       id: widget.existingEntry?.id,
       timestamp: timestamp,
       mealType: _selectedMealType,
       description: description,
-      nutrition: _nutrition,
+      nutrition: finalNutrition,
       imagePath: _imagePath,
     );
 
@@ -790,6 +889,21 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
       provider.updateEntry(entry);
     } else {
       provider.addEntry(entry);
+
+      // Save to library if checkbox is checked and nutrition is available
+      if (_saveToLibrary && finalNutrition != null) {
+        final libraryProvider = context.read<FoodLibraryProvider>();
+        final template = FoodTemplate(
+          name: description,
+          category: FoodCategory.other, // Default category
+          nutritionPerServing: finalNutrition,
+          defaultServingSize: 1,
+          servingUnit: ServingUnit.serving,
+          source: _nutritionEdited ? NutritionSource.manual : NutritionSource.aiEstimated,
+          sourceNotes: 'Added from Food Log',
+        );
+        libraryProvider.addTemplate(template);
+      }
     }
 
     widget.onSaved?.call();
@@ -836,6 +950,35 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
               ],
             ),
             AppSpacing.gapVerticalMd,
+
+            // Pick from Library button (only for new entries)
+            if (widget.existingEntry == null) ...[
+              OutlinedButton.icon(
+                onPressed: _pickFromLibrary,
+                icon: const Icon(Icons.menu_book),
+                label: const Text('Pick from Library'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              AppSpacing.gapVerticalSm,
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'or enter manually',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              AppSpacing.gapVerticalMd,
+            ],
 
             // Meal type selector with label below
             SegmentedButton<MealType>(
@@ -919,7 +1062,7 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
               ),
             ],
 
-            // Nutrition display
+            // Nutrition display with editable fields
             if (_nutrition != null) ...[
               AppSpacing.gapVerticalMd,
               Card(
@@ -932,10 +1075,10 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Estimated Nutrition',
+                            _nutritionEdited ? 'Nutrition (edited)' : 'Estimated Nutrition',
                             style: theme.textTheme.titleSmall,
                           ),
-                          if (_nutrition!.confidence != null)
+                          if (_nutrition!.confidence != null && !_nutritionEdited)
                             Chip(
                               label: Text(
                                 _nutrition!.confidence!,
@@ -943,16 +1086,53 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
                               ),
                               visualDensity: VisualDensity.compact,
                             ),
+                          if (_nutritionEdited)
+                            Chip(
+                              label: const Text('User edited'),
+                              backgroundColor: theme.colorScheme.primaryContainer,
+                              visualDensity: VisualDensity.compact,
+                            ),
                         ],
                       ),
                       AppSpacing.gapVerticalSm,
+                      // Editable nutrition fields
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _buildNutritionValue('Calories', '${_nutrition!.calories}', 'cal'),
-                          _buildNutritionValue('Protein', '${_nutrition!.proteinGrams}', 'g'),
-                          _buildNutritionValue('Carbs', '${_nutrition!.carbsGrams}', 'g'),
-                          _buildNutritionValue('Fat', '${_nutrition!.fatGrams}', 'g'),
+                          Expanded(
+                            child: _buildEditableNutritionField(
+                              controller: _caloriesController,
+                              label: 'Calories',
+                              suffix: 'cal',
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildEditableNutritionField(
+                              controller: _proteinController,
+                              label: 'Protein',
+                              suffix: 'g',
+                              color: Colors.blue,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildEditableNutritionField(
+                              controller: _carbsController,
+                              label: 'Carbs',
+                              suffix: 'g',
+                              color: Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildEditableNutritionField(
+                              controller: _fatController,
+                              label: 'Fat',
+                              suffix: 'g',
+                              color: Colors.green,
+                            ),
+                          ),
                         ],
                       ),
                       // Fat breakdown row (if available)
@@ -1011,6 +1191,21 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
 
             AppSpacing.gapVerticalLg,
 
+            // Save to Library checkbox (only for new entries with nutrition)
+            if (widget.existingEntry == null && _nutrition != null)
+              CheckboxListTile(
+                value: _saveToLibrary,
+                onChanged: (value) => setState(() => _saveToLibrary = value ?? false),
+                title: const Text('Save to Food Library'),
+                subtitle: const Text('Quick access next time'),
+                secondary: const Icon(Icons.bookmark_add_outlined),
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+              ),
+
+            if (widget.existingEntry == null && _nutrition != null)
+              AppSpacing.gapVerticalSm,
+
             // Save button
             FilledButton(
               onPressed: _descriptionController.text.trim().isEmpty ? null : _save,
@@ -1044,6 +1239,58 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Build an editable nutrition text field
+  Widget _buildEditableNutritionField({
+    required TextEditingController controller,
+    required String label,
+    required String suffix,
+    Color? color,
+  }) {
+    final theme = Theme.of(context);
+
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      textAlign: TextAlign.center,
+      style: theme.textTheme.titleMedium?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: color,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: theme.textTheme.bodySmall?.copyWith(
+          color: color ?? theme.colorScheme.outline,
+        ),
+        suffixText: suffix,
+        suffixStyle: theme.textTheme.bodySmall?.copyWith(
+          color: color ?? theme.colorScheme.outline,
+        ),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: color ?? theme.colorScheme.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(
+            color: (color ?? theme.colorScheme.outline).withOpacity(0.5),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: color ?? theme.colorScheme.primary, width: 2),
+        ),
+      ),
+      onChanged: (value) {
+        // Mark as edited when user changes values
+        if (!_nutritionEdited) {
+          setState(() => _nutritionEdited = true);
+        }
+      },
     );
   }
 
