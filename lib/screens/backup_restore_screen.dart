@@ -962,18 +962,20 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       await _autoBackupService.clearFolderReauthorization();
     }
 
-    // Trigger an auto-backup with the new location
-    await _autoBackupService.scheduleAutoBackup();
-
     setState(() {
       _backupLocation = newLocation;
       _externalFolderName = folderName;
     });
 
+    // Perform an immediate backup to confirm setup works
+    final backupSuccess = await _autoBackupService.performImmediateBackup();
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppStrings.backupLocationUpdated),
+          content: Text(backupSuccess
+              ? 'Backup location updated and backup created'
+              : AppStrings.backupLocationUpdated),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),
@@ -1017,10 +1019,6 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     // Clear the reauthorization flag since user has re-selected a folder and it works
     await _autoBackupService.clearFolderReauthorization();
 
-    // Trigger an auto-backup now that the folder is configured
-    // This catches the backup that was skipped when permissions were lost
-    await _autoBackupService.scheduleAutoBackup();
-
     // Get the new folder display name
     final folderName = await _safService.getFolderDisplayName();
 
@@ -1028,10 +1026,15 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
       _externalFolderName = folderName;
     });
 
+    // Perform an immediate backup to confirm folder setup works
+    final backupSuccess = await _autoBackupService.performImmediateBackup();
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Backup folder changed to: ${folderName ?? 'External folder'}'),
+          content: Text(backupSuccess
+              ? 'Backup folder changed and backup created'
+              : 'Backup folder changed to: ${folderName ?? 'External folder'}'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),

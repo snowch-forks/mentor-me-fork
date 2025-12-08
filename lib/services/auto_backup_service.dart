@@ -604,6 +604,39 @@ class AutoBackupService extends ChangeNotifier {
     }
   }
 
+  /// Perform an immediate backup without debouncing
+  /// Use this when user explicitly sets up backup folder and wants immediate confirmation
+  /// Returns true if backup was successful, false otherwise
+  Future<bool> performImmediateBackup() async {
+    // Check if auto-backup is enabled
+    final settings = await _storage.loadSettings();
+    final isEnabled = settings['autoBackupEnabled'] as bool? ?? false;
+
+    if (!isEnabled) {
+      await _debug.info('AutoBackupService', 'Immediate backup skipped (auto-backup disabled)');
+      return false;
+    }
+
+    // Only works on mobile (not web)
+    if (kIsWeb) {
+      await _debug.info('AutoBackupService', 'Immediate backup skipped (web platform)');
+      return false;
+    }
+
+    // Cancel any pending scheduled backup since we're doing it now
+    cancelPendingBackup();
+
+    await _debug.info('AutoBackupService', 'Performing immediate backup after folder setup');
+
+    try {
+      await _performAutoBackup();
+      return _lastBackupError == null;
+    } catch (e) {
+      await _debug.error('AutoBackupService', 'Immediate backup failed: $e');
+      return false;
+    }
+  }
+
   /// Check if folder reauthorization is needed (loads from persistent storage)
   Future<bool> checkNeedsFolderReauthorization() async {
     final settings = await _storage.loadSettings();
