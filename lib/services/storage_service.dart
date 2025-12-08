@@ -130,6 +130,7 @@ class StorageService {
     'personal_values',
     'implementation_intentions',
     'meditation_sessions',
+    'meditation_settings',
     'urge_surfing_sessions',
     'hydration_entries',
     'hydration_goal',
