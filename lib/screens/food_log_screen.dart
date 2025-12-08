@@ -1169,29 +1169,64 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
                         ),
                       ),
                       AppSpacing.gapVerticalXs,
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildNutritionValue(
-                            'Saturated',
-                            '${_nutrition!.saturatedFatGrams ?? 0}',
-                            'g',
-                            color: theme.colorScheme.error.withValues(alpha: 0.8),
-                          ),
-                          _buildNutritionValue(
-                            'Unsaturated',
-                            '${_nutrition!.unsaturatedFatGrams ?? 0}',
-                            'g',
-                            color: Colors.green.shade700,
-                          ),
-                          _buildNutritionValue(
-                            'Trans',
-                            '${_nutrition!.transFatGrams ?? 0}',
-                            'g',
-                            color: theme.colorScheme.error,
-                          ),
-                        ],
-                      ),
+                      // Show mono/poly if available, otherwise show combined unsaturated
+                      if (_nutrition!.monoFatGrams != null || _nutrition!.polyFatGrams != null) ...[
+                        // Detailed breakdown with mono/poly
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildNutritionValue(
+                              'Saturated',
+                              '${_nutrition!.saturatedFatGrams ?? 0}',
+                              'g',
+                              color: theme.colorScheme.error.withValues(alpha: 0.8),
+                            ),
+                            _buildNutritionValue(
+                              'Mono',
+                              '${_nutrition!.monoFatGrams ?? 0}',
+                              'g',
+                              color: Colors.green.shade700,
+                            ),
+                            _buildNutritionValue(
+                              'Poly',
+                              '${_nutrition!.polyFatGrams ?? 0}',
+                              'g',
+                              color: Colors.green.shade500,
+                            ),
+                            _buildNutritionValue(
+                              'Trans',
+                              '${_nutrition!.transFatGrams ?? 0}',
+                              'g',
+                              color: theme.colorScheme.error,
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        // Simple breakdown with combined unsaturated
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildNutritionValue(
+                              'Saturated',
+                              '${_nutrition!.saturatedFatGrams ?? 0}',
+                              'g',
+                              color: theme.colorScheme.error.withValues(alpha: 0.8),
+                            ),
+                            _buildNutritionValue(
+                              'Unsaturated',
+                              '${_nutrition!.unsaturatedFatGrams ?? 0}',
+                              'g',
+                              color: Colors.green.shade700,
+                            ),
+                            _buildNutritionValue(
+                              'Trans',
+                              '${_nutrition!.transFatGrams ?? 0}',
+                              'g',
+                              color: theme.colorScheme.error,
+                            ),
+                          ],
+                        ),
+                      ],
                       if (_nutrition!.notes != null) ...[
                         AppSpacing.gapVerticalSm,
                         Text(
