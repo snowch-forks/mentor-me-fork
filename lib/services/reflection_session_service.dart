@@ -809,7 +809,7 @@ Keep it genuine and warm.''';
     if (lowerName.contains('black') || lowerName.contains('white')) {
       return PatternType.blackAndWhiteThinking;
     }
-    return PatternType.overwhelm; // Default
+    return PatternType.general; // Default when no specific pattern detected
   }
 
   InterventionCategory _parseCategory(String category) {

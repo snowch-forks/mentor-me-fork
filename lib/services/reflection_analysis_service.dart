@@ -571,6 +571,9 @@ class ReflectionAnalysisService {
     // Pattern-specific follow-ups
     for (final pattern in currentPatterns.take(2)) {
       switch (pattern.type) {
+        case PatternType.general:
+          // No specific follow-ups for general pattern
+          break;
         case PatternType.impulseControl:
           questions.add(
               'What usually happens right before you feel that urge? Is there a trigger you\'ve noticed?');
