@@ -270,7 +270,11 @@ class ExerciseWidget extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
-    final diff = now.difference(date).inDays;
+    // Compare calendar dates, not time differences
+    // (e.g., yesterday at 8pm vs today at 9am should show "Yesterday", not "Today")
+    final today = DateTime(now.year, now.month, now.day);
+    final workoutDate = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(workoutDate).inDays;
 
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
