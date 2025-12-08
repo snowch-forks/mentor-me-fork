@@ -15,6 +15,7 @@ enum ReflectionSessionType {
 
 /// Psychological patterns that can be detected in user responses
 enum PatternType {
+  general,  // Default/neutral when no specific pattern detected
   impulseControl,
   negativeThoughtSpirals,
   perfectionism,
@@ -39,6 +40,8 @@ enum InterventionCategory {
 extension PatternTypeExtension on PatternType {
   String get displayName {
     switch (this) {
+      case PatternType.general:
+        return 'General Reflection';
       case PatternType.impulseControl:
         return 'Impulse Control';
       case PatternType.negativeThoughtSpirals:
@@ -64,6 +67,8 @@ extension PatternTypeExtension on PatternType {
 
   String get description {
     switch (this) {
+      case PatternType.general:
+        return 'Exploring thoughts and feelings';
       case PatternType.impulseControl:
         return 'Difficulty resisting urges or acting on impulse';
       case PatternType.negativeThoughtSpirals:
@@ -89,6 +94,8 @@ extension PatternTypeExtension on PatternType {
 
   String get emoji {
     switch (this) {
+      case PatternType.general:
+        return '💭';
       case PatternType.impulseControl:
         return '⚡';
       case PatternType.negativeThoughtSpirals:
@@ -102,7 +109,7 @@ extension PatternTypeExtension on PatternType {
       case PatternType.lowMotivation:
         return '🔋';
       case PatternType.selfCriticism:
-        return '💭';
+        return '🪞';
       case PatternType.procrastination:
         return '⏰';
       case PatternType.anxiousThinking:
@@ -215,7 +222,7 @@ class DetectedPattern {
     return DetectedPattern(
       type: PatternType.values.firstWhere(
         (e) => e.name == json['type'],
-        orElse: () => PatternType.overwhelm,
+        orElse: () => PatternType.general,
       ),
       confidence: (json['confidence'] as num).toDouble(),
       evidence: json['evidence'] as String,
@@ -276,7 +283,7 @@ class Intervention {
       howToApply: json['howToApply'] as String,
       targetPattern: PatternType.values.firstWhere(
         (e) => e.name == json['targetPattern'],
-        orElse: () => PatternType.overwhelm,
+        orElse: () => PatternType.general,
       ),
       category: InterventionCategory.values.firstWhere(
         (e) => e.name == json['category'],
