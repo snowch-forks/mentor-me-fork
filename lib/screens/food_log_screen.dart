@@ -9,13 +9,16 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import '../models/food_entry.dart';
 import '../models/food_template.dart';
+import '../models/mindful_eating_entry.dart';
 import '../providers/food_log_provider.dart';
 import '../providers/food_library_provider.dart';
+import '../providers/mindful_eating_provider.dart';
 import '../providers/weight_provider.dart';
 import '../services/ai_service.dart';
 import '../services/nutrition_goal_service.dart';
 import '../theme/app_spacing.dart';
 import '../widgets/food_picker_dialog.dart';
+import '../widgets/food_database_search_sheet.dart';
 import 'food_library_screen.dart';
 
 class FoodLogScreen extends StatefulWidget {
@@ -72,9 +75,74 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddFoodDialog(context),
+        onPressed: () => _showLogOptionsSheet(context),
         icon: const Icon(Icons.add),
-        label: const Text('Log Food'),
+        label: const Text('Log'),
+      ),
+    );
+  }
+
+  void _showLogOptionsSheet(BuildContext context) {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  child: Icon(
+                    Icons.restaurant,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                title: const Text('Log Food'),
+                subtitle: const Text('Track meals with nutrition estimates'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showAddFoodDialog(context);
+                },
+              ),
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: theme.colorScheme.tertiaryContainer,
+                  child: Icon(
+                    Icons.self_improvement,
+                    color: theme.colorScheme.onTertiaryContainer,
+                  ),
+                ),
+                title: const Text('Log Mindful Eating'),
+                subtitle: const Text('Track hunger, fullness & mood'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showMindfulEatingSheet(context);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMindfulEatingSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => _MindfulEatingSheet(
+          scrollController: scrollController,
+          selectedDate: _selectedDate,
+        ),
       ),
     );
   }
@@ -849,6 +917,34 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
     }
   }
 
+  /// Open food database search sheet (Open Food Facts + UK CoFID)
+  void _searchFoodDatabase() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => FoodDatabaseSearchSheet(
+          onFoodSelected: (result) {
+            Navigator.pop(context); // Close search sheet
+            // Populate form with selected food data
+            setState(() {
+              _descriptionController.text = result.brand != null
+                  ? '${result.name} (${result.brand})'
+                  : result.name;
+              _nutrition = result.nutrition;
+              _nutritionEdited = false; // Reset edited flag
+              _populateNutritionControllers(result.nutrition);
+            });
+          },
+        ),
+      ),
+    );
+  }
+
   Future<void> _confirmDeleteEntry(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -974,8 +1070,19 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
             ),
             AppSpacing.gapVerticalMd,
 
-            // Pick from Library button (only for new entries)
+            // Quick add buttons (only for new entries)
             if (widget.existingEntry == null) ...[
+              // Search Food Database - Open Food Facts + UK CoFID
+              OutlinedButton.icon(
+                onPressed: _searchFoodDatabase,
+                icon: const Icon(Icons.search),
+                label: const Text('Search Food Database'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              AppSpacing.gapVerticalSm,
+              // Pick from personal library
               OutlinedButton.icon(
                 onPressed: _pickFromLibrary,
                 icon: const Icon(Icons.menu_book),
@@ -2177,6 +2284,486 @@ class _GoalSettingsSheetState extends State<_GoalSettingsSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Bottom sheet for logging standalone mindful eating entries
+class _MindfulEatingSheet extends StatefulWidget {
+  final ScrollController scrollController;
+  final DateTime selectedDate;
+  /// Used for editing existing entries (edit functionality to be wired up)
+  final MindfulEatingEntry? existingEntry;
+
+  const _MindfulEatingSheet({
+    required this.scrollController,
+    required this.selectedDate,
+    // ignore: unused_element
+    this.existingEntry,
+  });
+
+  @override
+  State<_MindfulEatingSheet> createState() => _MindfulEatingSheetState();
+}
+
+class _MindfulEatingSheetState extends State<_MindfulEatingSheet> {
+  // Mindful eating state
+  int? _hungerBefore;
+  Set<String> _selectedMoodsBefore = {};
+  int? _fullnessAfter;
+  Set<String> _selectedMoodsAfter = {};
+  final _noteController = TextEditingController();
+
+  // Custom mood input state
+  bool _showCustomMoodBeforeInput = false;
+  bool _showCustomMoodAfterInput = false;
+  final _customMoodBeforeController = TextEditingController();
+  final _customMoodAfterController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingEntry != null) {
+      _hungerBefore = widget.existingEntry!.hungerBefore;
+      _selectedMoodsBefore = Set.from(widget.existingEntry!.moodBefore ?? []);
+      _fullnessAfter = widget.existingEntry!.fullnessAfter;
+      _selectedMoodsAfter = Set.from(widget.existingEntry!.moodAfter ?? []);
+      _noteController.text = widget.existingEntry!.note ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    _customMoodBeforeController.dispose();
+    _customMoodAfterController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final provider = context.watch<MindfulEatingProvider>();
+    final foodLogProvider = context.read<FoodLogProvider>();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            width: 32,
+            height: 4,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.outlineVariant,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(Icons.self_improvement, color: theme.colorScheme.tertiary),
+                const SizedBox(width: 8),
+                Text(
+                  widget.existingEntry != null
+                      ? 'Edit Mindful Eating'
+                      : 'Log Mindful Eating',
+                  style: theme.textTheme.titleLarge,
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(),
+
+          // Content
+          Expanded(
+            child: ListView(
+              controller: widget.scrollController,
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Before eating section
+                if (provider.showHungerBefore || provider.showMoodBefore) ...[
+                  Text(
+                    'Before eating',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Hunger level
+                  if (provider.showHungerBefore) ...[
+                    _buildLevelSelector(
+                      theme: theme,
+                      label: 'How hungry are you?',
+                      value: _hungerBefore,
+                      labels: MealMoodPresets.hungerLabels,
+                      onChanged: (value) => setState(() => _hungerBefore = value),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Mood before
+                  if (provider.showMoodBefore) ...[
+                    Text(
+                      'How are you feeling?',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildMoodSelector(
+                      theme: theme,
+                      presets: MealMoodPresets.beforeMeal,
+                      customMoods: foodLogProvider.customMoodsBefore,
+                      selectedMoods: _selectedMoodsBefore,
+                      onToggle: (id) => setState(() {
+                        if (_selectedMoodsBefore.contains(id)) {
+                          _selectedMoodsBefore.remove(id);
+                        } else {
+                          _selectedMoodsBefore.add(id);
+                        }
+                      }),
+                      showCustomInput: _showCustomMoodBeforeInput,
+                      onToggleCustomInput: () => setState(() {
+                        _showCustomMoodBeforeInput = !_showCustomMoodBeforeInput;
+                      }),
+                      customController: _customMoodBeforeController,
+                      onSaveCustom: () async {
+                        final mood = _customMoodBeforeController.text.trim();
+                        if (mood.isNotEmpty) {
+                          await foodLogProvider.addCustomMoodBefore(mood);
+                          _selectedMoodsBefore.add(mood);
+                          _customMoodBeforeController.clear();
+                          setState(() => _showCustomMoodBeforeInput = false);
+                        }
+                      },
+                      onRemoveCustom: (mood) async {
+                        await foodLogProvider.removeCustomMoodBefore(mood);
+                        _selectedMoodsBefore.remove(mood);
+                        setState(() {});
+                      },
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                ],
+
+                // After eating section
+                if (provider.showFullnessAfter || provider.showMoodAfter) ...[
+                  Text(
+                    'After eating',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.secondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Fullness level
+                  if (provider.showFullnessAfter) ...[
+                    _buildLevelSelector(
+                      theme: theme,
+                      label: 'How full are you?',
+                      value: _fullnessAfter,
+                      labels: MealMoodPresets.fullnessLabels,
+                      onChanged: (value) => setState(() => _fullnessAfter = value),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Mood after
+                  if (provider.showMoodAfter) ...[
+                    Text(
+                      'How do you feel now?',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildMoodSelector(
+                      theme: theme,
+                      presets: MealMoodPresets.afterMeal,
+                      customMoods: foodLogProvider.customMoodsAfter,
+                      selectedMoods: _selectedMoodsAfter,
+                      onToggle: (id) => setState(() {
+                        if (_selectedMoodsAfter.contains(id)) {
+                          _selectedMoodsAfter.remove(id);
+                        } else {
+                          _selectedMoodsAfter.add(id);
+                        }
+                      }),
+                      showCustomInput: _showCustomMoodAfterInput,
+                      onToggleCustomInput: () => setState(() {
+                        _showCustomMoodAfterInput = !_showCustomMoodAfterInput;
+                      }),
+                      customController: _customMoodAfterController,
+                      onSaveCustom: () async {
+                        final mood = _customMoodAfterController.text.trim();
+                        if (mood.isNotEmpty) {
+                          await foodLogProvider.addCustomMoodAfter(mood);
+                          _selectedMoodsAfter.add(mood);
+                          _customMoodAfterController.clear();
+                          setState(() => _showCustomMoodAfterInput = false);
+                        }
+                      },
+                      onRemoveCustom: (mood) async {
+                        await foodLogProvider.removeCustomMoodAfter(mood);
+                        _selectedMoodsAfter.remove(mood);
+                        setState(() {});
+                      },
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+                ],
+
+                // Note field
+                Text(
+                  'Notes (optional)',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _noteController,
+                  decoration: InputDecoration(
+                    hintText: 'Any reflections on this eating experience...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+
+                const SizedBox(height: 24),
+
+                // Save button
+                FilledButton.icon(
+                  onPressed: _hasData ? _save : null,
+                  icon: const Icon(Icons.check),
+                  label: Text(widget.existingEntry != null ? 'Update' : 'Save'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 48),
+                  ),
+                ),
+
+                SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool get _hasData =>
+      _hungerBefore != null ||
+      _selectedMoodsBefore.isNotEmpty ||
+      _fullnessAfter != null ||
+      _selectedMoodsAfter.isNotEmpty ||
+      _noteController.text.trim().isNotEmpty;
+
+  Future<void> _save() async {
+    final provider = context.read<MindfulEatingProvider>();
+
+    final entry = MindfulEatingEntry(
+      id: widget.existingEntry?.id,
+      timestamp: widget.existingEntry?.timestamp ??
+          DateTime(
+            widget.selectedDate.year,
+            widget.selectedDate.month,
+            widget.selectedDate.day,
+            DateTime.now().hour,
+            DateTime.now().minute,
+          ),
+      hungerBefore: _hungerBefore,
+      moodBefore: _selectedMoodsBefore.isNotEmpty ? _selectedMoodsBefore.toList() : null,
+      fullnessAfter: _fullnessAfter,
+      moodAfter: _selectedMoodsAfter.isNotEmpty ? _selectedMoodsAfter.toList() : null,
+      note: _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
+    );
+
+    if (widget.existingEntry != null) {
+      await provider.updateEntry(entry);
+    } else {
+      await provider.addEntry(entry);
+    }
+
+    if (mounted) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(widget.existingEntry != null
+              ? 'Mindful eating entry updated'
+              : 'Mindful eating logged'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  /// Build a 1-5 level selector
+  Widget _buildLevelSelector({
+    required ThemeData theme,
+    required String label,
+    required int? value,
+    required List<String> labels,
+    required ValueChanged<int?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(label, style: theme.textTheme.bodyMedium),
+            if (value != null) ...[
+              const Spacer(),
+              Text(
+                labels[value - 1],
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: List.generate(5, (index) {
+            final level = index + 1;
+            final isSelected = value == level;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(right: index < 4 ? 8 : 0),
+                child: InkWell(
+                  onTap: () => onChanged(isSelected ? null : level),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? theme.colorScheme.primaryContainer
+                          : theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                      border: isSelected
+                          ? Border.all(color: theme.colorScheme.primary, width: 2)
+                          : null,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$level',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: isSelected ? FontWeight.bold : null,
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+
+  /// Build a mood chip selector
+  Widget _buildMoodSelector({
+    required ThemeData theme,
+    required List<MoodOption> presets,
+    required List<String> customMoods,
+    required Set<String> selectedMoods,
+    required Function(String) onToggle,
+    required bool showCustomInput,
+    required VoidCallback onToggleCustomInput,
+    required TextEditingController customController,
+    required VoidCallback onSaveCustom,
+    required Function(String) onRemoveCustom,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            // Preset moods
+            ...presets.map((mood) {
+              final isSelected = selectedMoods.contains(mood.id);
+              return FilterChip(
+                label: Text('${mood.emoji} ${mood.label}'),
+                selected: isSelected,
+                onSelected: (_) => onToggle(mood.id),
+              );
+            }),
+            // Custom moods
+            ...customMoods.map((mood) {
+              final isSelected = selectedMoods.contains(mood);
+              return FilterChip(
+                label: Text('✨ $mood'),
+                selected: isSelected,
+                onSelected: (_) => onToggle(mood),
+                deleteIcon: const Icon(Icons.close, size: 16),
+                onDeleted: () => onRemoveCustom(mood),
+              );
+            }),
+            // "Other" button
+            ActionChip(
+              label: const Text('+ Other'),
+              onPressed: onToggleCustomInput,
+            ),
+          ],
+        ),
+        // Custom mood input
+        if (showCustomInput) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: customController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter custom feeling',
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  textCapitalization: TextCapitalization.words,
+                  onSubmitted: (_) => onSaveCustom(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filled(
+                onPressed: onSaveCustom,
+                icon: const Icon(Icons.check),
+              ),
+              IconButton(
+                onPressed: onToggleCustomInput,
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }
