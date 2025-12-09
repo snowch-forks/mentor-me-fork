@@ -47,6 +47,7 @@ import '../models/hydration_entry.dart';
 import '../models/user_context_summary.dart';
 import '../models/win.dart';
 import '../models/food_entry.dart';
+import '../models/mindful_eating_entry.dart';
 import '../models/weight_entry.dart';
 import '../models/exercise.dart';
 import '../models/digital_wellness.dart';
@@ -108,6 +109,7 @@ class BackupService {
     final foodEntries = await _storage.loadFoodEntries();
     final nutritionGoal = await _storage.loadNutritionGoal();
     final foodTemplates = await _storage.loadFoodTemplates();
+    final mindfulEatingEntries = await _storage.loadMindfulEatingEntries();
 
     // Weight tracking data
     final weightEntries = await _storage.loadWeightEntries();
@@ -210,6 +212,7 @@ class BackupService {
       'food_entries': json.encode(foodEntries.map((f) => f.toJson()).toList()),
       'nutrition_goal': nutritionGoal != null ? json.encode(nutritionGoal.toJson()) : null,
       'food_templates': json.encode(foodTemplates.map((t) => t.toJson()).toList()),
+      'mindful_eating_entries': json.encode(mindfulEatingEntries.map((m) => m.toJson()).toList()),
 
       // Weight tracking
       'weight_entries': json.encode(weightEntries.map((w) => w.toJson()).toList()),
@@ -1916,6 +1919,39 @@ class BackupService {
       );
       results.add(ImportItemResult(
         dataType: 'Food Templates',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import mindful eating entries
+    try {
+      if (data.containsKey('mindful_eating_entries') && data['mindful_eating_entries'] != null) {
+        final entriesJson = json.decode(data['mindful_eating_entries'] as String) as List;
+        final entries = entriesJson.map((json) => MindfulEatingEntry.fromJson(json)).toList();
+        await _storage.saveMindfulEatingEntries(entries);
+        await _debug.info('BackupService', 'Imported ${entries.length} mindful eating entries');
+        results.add(ImportItemResult(
+          dataType: 'Mindful Eating',
+          success: true,
+          count: entries.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Mindful Eating',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import mindful eating entries: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Mindful Eating',
         success: false,
         count: 0,
         errorMessage: e.toString(),
