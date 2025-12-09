@@ -17,6 +17,7 @@ import '../models/win.dart';
 import '../models/exercise.dart';
 import '../models/food_entry.dart';
 import '../models/food_template.dart';
+import '../models/mindful_eating_entry.dart';
 import '../models/medication.dart';
 import '../models/symptom.dart';
 import 'package:mentor_me/services/migration_service.dart';
@@ -83,6 +84,7 @@ class StorageService {
   static const String _foodEntriesKey = 'food_entries';
   static const String _nutritionGoalKey = 'nutrition_goal';
   static const String _foodTemplatesKey = 'food_templates';
+  static const String _mindfulEatingEntriesKey = 'mindful_eating_entries';
 
   // Medication tracking
   static const String _medicationsKey = 'medications';
@@ -157,6 +159,7 @@ class StorageService {
     'food_entries',
     'nutrition_goal',
     'food_templates',
+    'mindful_eating_entries',
 
     // Medication tracking
     'medications',
@@ -709,6 +712,29 @@ class StorageService {
     } catch (e) {
       debugPrint('Warning: Corrupted food templates data, returning empty list. Error: $e');
       await prefs.remove(_foodTemplatesKey);
+      return [];
+    }
+  }
+
+  // Save/Load Mindful Eating Entries
+  Future<void> saveMindfulEatingEntries(List<MindfulEatingEntry> entries) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = entries.map((e) => e.toJson()).toList();
+    await prefs.setString(_mindfulEatingEntriesKey, json.encode(jsonList));
+    await _notifyPersistence('mindful_eating_entries');
+  }
+
+  Future<List<MindfulEatingEntry>> loadMindfulEatingEntries() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_mindfulEatingEntriesKey);
+    if (jsonString == null) return [];
+
+    try {
+      final List<dynamic> jsonList = json.decode(jsonString);
+      return jsonList.map((j) => MindfulEatingEntry.fromJson(j)).toList();
+    } catch (e) {
+      debugPrint('Warning: Corrupted mindful eating entries data, returning empty list. Error: $e');
+      await prefs.remove(_mindfulEatingEntriesKey);
       return [];
     }
   }
