@@ -44,6 +44,19 @@ class FoodLogProvider extends ChangeNotifier {
     await _loadData();
   }
 
+  /// Ensure data is loaded before accessing entries
+  /// Call this in async contexts to guarantee data is available
+  Future<void> ensureLoaded() async {
+    // Wait for loading to complete if in progress
+    while (_isLoading) {
+      await Future.delayed(const Duration(milliseconds: 50));
+    }
+    // If entries is empty and we haven't loaded yet, trigger a load
+    if (_entries.isEmpty && !_isLoading) {
+      await _loadData();
+    }
+  }
+
   Future<void> _loadData() async {
     _isLoading = true;
     notifyListeners();
