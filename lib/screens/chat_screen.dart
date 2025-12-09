@@ -83,6 +83,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final weightProvider = context.read<WeightProvider>();
     final foodLogProvider = context.read<FoodLogProvider>();
 
+    // Ensure food log data is loaded before accessing (async constructor issue)
+    await foodLogProvider.ensureLoaded();
+
     // Send user message (adds to conversation, sets typing state)
     await chatProvider.sendUserMessage(text, skipAutoResponse: true);
     _scrollToBottom();
