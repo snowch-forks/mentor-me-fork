@@ -5,6 +5,7 @@ import '../models/food_entry.dart';
 import '../providers/food_library_provider.dart';
 import '../services/ai_service.dart';
 import '../services/food_search_service.dart';
+import '../widgets/food_database_search_sheet.dart';
 
 /// Screen for managing the user's food library
 class FoodLibraryScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _FoodLibraryScreenState extends State<FoodLibraryScreen> {
   FoodCategory? _selectedCategory;
   String _sortBy = 'name'; // 'name', 'recent', 'frequent'
   String _searchQuery = '';
+  bool _showFavoritesOnly = false;
 
   @override
   void dispose() {
@@ -29,8 +31,11 @@ class _FoodLibraryScreenState extends State<FoodLibraryScreen> {
   List<FoodTemplate> _getFilteredTemplates(FoodLibraryProvider provider) {
     List<FoodTemplate> templates;
 
-    // Apply category filter
-    if (_selectedCategory != null) {
+    // Apply favorites filter
+    if (_showFavoritesOnly) {
+      templates = provider.favorites;
+    } else if (_selectedCategory != null) {
+      // Apply category filter
       templates = provider.byCategory(_selectedCategory!);
     } else {
       templates = provider.templates;
@@ -135,7 +140,7 @@ class _FoodLibraryScreenState extends State<FoodLibraryScreen> {
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Search foods...',
+                    hintText: 'Search Food Library',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
@@ -203,10 +208,22 @@ class _FoodLibraryScreenState extends State<FoodLibraryScreen> {
                     const Spacer(),
                     if (provider.favorites.isNotEmpty)
                       TextButton.icon(
-                        icon: const Icon(Icons.favorite, size: 16),
-                        label: Text('${provider.favorites.length} favorites'),
+                        icon: Icon(
+                          _showFavoritesOnly ? Icons.favorite : Icons.favorite_border,
+                          size: 16,
+                        ),
+                        label: Text(
+                          _showFavoritesOnly
+                              ? 'Show all'
+                              : '${provider.favorites.length} favorites',
+                        ),
                         onPressed: () {
-                          // Could navigate to favorites view
+                          setState(() {
+                            _showFavoritesOnly = !_showFavoritesOnly;
+                            if (_showFavoritesOnly) {
+                              _selectedCategory = null; // Clear category when showing favorites
+                            }
+                          });
                         },
                       ),
                   ],
@@ -236,10 +253,24 @@ class _FoodLibraryScreenState extends State<FoodLibraryScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddTemplateSheet(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Add Food'),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'search_online',
+            onPressed: () => _showOnlineSearch(context),
+            icon: const Icon(Icons.search),
+            label: const Text('Search Online'),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton.extended(
+            heroTag: 'manual_add',
+            onPressed: () => _showAddTemplateSheet(context),
+            icon: const Icon(Icons.add),
+            label: const Text('Manually Add'),
+          ),
+        ],
       ),
     );
   }
@@ -311,6 +342,61 @@ class _FoodLibraryScreenState extends State<FoodLibraryScreen> {
       context: context,
       isScrollControlled: true,
       builder: (context) => _FoodTemplateDetailsSheet(template: template),
+    );
+  }
+
+  void _showOnlineSearch(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => FoodDatabaseSearchSheet(
+        onFoodSelected: (result) {
+          // When food is selected from online search, save it to the library
+          final libraryProvider = context.read<FoodLibraryProvider>();
+
+          // Parse serving size
+          double servingSize = 100.0;
+          ServingUnit servingUnit = ServingUnit.gram;
+          if (result.servingSize != null) {
+            final match = RegExp(r'(\d+(?:\.\d+)?)\s*(g|ml|oz|serving|portion)?', caseSensitive: false)
+                .firstMatch(result.servingSize!);
+            if (match != null) {
+              servingSize = double.tryParse(match.group(1)!) ?? 100.0;
+              final unit = match.group(2)?.toLowerCase();
+              if (unit == 'ml') {
+                servingUnit = ServingUnit.milliliter;
+              } else if (unit == 'oz') {
+                servingUnit = ServingUnit.ounce;
+              } else if (unit == 'serving' || unit == 'portion') {
+                servingUnit = ServingUnit.serving;
+              }
+            }
+          }
+
+          final template = FoodTemplate(
+            name: result.name,
+            brand: result.brand,
+            category: FoodCategory.other,
+            nutritionPerServing: result.nutrition,
+            defaultServingSize: servingSize,
+            servingUnit: servingUnit,
+            servingDescription: result.servingSize,
+            gramsPerServing: servingUnit == ServingUnit.gram ? servingSize : null,
+            mlPerServing: servingUnit == ServingUnit.milliliter ? servingSize : null,
+            source: NutritionSource.imported,
+            barcode: result.barcode,
+          );
+
+          libraryProvider.addTemplate(template);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added "${template.name}" to library'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -847,6 +933,8 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
   late TextEditingController _fiberController;
   late TextEditingController _sugarController;
   late TextEditingController _sodiumController;
+  late TextEditingController _saturatedFatController;
+  late TextEditingController _transFatController;
 
   late FoodCategory _category;
   late ServingUnit _servingUnit;
@@ -886,6 +974,12 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
     _sodiumController = TextEditingController(
       text: t?.nutritionPerServing.sodiumMg?.toString() ?? '',
     );
+    _saturatedFatController = TextEditingController(
+      text: t?.nutritionPerServing.saturatedFatGrams?.toString() ?? '',
+    );
+    _transFatController = TextEditingController(
+      text: t?.nutritionPerServing.transFatGrams?.toString() ?? '',
+    );
 
     _category = t?.category ?? FoodCategory.other;
     _servingUnit = t?.servingUnit ?? ServingUnit.serving;
@@ -904,6 +998,8 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
     _fiberController.dispose();
     _sugarController.dispose();
     _sodiumController.dispose();
+    _saturatedFatController.dispose();
+    _transFatController.dispose();
     super.dispose();
   }
 
@@ -915,6 +1011,17 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter a food name first')),
       );
+      return;
+    }
+
+    // Check if AI service is available
+    final aiService = AIService();
+    if (!aiService.hasApiKey()) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Claude API key not configured. Go to Settings → AI Settings.')),
+        );
+      }
       return;
     }
 
@@ -940,7 +1047,6 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
       }
 
       // Fall back to AI estimation
-      final aiService = AIService();
       final estimate = await aiService.estimateNutrition(description);
 
       if (estimate != null) {
@@ -956,6 +1062,12 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
             const SnackBar(content: Text('Could not estimate nutrition')),
           );
         }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
       }
     } finally {
       if (mounted) {
@@ -979,6 +1091,12 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
       if (nutrition.sodiumMg != null) {
         _sodiumController.text = nutrition.sodiumMg.toString();
       }
+      if (nutrition.saturatedFatGrams != null) {
+        _saturatedFatController.text = nutrition.saturatedFatGrams.toString();
+      }
+      if (nutrition.transFatGrams != null) {
+        _transFatController.text = nutrition.transFatGrams.toString();
+      }
     });
   }
 
@@ -996,13 +1114,15 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
           : _descriptionController.text.trim(),
       category: _category,
       nutritionPerServing: NutritionEstimate(
-        calories: int.tryParse(_caloriesController.text) ?? 0,
-        proteinGrams: int.tryParse(_proteinController.text) ?? 0,
-        carbsGrams: int.tryParse(_carbsController.text) ?? 0,
-        fatGrams: int.tryParse(_fatController.text) ?? 0,
-        fiberGrams: int.tryParse(_fiberController.text),
-        sugarGrams: int.tryParse(_sugarController.text),
-        sodiumMg: int.tryParse(_sodiumController.text),
+        calories: double.tryParse(_caloriesController.text)?.round() ?? 0,
+        proteinGrams: double.tryParse(_proteinController.text)?.round() ?? 0,
+        carbsGrams: double.tryParse(_carbsController.text)?.round() ?? 0,
+        fatGrams: double.tryParse(_fatController.text)?.round() ?? 0,
+        fiberGrams: double.tryParse(_fiberController.text)?.round(),
+        sugarGrams: double.tryParse(_sugarController.text)?.round(),
+        sodiumMg: double.tryParse(_sodiumController.text)?.round(),
+        saturatedFatGrams: double.tryParse(_saturatedFatController.text)?.round(),
+        transFatGrams: double.tryParse(_transFatController.text)?.round(),
       ),
       defaultServingSize: double.tryParse(_servingSizeController.text) ?? 1,
       servingUnit: _servingUnit,
@@ -1112,7 +1232,7 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
 
               // Title
               Text(
-                isEditing ? 'Edit Food' : 'Add Food to Library',
+                isEditing ? 'Edit Food' : 'Manually Add Food',
                 style: theme.textTheme.headlineSmall,
               ),
               const SizedBox(height: 24),
@@ -1238,10 +1358,10 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
                         labelText: 'Calories *',
                         suffixText: 'cal',
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (value) {
                         if (value?.isEmpty ?? true) return 'Required';
-                        if (int.tryParse(value!) == null) return 'Invalid';
+                        if (double.tryParse(value!) == null) return 'Invalid';
                         return null;
                       },
                     ),
@@ -1254,10 +1374,10 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
                         labelText: 'Protein *',
                         suffixText: 'g',
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (value) {
                         if (value?.isEmpty ?? true) return 'Required';
-                        if (int.tryParse(value!) == null) return 'Invalid';
+                        if (double.tryParse(value!) == null) return 'Invalid';
                         return null;
                       },
                     ),
@@ -1276,10 +1396,10 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
                         labelText: 'Carbs *',
                         suffixText: 'g',
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (value) {
                         if (value?.isEmpty ?? true) return 'Required';
-                        if (int.tryParse(value!) == null) return 'Invalid';
+                        if (double.tryParse(value!) == null) return 'Invalid';
                         return null;
                       },
                     ),
@@ -1292,10 +1412,10 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
                         labelText: 'Fat *',
                         suffixText: 'g',
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (value) {
                         if (value?.isEmpty ?? true) return 'Required';
-                        if (int.tryParse(value!) == null) return 'Invalid';
+                        if (double.tryParse(value!) == null) return 'Invalid';
                         return null;
                       },
                     ),
@@ -1304,7 +1424,35 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
               ),
               const SizedBox(height: 12),
 
-              // Optional nutrients
+              // Fat breakdown (optional)
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _saturatedFatController,
+                      decoration: const InputDecoration(
+                        labelText: 'Saturated Fat',
+                        suffixText: 'g',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _transFatController,
+                      decoration: const InputDecoration(
+                        labelText: 'Trans Fat',
+                        suffixText: 'g',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Other nutrients
               Row(
                 children: [
                   Expanded(
@@ -1314,7 +1462,7 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
                         labelText: 'Fiber',
                         suffixText: 'g',
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1325,7 +1473,7 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
                         labelText: 'Sugar',
                         suffixText: 'g',
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     ),
                   ),
                 ],
@@ -1338,7 +1486,7 @@ class _AddEditFoodTemplateSheetState extends State<_AddEditFoodTemplateSheet> {
                   labelText: 'Sodium',
                   suffixText: 'mg',
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
               const SizedBox(height: 32),
 
