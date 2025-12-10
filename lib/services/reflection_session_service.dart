@@ -5,6 +5,7 @@ import '../models/goal.dart';
 import '../models/habit.dart';
 import '../models/journal_entry.dart';
 import '../models/pulse_entry.dart';
+import '../models/food_entry.dart';
 import '../models/ai_provider.dart';
 import 'ai_service.dart';
 import 'debug_service.dart';
@@ -108,7 +109,7 @@ Always maintain a supportive, non-judgmental tone.''';
   /// Start a new reflection session
   ///
   /// Creates a new session and returns the opening message and questions.
-  /// Uses ContextManagementService to build rich context including goals, habits, journal, and pulse data.
+  /// Uses ContextManagementService to build rich context including goals, habits, journal, pulse, and food data.
   /// AI decides whether to explore journal patterns or ask what's on the user's mind.
   Future<ReflectionSessionStart> startSession({
     required ReflectionSessionType type,
@@ -117,6 +118,7 @@ Always maintain a supportive, non-judgmental tone.''';
     List<Habit>? habits,
     List<JournalEntry>? recentJournals,
     List<PulseEntry>? recentPulse,
+    List<FoodEntry>? recentFood,
   }) async {
     final sessionId = _uuid.v4();
 
@@ -130,6 +132,7 @@ Always maintain a supportive, non-judgmental tone.''';
       habits: habits ?? [],
       journalEntries: recentJournals ?? [],
       pulseEntries: recentPulse ?? [],
+      foodEntries: recentFood ?? [],
       conversationHistory: null, // No conversation history yet
     );
 
@@ -232,6 +235,9 @@ Respond in this JSON format:
     ReflectionSessionType type = ReflectionSessionType.general,
     List<Goal>? goals,
     List<Habit>? habits,
+    List<JournalEntry>? recentJournals,
+    List<PulseEntry>? recentPulse,
+    List<FoodEntry>? recentFood,
   }) async {
     await _debug.info(
         'ReflectionSessionService', 'Generating follow-up question');
@@ -254,20 +260,17 @@ Respond in this JSON format:
       historyBuffer.writeln();
     }
 
-    // Add current user context (goals/habits IDs for reference)
-    final contextBuffer = StringBuffer();
-    if (goals != null && goals.isNotEmpty) {
-      contextBuffer.writeln('\nCURRENT GOALS:');
-      for (final goal in goals) {
-        contextBuffer.writeln('- ID: ${goal.id} | ${goal.title} (${goal.currentProgress}% complete)');
-      }
-    }
-    if (habits != null && habits.isNotEmpty) {
-      contextBuffer.writeln('\nCURRENT HABITS:');
-      for (final habit in habits) {
-        contextBuffer.writeln('- ID: ${habit.id} | ${habit.title} (${habit.currentStreak} day streak)');
-      }
-    }
+    // Build comprehensive user context using ContextManagementService
+    final contextResult = _contextService.buildContext(
+      provider: AIProvider.cloud,
+      goals: goals ?? [],
+      habits: habits ?? [],
+      journalEntries: recentJournals ?? [],
+      pulseEntries: recentPulse ?? [],
+      foodEntries: recentFood ?? [],
+      conversationHistory: null,
+    );
+    final contextBuffer = contextResult.context;
 
     final prompt = '''$_reflectionSystemPrompt
 

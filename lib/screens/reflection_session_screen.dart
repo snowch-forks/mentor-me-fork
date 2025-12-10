@@ -10,6 +10,7 @@ import '../providers/goal_provider.dart';
 import '../providers/habit_provider.dart';
 import '../providers/journal_provider.dart';
 import '../providers/pulse_provider.dart';
+import '../providers/food_log_provider.dart';
 import '../providers/checkin_template_provider.dart';
 import '../providers/win_provider.dart';
 import '../services/reflection_session_service.dart';
@@ -109,6 +110,7 @@ class _ReflectionSessionScreenState extends State<ReflectionSessionScreen> {
     final habits = context.read<HabitProvider>().habits;
     final journals = context.read<JournalProvider>().entries;
     final pulse = context.read<PulseProvider>().entries;
+    final food = context.read<FoodLogProvider>().entries;
 
     try {
       final result = await _sessionService.startSession(
@@ -118,6 +120,7 @@ class _ReflectionSessionScreenState extends State<ReflectionSessionScreen> {
         habits: habits,
         recentJournals: journals.take(5).toList(),
         recentPulse: pulse.take(3).toList(),
+        recentFood: food.take(10).toList(),
       );
 
       setState(() {
@@ -173,10 +176,22 @@ class _ReflectionSessionScreenState extends State<ReflectionSessionScreen> {
     } else {
       // Generate follow-up question (with potential actions)
       try {
+        // Get current user context for comprehensive follow-up
+        final goals = context.read<GoalProvider>().goals;
+        final habits = context.read<HabitProvider>().habits;
+        final journals = context.read<JournalProvider>().entries;
+        final pulse = context.read<PulseProvider>().entries;
+        final food = context.read<FoodLogProvider>().entries;
+
         final followUpResult = await _sessionService.generateFollowUp(
           previousExchanges: _session!.exchanges,
           latestResponse: response,
           type: widget.sessionType,
+          goals: goals,
+          habits: habits,
+          recentJournals: journals.take(5).toList(),
+          recentPulse: pulse.take(3).toList(),
+          recentFood: food.take(10).toList(),
         );
 
         final message = followUpResult['message'] as String;
