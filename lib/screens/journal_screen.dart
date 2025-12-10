@@ -882,7 +882,7 @@ class _JournalScreenState extends State<JournalScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${entries.length} ${entries.length == 1 ? AppStrings.entryThisMonth : AppStrings.journalEntries}',
+                    '${entries.length} ${entries.length == 1 ? AppStrings.journalEntry : AppStrings.journalEntries}',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey,
                         ),

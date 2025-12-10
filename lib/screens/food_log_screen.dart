@@ -992,17 +992,63 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
       isScrollControlled: true,
       builder: (context) => FoodDatabaseSearchSheet(
         initialQuery: query,
-        onFoodSelected: (result) {
-          // Populate form with selected food data
-          setState(() {
-            _descriptionController.text = result.brand != null
-                ? '${result.name} (${result.brand})'
-                : result.name;
-            _nutrition = result.nutrition;
-            _nutritionEdited = false;
-            _nutritionSource = NutritionSource.imported; // From online database
-            _populateNutritionControllers(result.nutrition);
-          });
+        onFoodSelected: (result) async {
+          // Create a temporary FoodTemplate from the search result
+          // Parse serving size (e.g., "100g" -> 100, gram)
+          double servingSize = 100.0;
+          ServingUnit servingUnit = ServingUnit.gram;
+          if (result.servingSize != null) {
+            final match = RegExp(r'(\d+(?:\.\d+)?)\s*(g|ml|oz|serving|portion)?', caseSensitive: false)
+                .firstMatch(result.servingSize!);
+            if (match != null) {
+              servingSize = double.tryParse(match.group(1)!) ?? 100.0;
+              final unit = match.group(2)?.toLowerCase();
+              if (unit == 'ml') {
+                servingUnit = ServingUnit.milliliter;
+              } else if (unit == 'oz') {
+                servingUnit = ServingUnit.ounce;
+              } else if (unit == 'serving' || unit == 'portion') {
+                servingUnit = ServingUnit.serving;
+              }
+            }
+          }
+
+          final template = FoodTemplate(
+            name: result.name,
+            brand: result.brand,
+            category: FoodCategory.other,
+            nutritionPerServing: result.nutrition,
+            defaultServingSize: servingSize,
+            servingUnit: servingUnit,
+            servingDescription: result.servingSize,
+            gramsPerServing: servingUnit == ServingUnit.gram ? servingSize : null,
+            mlPerServing: servingUnit == ServingUnit.milliliter ? servingSize : null,
+            source: NutritionSource.imported,
+            barcode: result.barcode,
+          );
+
+          // Show portion picker
+          if (!mounted) return;
+          final entry = await PortionAdjustmentSheet.show(
+            context,
+            template: template,
+            defaultMealType: _selectedMealType,
+          );
+
+          if (entry != null && mounted) {
+            // Populate form with configured entry data
+            setState(() {
+              _descriptionController.text = entry.description;
+              _nutrition = entry.nutrition;
+              _nutritionEdited = false;
+              _nutritionSource = NutritionSource.imported;
+              _selectedMealType = entry.mealType;
+              _selectedTime = TimeOfDay.fromDateTime(entry.timestamp);
+              if (entry.nutrition != null) {
+                _populateNutritionControllers(entry.nutrition!);
+              }
+            });
+          }
         },
       ),
     );
