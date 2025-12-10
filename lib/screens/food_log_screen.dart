@@ -1019,19 +1019,23 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
         builder: (context, scrollController) => FoodDatabaseSearchSheet(
           onFoodSelected: (result) {
             // Note: FoodDatabaseSearchSheet handles closing itself via Navigator.pop
-            // Populate form with selected food data
-            setState(() {
-              _descriptionController.text = result.brand != null
-                  ? '${result.name} (${result.brand})'
-                  : result.name;
-              _nutrition = result.nutrition;
-              _nutritionEdited = false; // Reset edited flag
-              _populateNutritionControllers(result.nutrition);
-            });
+            // Open entry form pre-filled with search result
+            _openEntryFormWithResult(result);
           },
         ),
       ),
     );
+  }
+
+  void _openEntryFormWithResult(FoodSelectionResult result) {
+    setState(() {
+      _descriptionController.text = result.brand != null
+          ? '${result.name} (${result.brand})'
+          : result.name;
+      _nutrition = result.nutrition;
+      _nutritionEdited = false;
+      _populateNutritionControllers(result.nutrition);
+    });
   }
 
   Future<void> _confirmDeleteEntry(BuildContext context) async {

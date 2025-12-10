@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../models/food_entry.dart';
 import '../models/food_template.dart';
 import '../providers/food_library_provider.dart';
+import '../services/ai_service.dart';
 import '../services/food_database_service.dart';
 import '../services/food_search_service.dart';
 import '../theme/app_spacing.dart';
@@ -407,10 +408,21 @@ class _FoodDatabaseSearchSheetState extends State<FoodDatabaseSearchSheet>
                   ? _buildEmptySearchState(theme)
                   : ListView.builder(
                       controller: scrollController,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _searchResults.length,
-                      itemBuilder: (context, index) =>
-                          _buildFoodResultCard(theme, _searchResults[index]),
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 16,
+                        bottom: 100, // Extra padding for bottom nav
+                      ),
+                      // +1 for AI estimation footer
+                      itemCount: _searchResults.length + 1,
+                      itemBuilder: (context, index) {
+                        // Last item: AI estimation option
+                        if (index == _searchResults.length) {
+                          return _buildAIEstimateFooter(theme);
+                        }
+                        return _buildFoodResultCard(theme, _searchResults[index]);
+                      },
                     ),
         ),
       ],
@@ -581,7 +593,12 @@ class _FoodDatabaseSearchSheetState extends State<FoodDatabaseSearchSheet>
                         )
                       : ListView.builder(
                           controller: scrollController,
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.only(
+                            left: 16,
+                            right: 16,
+                            top: 16,
+                            bottom: 100, // Extra padding for bottom nav
+                          ),
                           itemCount: _categoryFoods.length,
                           itemBuilder: (context, index) =>
                               _buildFoodResultCard(theme, _categoryFoods[index]),
@@ -592,6 +609,8 @@ class _FoodDatabaseSearchSheetState extends State<FoodDatabaseSearchSheet>
   }
 
   Widget _buildEmptySearchState(ThemeData theme) {
+    final hasSearchQuery = _searchController.text.trim().isNotEmpty;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -599,27 +618,101 @@ class _FoodDatabaseSearchSheetState extends State<FoodDatabaseSearchSheet>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.search,
+              hasSearchQuery ? Icons.search_off : Icons.search,
               size: 64,
               color: theme.colorScheme.outlineVariant,
             ),
             AppSpacing.gapVerticalMd,
             Text(
-              'Search for foods',
+              hasSearchQuery ? 'No results found' : 'Search for foods',
               style: theme.textTheme.titleMedium?.copyWith(
                 color: theme.colorScheme.outline,
               ),
             ),
             AppSpacing.gapVerticalSm,
             Text(
-              'Search UK branded products and common foods\nfor accurate nutrition information.',
+              hasSearchQuery
+                  ? 'Try a different search or use AI to estimate nutrition.'
+                  : 'Search UK branded products and common foods\nfor accurate nutrition information.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
             ),
+            // AI estimate button when no results
+            if (hasSearchQuery) ...[
+              AppSpacing.gapVerticalLg,
+              FilledButton.tonalIcon(
+                onPressed: _estimateWithAI,
+                icon: const Icon(Icons.auto_awesome),
+                label: Text('Estimate "${_searchController.text.trim()}" with AI'),
+              ),
+              AppSpacing.gapVerticalSm,
+              Text(
+                'AI estimates are approximate',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Footer shown at bottom of search results to allow AI estimation
+  Widget _buildAIEstimateFooter(ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.search_off,
+                color: theme.colorScheme.outline,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "Can't find what you're looking for?",
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          AppSpacing.gapVerticalMd,
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: _estimateWithAI,
+              icon: const Icon(Icons.auto_awesome),
+              label: Text('Estimate "${_searchController.text.trim()}" with AI'),
+            ),
+          ),
+          AppSpacing.gapVerticalSm,
+          Text(
+            'AI estimates are approximate and may vary',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -883,6 +976,39 @@ class _FoodDatabaseSearchSheetState extends State<FoodDatabaseSearchSheet>
           ),
         ),
       );
+    }
+  }
+
+  /// Estimate nutrition using AI when food not found in database
+  Future<void> _estimateWithAI() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
+    setState(() {
+      _isSearching = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final aiService = AIService();
+      final response = await aiService.estimateNutrition(query);
+
+      if (response != null) {
+        // Create a result from AI estimate
+        widget.onFoodSelected(FoodSelectionResult(
+          name: query,
+          nutrition: response,
+          source: FoodDataSource.aiEstimated,
+          confidence: 0.7,
+        ));
+        if (mounted) Navigator.pop(context);
+      } else {
+        setState(() => _errorMessage = 'AI could not estimate nutrition for "$query"');
+      }
+    } catch (e) {
+      setState(() => _errorMessage = 'AI estimation failed: $e');
+    } finally {
+      setState(() => _isSearching = false);
     }
   }
 
