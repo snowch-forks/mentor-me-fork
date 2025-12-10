@@ -110,7 +110,11 @@ class _ReflectionSessionScreenState extends State<ReflectionSessionScreen> {
     final habits = context.read<HabitProvider>().habits;
     final journals = context.read<JournalProvider>().entries;
     final pulse = context.read<PulseProvider>().entries;
-    final food = context.read<FoodLogProvider>().entries;
+
+    // Ensure food log data is loaded before accessing
+    final foodLogProvider = context.read<FoodLogProvider>();
+    await foodLogProvider.ensureLoaded();
+    final food = foodLogProvider.entries;
 
     try {
       final result = await _sessionService.startSession(
@@ -181,7 +185,11 @@ class _ReflectionSessionScreenState extends State<ReflectionSessionScreen> {
         final habits = context.read<HabitProvider>().habits;
         final journals = context.read<JournalProvider>().entries;
         final pulse = context.read<PulseProvider>().entries;
-        final food = context.read<FoodLogProvider>().entries;
+
+        // Ensure food log data is loaded
+        final foodLogProvider = context.read<FoodLogProvider>();
+        await foodLogProvider.ensureLoaded();
+        final food = foodLogProvider.entries;
 
         final followUpResult = await _sessionService.generateFollowUp(
           previousExchanges: _session!.exchanges,
