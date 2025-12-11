@@ -543,7 +543,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         vertical: AppSpacing.md,
                       ),
                     ),
-                    maxLines: null,
+                    minLines: 1,
+                    maxLines: 5, // Limit expansion to keep send button visible
                     textInputAction: TextInputAction.send,
                     onSubmitted: isProcessing ? null : (_) => _sendMessage(),
                   ),
