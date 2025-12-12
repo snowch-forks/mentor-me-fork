@@ -272,6 +272,8 @@ class DomainModelDebugService {
     final journalEntries = await _storage.loadJournalEntries();
     final pulseEntries = await _storage.loadPulseEntries();
     final conversations = await _storage.getConversations();
+    final foodEntries = await _storage.loadFoodEntries();
+    final nutritionGoal = await _storage.loadNutritionGoal(); // Only used for cloud context
 
     // Get recent conversation messages (if any)
     List<ChatMessage>? recentMessages;
@@ -292,15 +294,18 @@ class DomainModelDebugService {
       journalEntries: journalEntries,
       pulseEntries: pulseEntries,
       conversationHistory: recentMessages,
+      foodEntries: foodEntries,
+      nutritionGoal: nutritionGoal,
     );
 
-    // Build local context
+    // Build local context (local AI has limited context, no nutritionGoal)
     final localResult = _contextService.buildLocalContext(
       goals: goals,
       habits: habits,
       journalEntries: journalEntries,
       pulseEntries: pulseEntries,
       conversationHistory: recentMessages,
+      foodEntries: foodEntries,
     );
 
     return LLMContextPreviewResult(

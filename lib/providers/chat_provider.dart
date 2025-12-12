@@ -476,6 +476,13 @@ class ChatProvider extends ChangeNotifier {
           recentEntries: journalEntries,
           pulseEntries: pulseEntries,
           conversationHistory: _currentConversation?.messages,
+          exercisePlans: exercisePlans,
+          workoutLogs: workoutLogs,
+          weightEntries: weightEntries,
+          weightGoal: weightGoal,
+          foodEntries: foodEntries,
+          nutritionGoal: nutritionGoal,
+          wins: wins,
         );
 
         final message = result['message'] as String? ?? '';
