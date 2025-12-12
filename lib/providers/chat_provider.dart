@@ -631,6 +631,52 @@ class ChatProvider extends ChangeNotifier {
           }
           break;
 
+        case 'create_checkin_template':
+          // Safely convert questions list - LLM may provide in various formats
+          final rawQuestions = input['questions'];
+          List<Map<String, dynamic>> questionsList = [];
+          if (rawQuestions is List) {
+            for (final q in rawQuestions) {
+              if (q is Map<String, dynamic>) {
+                questionsList.add(q);
+              } else if (q is Map) {
+                questionsList.add(Map<String, dynamic>.from(q));
+              }
+            }
+          }
+
+          // Safely convert schedule - LLM may provide in various formats
+          final rawSchedule = input['schedule'];
+          Map<String, dynamic> scheduleMap;
+          if (rawSchedule is Map<String, dynamic>) {
+            scheduleMap = rawSchedule;
+          } else if (rawSchedule is Map) {
+            scheduleMap = Map<String, dynamic>.from(rawSchedule);
+          } else {
+            // Default schedule if not provided
+            scheduleMap = {
+              'frequency': 'daily',
+              'time': {'hour': 9, 'minute': 0},
+            };
+            await _debug.warning(
+              'ChatProvider',
+              'Invalid schedule format for check-in template, using default',
+              metadata: {'rawSchedule': rawSchedule?.toString()},
+            );
+          }
+
+          final result = await _actionService!.createCheckInTemplate(
+            name: input['name'] as String? ?? 'Check-In',
+            description: input['description'] as String?,
+            questions: questionsList,
+            schedule: scheduleMap,
+            emoji: input['emoji'] as String?,
+          );
+          if (result.success) {
+            return '• Created check-in template: "${input['name'] ?? 'Check-In'}"';
+          }
+          break;
+
         default:
           await _debug.warning('ChatProvider', 'Unknown tool: $toolName');
       }
