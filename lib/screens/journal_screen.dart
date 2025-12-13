@@ -820,7 +820,8 @@ class _JournalScreenState extends State<JournalScreen> {
 
     for (final entry in entries) {
       final timestamp = entry.timestamp;
-      final dateKey = '${timestamp.year}-${timestamp.month}-${timestamp.day}';
+      // Zero-pad month and day for correct string sorting
+      final dateKey = '${timestamp.year}-${timestamp.month.toString().padLeft(2, '0')}-${timestamp.day.toString().padLeft(2, '0')}';
       if (!entriesByDay.containsKey(dateKey)) {
         entriesByDay[dateKey] = [];
       }
@@ -833,7 +834,7 @@ class _JournalScreenState extends State<JournalScreen> {
 
     // Get today's date key to check if we should expand it by default
     final now = DateTime.now();
-    final todayKey = '${now.year}-${now.month}-${now.day}';
+    final todayKey = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 80), // Added top padding
