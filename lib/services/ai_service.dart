@@ -676,6 +676,13 @@ IMPORTANT GUIDELINES:
     List<JournalEntry>? recentEntries,
     List<PulseEntry>? pulseEntries,
     List<ChatMessage>? conversationHistory,
+    List<ExercisePlan>? exercisePlans,
+    List<WorkoutLog>? workoutLogs,
+    List<WeightEntry>? weightEntries,
+    WeightGoal? weightGoal,
+    List<FoodEntry>? foodEntries,
+    NutritionGoal? nutritionGoal,
+    List<Win>? wins,
   }) async {
     // Function calling only supported by cloud AI
     if (_selectedProvider == AIProvider.local) {
@@ -691,6 +698,13 @@ IMPORTANT GUIDELINES:
         recentEntries: recentEntries,
         pulseEntries: pulseEntries,
         conversationHistory: conversationHistory,
+        exercisePlans: exercisePlans,
+        workoutLogs: workoutLogs,
+        weightEntries: weightEntries,
+        weightGoal: weightGoal,
+        foodEntries: foodEntries,
+        nutritionGoal: nutritionGoal,
+        wins: wins,
       );
       return {
         'message': message,
@@ -714,6 +728,13 @@ IMPORTANT GUIDELINES:
       recentEntries,
       pulseEntries,
       conversationHistory,
+      exercisePlans,
+      workoutLogs,
+      weightEntries,
+      weightGoal,
+      foodEntries,
+      nutritionGoal,
+      wins,
     );
   }
 
@@ -726,6 +747,13 @@ IMPORTANT GUIDELINES:
     List<JournalEntry>? recentEntries,
     List<PulseEntry>? pulseEntries,
     List<ChatMessage>? conversationHistory,
+    List<ExercisePlan>? exercisePlans,
+    List<WorkoutLog>? workoutLogs,
+    List<WeightEntry>? weightEntries,
+    WeightGoal? weightGoal,
+    List<FoodEntry>? foodEntries,
+    NutritionGoal? nutritionGoal,
+    List<Win>? wins,
   ) async {
     try {
       // Build comprehensive context for cloud AI
@@ -735,6 +763,13 @@ IMPORTANT GUIDELINES:
         journalEntries: recentEntries ?? [],
         pulseEntries: pulseEntries ?? [],
         conversationHistory: conversationHistory,
+        exercisePlans: exercisePlans,
+        workoutLogs: workoutLogs,
+        weightEntries: weightEntries,
+        weightGoal: weightGoal,
+        foodEntries: foodEntries,
+        nutritionGoal: nutritionGoal,
+        wins: wins,
       );
 
       final fullPrompt = '''You are an empathetic AI mentor conducting a deep reflection session.
