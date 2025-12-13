@@ -45,8 +45,13 @@ class MainActivity : FlutterActivity() {
     private val SAF_CHANNEL = "com.mentorme/saf"
     private val VOICE_CAPTURE_CHANNEL = "com.mentorme/voice_capture"
     private val LOCK_SCREEN_VOICE_CHANNEL = "com.mentorme/lock_screen_voice"
+    private val APP_ACTIONS_CHANNEL = "com.mentorme/app_actions"
     private val AICORE_PACKAGE = "com.google.android.aicore"
     private val PERMISSION_REQUEST_RECORD_AUDIO = 100
+
+    // Pending App Action data to send to Flutter once engine is ready
+    private var pendingAppAction: Map<String, Any?>? = null
+    private var appActionsChannel: MethodChannel? = null
 
     // LiteRT LLM Engine instance with thread-safe access
     // Note: We create a fresh Conversation for each inference to avoid context accumulation
@@ -348,9 +353,70 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        // App Actions channel for Google Assistant integration
+        appActionsChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_ACTIONS_CHANNEL)
+
         // Cache Flutter engine for service communication
         FlutterEngineCache.getInstance().put(FLUTTER_ENGINE_ID, flutterEngine)
         Log.d(TAG, "Flutter engine cached for service communication")
+
+        // Process any pending App Action that arrived before Flutter was ready
+        pendingAppAction?.let { action ->
+            Log.d(TAG, "Sending pending App Action to Flutter: $action")
+            appActionsChannel?.invokeMethod("createTodo", action)
+            pendingAppAction = null
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Handle intent that launched the activity
+        handleAppActionIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // Handle intent when activity is already running
+        handleAppActionIntent(intent)
+    }
+
+    /// Handle incoming App Action intent from Google Assistant
+    private fun handleAppActionIntent(intent: Intent?) {
+        if (intent == null) return
+
+        // Check for App Action parameters
+        val todoTitle = intent.getStringExtra("todo_title")
+        val todoDueDate = intent.getStringExtra("todo_due_date")
+        val action = intent.getStringExtra("action")
+
+        // Check if this is a CREATE_TASK action (from Google Assistant)
+        // or a static shortcut action
+        if (todoTitle != null || action == "add_todo") {
+            Log.d(TAG, "App Action received - title: $todoTitle, dueDate: $todoDueDate, action: $action")
+
+            val actionData = mapOf(
+                "title" to (todoTitle ?: ""),
+                "dueDate" to todoDueDate,
+                "action" to (action ?: "create_task"),
+                "source" to "google_assistant"
+            )
+
+            // If Flutter engine is ready, send immediately
+            // Otherwise, store for later
+            if (appActionsChannel != null) {
+                Log.d(TAG, "Sending App Action to Flutter immediately")
+                appActionsChannel?.invokeMethod("createTodo", actionData)
+            } else {
+                Log.d(TAG, "Flutter not ready, storing App Action for later")
+                pendingAppAction = actionData
+            }
+
+            // Clear the intent extras to prevent re-processing
+            intent.removeExtra("todo_title")
+            intent.removeExtra("todo_due_date")
+            intent.removeExtra("action")
+        }
     }
 
     private fun checkOnDeviceAIAvailability(): Map<String, Any?> {

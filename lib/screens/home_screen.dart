@@ -14,6 +14,8 @@ import '../services/storage_service.dart';
 import '../services/auto_backup_service.dart';
 import '../services/voice_activation_service.dart';
 import '../services/lock_screen_voice_service.dart';
+import '../services/app_actions_service.dart';
+import '../models/todo.dart';
 // import '../models/ai_provider.dart';  // Local AI - commented out
 import '../providers/settings_provider.dart';
 import '../providers/todo_provider.dart';
@@ -59,8 +61,72 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // Initialize lock screen voice service with todo provider for hands-free mode
       final todoProvider = context.read<TodoProvider>();
       await LockScreenVoiceService.instance.initialize(todoProvider: todoProvider);
+
+      // Initialize App Actions service for Google Assistant integration
+      await AppActionsService.instance.initialize(
+        onCreateTodo: (title, dueDate) => _handleAppActionCreateTodo(title, dueDate),
+        onOpenAddTodo: () => _handleAppActionOpenAddTodo(),
+      );
     } catch (e) {
       debugPrint('Warning: Voice activation initialization failed: $e');
+    }
+  }
+
+  /// Handle todo creation from Google Assistant App Action
+  void _handleAppActionCreateTodo(String title, String? dueDate) {
+    final todoProvider = context.read<TodoProvider>();
+
+    // Parse due date if provided
+    DateTime? parsedDueDate;
+    if (dueDate != null && dueDate.isNotEmpty) {
+      try {
+        parsedDueDate = DateTime.parse(dueDate);
+      } catch (e) {
+        debugPrint('Warning: Could not parse due date from App Action: $dueDate');
+      }
+    }
+
+    // Create the todo
+    final todo = Todo(
+      title: title,
+      dueDate: parsedDueDate,
+      wasVoiceCaptured: true,
+      voiceTranscript: title,
+    );
+
+    todoProvider.addTodo(todo);
+
+    // Navigate to Actions screen to show the new todo
+    if (mounted) {
+      setState(() {
+        _selectedIndex = 1; // Actions screen index
+      });
+
+      // Show confirmation
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Added: "$title"'),
+              ),
+            ],
+          ),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  /// Handle open add todo from Google Assistant App Action
+  void _handleAppActionOpenAddTodo() {
+    if (mounted) {
+      setState(() {
+        _selectedIndex = 1; // Actions screen index
+      });
     }
   }
 
