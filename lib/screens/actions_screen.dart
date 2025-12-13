@@ -25,6 +25,13 @@ class ActionsScreen extends StatefulWidget {
 
 enum ActionFilter { all, goals, habits, todos }
 
+/// Color scheme for differentiating action types
+class ActionColors {
+  static const Color goal = Color(0xFF2196F3);     // Blue - long-term aspirations
+  static const Color habit = Color(0xFFFF9800);    // Orange - daily routines
+  static const Color todo = Color(0xFF009688);     // Teal - one-off tasks
+}
+
 class _ActionsScreenState extends State<ActionsScreen> {
   ActionFilter _filter = ActionFilter.all;
 
@@ -55,11 +62,31 @@ class _ActionsScreenState extends State<ActionsScreen> {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: ActionFilter.values.map((filter) {
+                          final color = _getFilterColor(filter);
+                          final isSelected = _filter == filter;
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: FilterChip(
-                              selected: _filter == filter,
-                              label: Text(_getFilterLabel(filter)),
+                              selected: isSelected,
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (filter != ActionFilter.all) ...[
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        color: color,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                  ],
+                                  Text(_getFilterLabel(filter)),
+                                ],
+                              ),
+                              selectedColor: color?.withOpacity(0.2),
+                              checkmarkColor: color,
                               onSelected: (_) => setState(() => _filter = filter),
                             ),
                           );
@@ -161,6 +188,19 @@ class _ActionsScreenState extends State<ActionsScreen> {
     }
   }
 
+  Color? _getFilterColor(ActionFilter filter) {
+    switch (filter) {
+      case ActionFilter.all:
+        return null;
+      case ActionFilter.goals:
+        return ActionColors.goal;
+      case ActionFilter.habits:
+        return ActionColors.habit;
+      case ActionFilter.todos:
+        return ActionColors.todo;
+    }
+  }
+
   Widget _buildSectionHeader(
     BuildContext context,
     String title,
@@ -195,34 +235,63 @@ class _ActionsScreenState extends State<ActionsScreen> {
   Widget _buildGoalCard(BuildContext context, Goal goal) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          child: Icon(
-            goal.category.icon,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(
+            left: BorderSide(color: ActionColors.goal, width: 4),
           ),
         ),
-        title: Text(goal.title),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(goal.category.displayName),
-            const SizedBox(height: 4),
-            LinearProgressIndicator(
-              value: goal.currentProgress / 100,
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: ActionColors.goal.withOpacity(0.15),
+            child: Icon(
+              goal.category.icon,
+              color: ActionColors.goal,
             ),
-          ],
-        ),
-        trailing: Text(
-          '${goal.currentProgress}%',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
           ),
+          title: Row(
+            children: [
+              Expanded(child: Text(goal.title)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: ActionColors.goal.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'GOAL',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: ActionColors.goal,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(goal.category.displayName),
+              const SizedBox(height: 4),
+              LinearProgressIndicator(
+                value: goal.currentProgress / 100,
+                backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                valueColor: const AlwaysStoppedAnimation<Color>(ActionColors.goal),
+              ),
+            ],
+          ),
+          trailing: Text(
+            '${goal.currentProgress}%',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: ActionColors.goal,
+            ),
+          ),
+          onTap: () => _showGoalDetail(context, goal),
         ),
-        onTap: () => _showGoalDetail(context, goal),
       ),
     );
   }
@@ -232,45 +301,79 @@ class _ActionsScreenState extends State<ActionsScreen> {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: ListTile(
-        leading: Checkbox(
-          value: isCompletedToday,
-          onChanged: (value) {
-            if (value == true) {
-              provider.completeHabit(habit.id, DateTime.now());
-            } else {
-              provider.uncompleteHabit(habit.id, DateTime.now());
-            }
-          },
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(
+            left: BorderSide(color: ActionColors.habit, width: 4),
+          ),
         ),
-        title: Text(
-          habit.title,
-          style: isCompletedToday
-              ? const TextStyle(decoration: TextDecoration.lineThrough)
-              : null,
-        ),
-        subtitle: Row(
-          children: [
-            Icon(Icons.local_fire_department, size: 16, color: Colors.orange),
-            const SizedBox(width: 4),
-            Text('${habit.currentStreak} day streak'),
-            if (habit.canGraduate) ...[
-              const SizedBox(width: 8),
+        child: ListTile(
+          leading: Transform.scale(
+            scale: 1.2,
+            child: Checkbox(
+              value: isCompletedToday,
+              activeColor: ActionColors.habit,
+              onChanged: (value) {
+                if (value == true) {
+                  provider.completeHabit(habit.id, DateTime.now());
+                } else {
+                  provider.uncompleteHabit(habit.id, DateTime.now());
+                }
+              },
+            ),
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  habit.title,
+                  style: isCompletedToday
+                      ? const TextStyle(decoration: TextDecoration.lineThrough)
+                      : null,
+                ),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.2),
+                  color: ActionColors.habit.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
-                  'Ready to graduate!',
-                  style: TextStyle(fontSize: 10, color: Colors.green),
+                child: Text(
+                  'HABIT',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: ActionColors.habit,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
-          ],
+          ),
+          subtitle: Row(
+            children: [
+              Icon(Icons.local_fire_department, size: 16, color: ActionColors.habit),
+              const SizedBox(width: 4),
+              Text('${habit.currentStreak} day streak'),
+              if (habit.canGraduate) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Ready to graduate!',
+                    style: TextStyle(fontSize: 10, color: Colors.green),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          trailing: _buildMaturityIndicator(habit),
         ),
-        trailing: _buildMaturityIndicator(habit),
       ),
     );
   }
@@ -326,44 +429,81 @@ class _ActionsScreenState extends State<ActionsScreen> {
   }) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      color: isOverdue ? Colors.red.withValues(alpha: 0.05) : null,
-      child: ListTile(
-        leading: Checkbox(
-          value: todo.status == TodoStatus.completed,
-          onChanged: (value) {
-            if (value == true) {
-              provider.completeTodo(todo.id);
-            } else {
-              provider.uncompleteTodo(todo.id);
-            }
-          },
+      clipBehavior: Clip.antiAlias,
+      color: isOverdue ? Colors.red.withOpacity(0.05) : null,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: isOverdue ? Colors.red : ActionColors.todo,
+              width: 4,
+            ),
+          ),
         ),
-        title: Text(
-          todo.title,
-          style: todo.status == TodoStatus.completed
-              ? const TextStyle(decoration: TextDecoration.lineThrough)
-              : null,
-        ),
-        subtitle: todo.dueDate != null
-            ? Row(
-                children: [
-                  Icon(
-                    isOverdue ? Icons.warning : Icons.calendar_today,
-                    size: 14,
-                    color: isOverdue ? Colors.red : null,
+        child: ListTile(
+          leading: Transform.scale(
+            scale: 1.2,
+            child: Checkbox(
+              value: todo.status == TodoStatus.completed,
+              activeColor: ActionColors.todo,
+              onChanged: (value) {
+                if (value == true) {
+                  provider.completeTodo(todo.id);
+                } else {
+                  provider.uncompleteTodo(todo.id);
+                }
+              },
+            ),
+          ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  todo.title,
+                  style: todo.status == TodoStatus.completed
+                      ? const TextStyle(decoration: TextDecoration.lineThrough)
+                      : null,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: (isOverdue ? Colors.red : ActionColors.todo).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'TODO',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: isOverdue ? Colors.red : ActionColors.todo,
+                    letterSpacing: 0.5,
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatDueDate(todo.dueDate!),
-                    style: TextStyle(
-                      color: isOverdue ? Colors.red : null,
+                ),
+              ),
+            ],
+          ),
+          subtitle: todo.dueDate != null
+              ? Row(
+                  children: [
+                    Icon(
+                      isOverdue ? Icons.warning : Icons.calendar_today,
+                      size: 14,
+                      color: isOverdue ? Colors.red : ActionColors.todo,
                     ),
-                  ),
-                ],
-              )
-            : null,
-        trailing: _buildPriorityIndicator(todo.priority),
-        onLongPress: () => _showTodoOptions(context, todo, provider),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatDueDate(todo.dueDate!),
+                      style: TextStyle(
+                        color: isOverdue ? Colors.red : null,
+                      ),
+                    ),
+                  ],
+                )
+              : null,
+          trailing: _buildPriorityIndicator(todo.priority),
+          onLongPress: () => _showTodoOptions(context, todo, provider),
+        ),
       ),
     );
   }
