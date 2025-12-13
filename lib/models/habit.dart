@@ -7,12 +7,12 @@ enum HabitStatus {
   abandoned,  // Decided not to pursue
 }
 
-/// Represents the maturity stage of a habit
+/// Habit maturity lifecycle - tracks progression from new habit to ingrained behavior
 /// Based on research that habits take ~66 days to form on average
 enum HabitMaturity {
-  forming,      // 0-21 days: Initial habit formation
-  established,  // 22-65 days: Building consistency
-  ingrained,    // 66+ days: Habit is automatic/graduated
+  forming,      // 0-21 days: Active tracking, needs reminders
+  established,  // 22-65 days: Consistent but still tracking
+  ingrained,    // 66+ days: Graduated - automatic behavior
 }
 
 /// Data model for habits and habit tracking.
@@ -44,10 +44,10 @@ class Habit {
   final String? systemType; // e.g., 'daily_reflection', 'suggested', null for user-created
   final int sortOrder; // For drag-and-drop reordering
 
-  // Habit maturity lifecycle fields
+  // Habit maturity lifecycle
   final HabitMaturity maturity; // Current maturity stage
-  final int daysToFormation; // Days required to consider habit formed (default 66)
-  final DateTime? graduatedAt; // When habit was marked as ingrained
+  final int daysToFormation; // Target days to form habit (default 66)
+  final DateTime? graduatedAt; // When marked as ingrained
 
   Habit({
     String? id,
@@ -144,7 +144,7 @@ class Habit {
       systemType: json['systemType'],
       sortOrder: json['sortOrder'] ?? 0, // Default 0 for backwards compatibility
       maturity: parsedMaturity,
-      daysToFormation: json['daysToFormation'] ?? 66,
+      daysToFormation: json['daysToFormation'] ?? 66, // Default 66 days for habit formation
       graduatedAt: json['graduatedAt'] != null
           ? DateTime.parse(json['graduatedAt'])
           : null,
@@ -197,18 +197,25 @@ class Habit {
     );
   }
 
-  /// Check if habit is ready to graduate to ingrained status
-  bool get canGraduate {
-    if (maturity == HabitMaturity.ingrained) return false;
-    return currentStreak >= daysToFormation;
+  /// Graduate habit to ingrained status
+  Habit graduate() {
+    return copyWith(
+      maturity: HabitMaturity.ingrained,
+      graduatedAt: DateTime.now(),
+    );
   }
 
-  /// Days remaining until habit can graduate
-  int get daysUntilGraduation {
-    if (maturity == HabitMaturity.ingrained) return 0;
-    final remaining = daysToFormation - currentStreak;
-    return remaining > 0 ? remaining : 0;
-  }
+  /// Check if habit is ready to graduate (streak >= daysToFormation)
+  bool get canGraduate =>
+      currentStreak >= daysToFormation && maturity != HabitMaturity.ingrained;
+
+  /// Progress toward graduation (0.0 to 1.0)
+  double get formationProgress =>
+      (currentStreak / daysToFormation).clamp(0.0, 1.0);
+
+  /// Days remaining until graduation
+  int get daysUntilGraduation =>
+      (daysToFormation - currentStreak).clamp(0, daysToFormation);
 
   // Check if completed today
   bool get isCompletedToday {
@@ -278,6 +285,30 @@ extension HabitFrequencyExtension on HabitFrequency {
         return 5;
       case HabitFrequency.custom:
         return 1;
+    }
+  }
+}
+
+extension HabitMaturityExtension on HabitMaturity {
+  String get displayName {
+    switch (this) {
+      case HabitMaturity.forming:
+        return 'Forming';
+      case HabitMaturity.established:
+        return 'Established';
+      case HabitMaturity.ingrained:
+        return 'Ingrained';
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case HabitMaturity.forming:
+        return 'Building this habit - keep tracking!';
+      case HabitMaturity.established:
+        return 'Getting consistent - almost there!';
+      case HabitMaturity.ingrained:
+        return 'This habit is now automatic';
     }
   }
 }
