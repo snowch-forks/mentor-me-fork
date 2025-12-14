@@ -8,6 +8,7 @@ import '../providers/goal_provider.dart';
 import '../providers/habit_provider.dart';
 import '../providers/todo_provider.dart';
 import '../widgets/add_goal_dialog.dart';
+import '../widgets/edit_habit_dialog.dart';
 import '../widgets/goal_detail_sheet.dart';
 
 /// Unified Actions Screen - combines Goals, Habits, and Todos
@@ -40,6 +41,7 @@ class _ActionsScreenState extends State<ActionsScreen> {
   StatusFilter _statusFilter = StatusFilter.all;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _isReorderMode = false;
 
   @override
   void initState() {
@@ -91,30 +93,53 @@ class _ActionsScreenState extends State<ActionsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : CustomScrollView(
               slivers: [
-                // Search bar
+                // Search bar with reorder toggle
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: SearchBar(
-                      controller: _searchController,
-                      hintText: 'Search goals, habits, todos...',
-                      leading: const Icon(Icons.search),
-                      trailing: _searchQuery.isNotEmpty
-                          ? [
-                              IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() => _searchQuery = '');
-                                },
-                              ),
-                            ]
-                          : null,
-                      onChanged: (value) => setState(() => _searchQuery = value),
-                      elevation: WidgetStateProperty.all(0),
-                      backgroundColor: WidgetStateProperty.all(
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: SearchBar(
+                            controller: _searchController,
+                            hintText: 'Search goals, habits, todos...',
+                            leading: const Icon(Icons.search),
+                            trailing: _searchQuery.isNotEmpty
+                                ? [
+                                    IconButton(
+                                      icon: const Icon(Icons.clear),
+                                      onPressed: () {
+                                        _searchController.clear();
+                                        setState(() => _searchQuery = '');
+                                      },
+                                    ),
+                                  ]
+                                : null,
+                            onChanged: (value) => setState(() => _searchQuery = value),
+                            elevation: WidgetStateProperty.all(0),
+                            backgroundColor: WidgetStateProperty.all(
+                              Theme.of(context).colorScheme.surfaceContainerHighest,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Reorder mode toggle
+                        IconButton(
+                          icon: Icon(
+                            _isReorderMode ? Icons.done : Icons.swap_vert,
+                            color: _isReorderMode
+                                ? Theme.of(context).colorScheme.primary
+                                : null,
+                          ),
+                          tooltip: _isReorderMode ? 'Done reordering' : 'Reorder items',
+                          onPressed: () => setState(() => _isReorderMode = !_isReorderMode),
+                          style: IconButton.styleFrom(
+                            backgroundColor: _isReorderMode
+                                ? Theme.of(context).colorScheme.primaryContainer
+                                : Theme.of(context).colorScheme.surfaceContainerHighest,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -477,13 +502,18 @@ class _ActionsScreenState extends State<ActionsScreen> {
           ),
         ),
         child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: ActionColors.goal.withOpacity(0.15),
-            child: Icon(
-              goal.category.icon,
-              color: ActionColors.goal,
-            ),
-          ),
+          leading: _isReorderMode
+              ? Icon(
+                  Icons.drag_handle,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                )
+              : CircleAvatar(
+                  backgroundColor: ActionColors.goal.withOpacity(0.15),
+                  child: Icon(
+                    goal.category.icon,
+                    color: ActionColors.goal,
+                  ),
+                ),
           title: Row(
             children: [
               Expanded(child: Text(goal.title)),
@@ -554,20 +584,25 @@ class _ActionsScreenState extends State<ActionsScreen> {
           ),
         ),
         child: ListTile(
-          leading: Transform.scale(
-            scale: 1.2,
-            child: Checkbox(
-              value: isCompletedToday,
-              activeColor: ActionColors.habit,
-              onChanged: (value) {
-                if (value == true) {
-                  provider.completeHabit(habit.id, DateTime.now());
-                } else {
-                  provider.uncompleteHabit(habit.id, DateTime.now());
-                }
-              },
-            ),
-          ),
+          leading: _isReorderMode
+              ? Icon(
+                  Icons.drag_handle,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                )
+              : Transform.scale(
+                  scale: 1.2,
+                  child: Checkbox(
+                    value: isCompletedToday,
+                    activeColor: ActionColors.habit,
+                    onChanged: (value) {
+                      if (value == true) {
+                        provider.completeHabit(habit.id, DateTime.now());
+                      } else {
+                        provider.uncompleteHabit(habit.id, DateTime.now());
+                      }
+                    },
+                  ),
+                ),
           title: Row(
             children: [
               Expanded(
@@ -629,6 +664,8 @@ class _ActionsScreenState extends State<ActionsScreen> {
               ),
             ],
           ),
+          onTap: () => _showEditHabitDialog(context, habit),
+          onLongPress: () => _showHabitOptions(context, habit, provider),
         ),
       ),
     );
@@ -729,20 +766,25 @@ class _ActionsScreenState extends State<ActionsScreen> {
           ),
         ),
         child: ListTile(
-          leading: Transform.scale(
-            scale: 1.2,
-            child: Checkbox(
-              value: todo.status == TodoStatus.completed,
-              activeColor: ActionColors.todo,
-              onChanged: (value) {
-                if (value == true) {
-                  provider.completeTodo(todo.id);
-                } else {
-                  provider.uncompleteTodo(todo.id);
-                }
-              },
-            ),
-          ),
+          leading: _isReorderMode
+              ? Icon(
+                  Icons.drag_handle,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                )
+              : Transform.scale(
+                  scale: 1.2,
+                  child: Checkbox(
+                    value: todo.status == TodoStatus.completed,
+                    activeColor: ActionColors.todo,
+                    onChanged: (value) {
+                      if (value == true) {
+                        provider.completeTodo(todo.id);
+                      } else {
+                        provider.uncompleteTodo(todo.id);
+                      }
+                    },
+                  ),
+                ),
           title: Row(
             children: [
               Expanded(
@@ -790,6 +832,7 @@ class _ActionsScreenState extends State<ActionsScreen> {
                 )
               : null,
           trailing: _buildPriorityIndicator(todo.priority),
+          onTap: () => _showEditTodoDialog(context, todo, provider),
           onLongPress: () => _showTodoOptions(context, todo, provider),
         ),
       ),
@@ -843,6 +886,84 @@ class _ActionsScreenState extends State<ActionsScreen> {
       isScrollControlled: true,
       useSafeArea: true,
       builder: (context) => GoalDetailSheet(goal: goal),
+    );
+  }
+
+  void _showEditHabitDialog(BuildContext context, Habit habit) {
+    showDialog(
+      context: context,
+      builder: (context) => EditHabitDialog(habit: habit),
+    );
+  }
+
+  void _showHabitOptions(BuildContext context, Habit habit, HabitProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Edit'),
+              onTap: () {
+                Navigator.pop(context);
+                _showEditHabitDialog(context, habit);
+              },
+            ),
+            if (habit.status == HabitStatus.active)
+              ListTile(
+                leading: const Icon(Icons.pause_circle_outline),
+                title: const Text('Move to Backlog'),
+                onTap: () {
+                  Navigator.pop(context);
+                  provider.updateHabit(habit.copyWith(status: HabitStatus.backlog));
+                },
+              ),
+            if (habit.status == HabitStatus.backlog)
+              ListTile(
+                leading: const Icon(Icons.play_circle_outline),
+                title: const Text('Make Active'),
+                onTap: () {
+                  Navigator.pop(context);
+                  provider.updateHabit(habit.copyWith(status: HabitStatus.active));
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDeleteHabit(context, habit, provider);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteHabit(BuildContext context, Habit habit, HabitProvider provider) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Habit?'),
+        content: Text('Are you sure you want to delete "${habit.title}"? This will also delete all streak history.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(context);
+              provider.deleteHabit(habit.id);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 
