@@ -791,11 +791,15 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
   FoodTemplate? _linkedTemplate;
   bool _hasLoadedTemplate = false;
 
+  // Track original description to detect changes (for re-estimation)
+  String? _originalDescription;
+
   @override
   void initState() {
     super.initState();
     if (widget.existingEntry != null) {
       _descriptionController.text = widget.existingEntry!.description;
+      _originalDescription = widget.existingEntry!.description;
       _selectedMealType = widget.existingEntry!.mealType;
       _nutrition = widget.existingEntry!.nutrition;
       _selectedTime = TimeOfDay.fromDateTime(widget.existingEntry!.timestamp);
@@ -1368,6 +1372,8 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
           _nutritionEdited = false; // Reset edited flag on new estimate
           if (estimate != null) {
             _populateNutritionControllers(estimate);
+            // Update original description so button hides until next change
+            _originalDescription = _descriptionController.text.trim();
           } else {
             _estimateError = 'Could not estimate nutrition. Try being more specific about the food and portion size.';
           }
@@ -1792,8 +1798,11 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
               _buildPortionEditingSection(theme),
             ],
 
-            // AI Estimate button - only show as fallback when no nutrition
-            if (_nutrition == null && _descriptionController.text.isNotEmpty) ...[
+            // AI Estimate button - show when no nutrition OR description changed
+            if (_descriptionController.text.isNotEmpty &&
+                (_nutrition == null ||
+                    (_originalDescription != null &&
+                        _descriptionController.text.trim() != _originalDescription!.trim()))) ...[
               AppSpacing.gapVerticalMd,
               FilledButton.tonalIcon(
                 onPressed: _isEstimating ? null : _estimateNutrition,
@@ -1804,7 +1813,11 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.auto_awesome),
-                label: Text(_isEstimating ? 'Estimating...' : 'Estimate Nutrition with AI'),
+                label: Text(_isEstimating
+                    ? 'Estimating...'
+                    : _nutrition != null
+                        ? 'Re-estimate Nutrition with AI'
+                        : 'Estimate Nutrition with AI'),
               ),
             ],
 
