@@ -730,6 +730,8 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
         return const FoodLogWidget();
       case 'quickCapture':
         return const QuickCaptureWidget();
+      case 'focus':
+        return _buildFocusSection(context, goalProvider, habitProvider);
       case 'goals':
         return _buildGlanceableGoals(context, goalProvider);
       case 'habits':
@@ -781,6 +783,245 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
           ),
         ),
       ],
+    );
+  }
+
+  /// Build the Focus section - shows up to 3 focused goals/habits
+  Widget _buildFocusSection(
+    BuildContext context,
+    GoalProvider goalProvider,
+    HabitProvider habitProvider,
+  ) {
+    final focusedGoals = goalProvider.focusedGoals;
+    final focusedHabits = habitProvider.focusedHabits;
+    final totalFocused = focusedGoals.length + focusedHabits.length;
+
+    // If nothing is focused, show a call-to-action
+    if (totalFocused == 0) {
+      return Card(
+        elevation: 0,
+        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+        child: Padding(
+          padding: AppSpacing.cardPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.star_outline,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'My Focus',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Choose up to 3 goals or habits to focus on right now.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tap the star icon on any goal or habit to add it here.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show focused items
+    return Card(
+      elevation: 1,
+      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: AppSpacing.cardPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(
+                  Icons.star,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'My Focus ($totalFocused/3)',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Focused goals
+            ...focusedGoals.map((goal) {
+              final progress = goal.currentProgress / 100.0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: InkWell(
+                  onTap: () => widget.onNavigateToTab(2, filter: ActionFilter.goals),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.flag,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              goal.title,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Theme.of(context).colorScheme.primary,
+                                ),
+                                minHeight: 6,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${goal.currentProgress}%',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+
+            // Focused habits
+            ...focusedHabits.map((habit) {
+              final today = DateTime.now();
+              final todayDate = DateTime(today.year, today.month, today.day);
+              final completedToday = habit.completionDates.any((date) {
+                final completionDate = DateTime(date.year, date.month, date.day);
+                return completionDate == todayDate;
+              });
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: InkWell(
+                  onTap: () async {
+                    // Quick toggle from focus section
+                    if (completedToday) {
+                      await habitProvider.uncompleteHabit(habit.id, DateTime.now());
+                    } else {
+                      await habitProvider.completeHabit(habit.id, DateTime.now());
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          completedToday ? Icons.check_circle : Icons.circle_outlined,
+                          color: completedToday
+                              ? Colors.green
+                              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                          size: 22,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            habit.title,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  decoration: completedToday ? TextDecoration.lineThrough : null,
+                                  color: completedToday
+                                      ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
+                                      : null,
+                                ),
+                          ),
+                        ),
+                        if (habit.currentStreak > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.local_fire_department,
+                                  size: 14,
+                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${habit.currentStreak}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
     );
   }
 

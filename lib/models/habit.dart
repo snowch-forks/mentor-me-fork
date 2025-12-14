@@ -48,6 +48,7 @@ class Habit {
   final HabitMaturity maturity; // Current maturity stage
   final int daysToFormation; // Target days to form habit (default 66)
   final DateTime? graduatedAt; // When marked as ingrained
+  final bool isFocused; // User's current focus item (max 3 across goals/habits)
 
   Habit({
     String? id,
@@ -69,6 +70,7 @@ class Habit {
     this.maturity = HabitMaturity.forming,
     this.daysToFormation = 66,
     this.graduatedAt,
+    this.isFocused = false,
   })  : id = id ?? const Uuid().v4(),
         completionDates = completionDates ?? [],
         createdAt = createdAt ?? DateTime.now(),
@@ -96,6 +98,7 @@ class Habit {
       'maturity': maturity.toString(),
       'daysToFormation': daysToFormation,
       'graduatedAt': graduatedAt?.toIso8601String(),
+      'isFocused': isFocused,
     };
   }
 
@@ -148,6 +151,7 @@ class Habit {
       graduatedAt: json['graduatedAt'] != null
           ? DateTime.parse(json['graduatedAt'])
           : null,
+      isFocused: json['isFocused'] ?? false,
     );
   }
 
@@ -168,6 +172,7 @@ class Habit {
     HabitMaturity? maturity,
     int? daysToFormation,
     DateTime? graduatedAt,
+    bool? isFocused,
   }) {
     // Auto-sync isActive with status if status is provided but isActive is not
     final newStatus = status ?? this.status;
@@ -194,6 +199,7 @@ class Habit {
       maturity: maturity ?? this.maturity,
       daysToFormation: daysToFormation ?? this.daysToFormation,
       graduatedAt: graduatedAt ?? this.graduatedAt,
+      isFocused: isFocused ?? this.isFocused,
     );
   }
 

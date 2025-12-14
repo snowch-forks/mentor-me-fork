@@ -104,39 +104,74 @@ class ContextManagementService {
       }
     }
 
-    // 1. Active Goals (prioritize by recency and progress)
+    // 1. Active Goals (prioritize focused items first, then by recency and progress)
     final activeGoals = goals.where((g) => g.isActive).toList();
+    // Sort: focused first, then by progress
+    activeGoals.sort((a, b) {
+      if (a.isFocused && !b.isFocused) return -1;
+      if (!a.isFocused && b.isFocused) return 1;
+      return b.currentProgress.compareTo(a.currentProgress);
+    });
     if (activeGoals.isNotEmpty) {
+      final focusedGoals = activeGoals.where((g) => g.isFocused).toList();
       final goalsSection = StringBuffer('\n**Active Goals:**\n');
+      if (focusedGoals.isNotEmpty) {
+        goalsSection.writeln('*Currently focused:*');
+        for (final goal in focusedGoals) {
+          goalsSection.writeln(
+            '- ⭐ ${goal.title} (${goal.category.displayName}, ${goal.currentProgress}% complete)',
+          );
+        }
+        goalsSection.writeln();
+      }
       int goalCount = 0;
-      for (final goal in activeGoals.take(15)) {
-        // Include up to 15 goals for comprehensive context
-        goalsSection.writeln(
-          '- ${goal.title} (${goal.category.displayName}, ${goal.currentProgress}% complete)',
-        );
-        goalCount++;
+      final otherGoals = activeGoals.where((g) => !g.isFocused).take(12);
+      if (otherGoals.isNotEmpty) {
+        goalsSection.writeln('*Other active goals:*');
+        for (final goal in otherGoals) {
+          goalsSection.writeln(
+            '- ${goal.title} (${goal.category.displayName}, ${goal.currentProgress}% complete)',
+          );
+          goalCount++;
+        }
       }
       goalsSection.writeln();
-      addSection(goalsSection.toString(), 'goals', goalCount);
+      addSection(goalsSection.toString(), 'goals', goalCount + focusedGoals.length);
     }
 
-    // 2. Active Habits (prioritize by current streak and activity)
-    final activeHabits = habits
-        .where((h) => h.isActive)
-        .toList()
-      ..sort((a, b) => b.currentStreak.compareTo(a.currentStreak));
+    // 2. Active Habits (prioritize focused items first, then by current streak)
+    final activeHabits = habits.where((h) => h.isActive).toList();
+    // Sort: focused first, then by streak
+    activeHabits.sort((a, b) {
+      if (a.isFocused && !b.isFocused) return -1;
+      if (!a.isFocused && b.isFocused) return 1;
+      return b.currentStreak.compareTo(a.currentStreak);
+    });
     if (activeHabits.isNotEmpty) {
+      final focusedHabits = activeHabits.where((h) => h.isFocused).toList();
       final habitsSection = StringBuffer('\n**Habits:**\n');
+      if (focusedHabits.isNotEmpty) {
+        habitsSection.writeln('*Currently focused:*');
+        for (final habit in focusedHabits) {
+          habitsSection.writeln(
+            '- ⭐ ${habit.title} (${habit.currentStreak} day streak)',
+          );
+        }
+        habitsSection.writeln();
+      }
       int habitCount = 0;
-      for (final habit in activeHabits.take(15)) {
-        // Include up to 15 habits for comprehensive context
-        habitsSection.writeln(
-          '- ${habit.title} (${habit.currentStreak} day streak)',
-        );
-        habitCount++;
+      final otherHabits = activeHabits.where((h) => !h.isFocused).take(12);
+      if (otherHabits.isNotEmpty) {
+        habitsSection.writeln('*Other habits:*');
+        for (final habit in otherHabits) {
+          habitsSection.writeln(
+            '- ${habit.title} (${habit.currentStreak} day streak)',
+          );
+          habitCount++;
+        }
       }
       habitsSection.writeln();
-      addSection(habitsSection.toString(), 'habits', habitCount);
+      addSection(habitsSection.toString(), 'habits', habitCount + focusedHabits.length);
     }
 
     // 3. Recent Journal Entries - expanded for better context
@@ -506,34 +541,47 @@ class ContextManagementService {
       return currentTokens + tokens < _localMaxContextTokens;
     }
 
-    // 1. Top 2 Active Goals (most recent or highest progress)
-    final activeGoals = goals.where((g) => g.isActive).take(2).toList();
-    if (activeGoals.isNotEmpty) {
+    // 1. Top 2 Active Goals (prioritize focused items, then highest progress)
+    final activeGoals = goals.where((g) => g.isActive).toList();
+    // Sort: focused first, then by progress
+    activeGoals.sort((a, b) {
+      if (a.isFocused && !b.isFocused) return -1;
+      if (!a.isFocused && b.isFocused) return 1;
+      return b.currentProgress.compareTo(a.currentProgress);
+    });
+    final selectedGoals = activeGoals.take(2).toList();
+    if (selectedGoals.isNotEmpty) {
       final goalsSection = StringBuffer('\nGoals:\n');
-      for (final goal in activeGoals) {
-        goalsSection.writeln('- ${goal.title} (${goal.currentProgress}%)');
+      for (final goal in selectedGoals) {
+        final focusMarker = goal.isFocused ? '⭐ ' : '';
+        goalsSection.writeln('- $focusMarker${goal.title} (${goal.currentProgress}%)');
       }
       if (canAdd(goalsSection.toString())) {
         buffer.write(goalsSection);
         currentTokens += estimateTokens(goalsSection.toString());
-        itemCounts['goals'] = activeGoals.length;
+        itemCounts['goals'] = selectedGoals.length;
       }
     }
 
-    // 2. Top 2 Habits (by streak)
-    final topHabits = habits
-        .where((h) => h.isActive)
-        .toList()
-      ..sort((a, b) => b.currentStreak.compareTo(a.currentStreak));
-    if (topHabits.isNotEmpty) {
+    // 2. Top 2 Habits (prioritize focused items, then by streak)
+    final activeHabits = habits.where((h) => h.isActive).toList();
+    // Sort: focused first, then by streak
+    activeHabits.sort((a, b) {
+      if (a.isFocused && !b.isFocused) return -1;
+      if (!a.isFocused && b.isFocused) return 1;
+      return b.currentStreak.compareTo(a.currentStreak);
+    });
+    final selectedHabits = activeHabits.take(2).toList();
+    if (selectedHabits.isNotEmpty) {
       final habitsSection = StringBuffer('\nHabits:\n');
-      for (final habit in topHabits.take(2)) {
-        habitsSection.writeln('- ${habit.title} (${habit.currentStreak} days)');
+      for (final habit in selectedHabits) {
+        final focusMarker = habit.isFocused ? '⭐ ' : '';
+        habitsSection.writeln('- $focusMarker${habit.title} (${habit.currentStreak} days)');
       }
       if (canAdd(habitsSection.toString())) {
         buffer.write(habitsSection);
         currentTokens += estimateTokens(habitsSection.toString());
-        itemCounts['habits'] = topHabits.take(2).length;
+        itemCounts['habits'] = selectedHabits.length;
       }
     }
 

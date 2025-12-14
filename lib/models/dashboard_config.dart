@@ -75,6 +75,13 @@ class DashboardWidgetRegistry {
       canHide: true, // Can be hidden via dashboard customization
     ),
     DashboardWidgetInfo(
+      id: 'focus',
+      name: 'My Focus',
+      description: 'Your top 3 priority goals and habits',
+      icon: Icons.star,
+      color: Colors.amber,
+    ),
+    DashboardWidgetInfo(
       id: 'actionButtons',
       name: 'Quick Actions',
       description: 'Chat and reflection session buttons',

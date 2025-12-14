@@ -343,12 +343,23 @@ class _ActionsScreenState extends State<ActionsScreen> {
               ),
             ],
           ),
-          trailing: Text(
-            '${goal.currentProgress}%',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: ActionColors.goal,
-            ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${goal.currentProgress}%',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: ActionColors.goal,
+                ),
+              ),
+              const SizedBox(width: 4),
+              _buildFocusToggle(
+                context: context,
+                isFocused: goal.isFocused,
+                onToggle: () => _toggleGoalFocus(context, goal.id),
+              ),
+            ],
           ),
           onTap: () => _showGoalDetail(context, goal),
         ),
@@ -432,7 +443,18 @@ class _ActionsScreenState extends State<ActionsScreen> {
               ],
             ],
           ),
-          trailing: _buildMaturityIndicator(habit),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildMaturityIndicator(habit),
+              const SizedBox(width: 4),
+              _buildFocusToggle(
+                context: context,
+                isFocused: habit.isFocused,
+                onToggle: () => _toggleHabitFocus(context, habit.id),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -479,6 +501,66 @@ class _ActionsScreenState extends State<ActionsScreen> {
         ],
       ),
     );
+  }
+
+  /// Build focus toggle button (star icon)
+  Widget _buildFocusToggle({
+    required BuildContext context,
+    required bool isFocused,
+    required VoidCallback onToggle,
+  }) {
+    return IconButton(
+      icon: Icon(
+        isFocused ? Icons.star : Icons.star_border,
+        color: isFocused ? Colors.amber : Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
+        size: 24,
+      ),
+      onPressed: onToggle,
+      tooltip: isFocused ? 'Remove from focus' : 'Add to focus',
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+    );
+  }
+
+  /// Toggle focus state for a goal
+  Future<void> _toggleGoalFocus(BuildContext context, String goalId) async {
+    final goalProvider = context.read<GoalProvider>();
+    final habitProvider = context.read<HabitProvider>();
+
+    final success = await goalProvider.toggleFocus(
+      goalId,
+      totalFocusedHabits: habitProvider.focusedCount,
+    );
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Maximum 3 focus items allowed. Remove one first.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Toggle focus state for a habit
+  Future<void> _toggleHabitFocus(BuildContext context, String habitId) async {
+    final goalProvider = context.read<GoalProvider>();
+    final habitProvider = context.read<HabitProvider>();
+
+    final success = await habitProvider.toggleFocus(
+      habitId,
+      totalFocusedGoals: goalProvider.focusedCount,
+    );
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Maximum 3 focus items allowed. Remove one first.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Widget _buildTodoCard(

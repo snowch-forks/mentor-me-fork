@@ -15,6 +15,8 @@ class GoalProvider extends ChangeNotifier {
 
   List<Goal> get goals => _goals;
   List<Goal> get activeGoals => _goals.where((g) => g.isActive).toList();
+  List<Goal> get focusedGoals => _goals.where((g) => g.isFocused).toList();
+  int get focusedCount => focusedGoals.length;
   bool get isLoading => _isLoading;
 
   GoalProvider() {
@@ -294,6 +296,44 @@ class GoalProvider extends ChangeNotifier {
   /// Places the goal at the top of the active list
   Future<void> moveToActive(String goalId) async {
     await moveGoalToStatus(goalId, GoalStatus.active, 0);
+  }
+
+  /// Toggle focus on a goal
+  /// Returns true if successful, false if limit reached (max 3 across goals+habits)
+  /// [totalFocusedHabits] should be passed from HabitProvider.focusedCount
+  Future<bool> toggleFocus(String goalId, {int totalFocusedHabits = 0}) async {
+    final goal = getGoalById(goalId);
+    if (goal == null) return false;
+
+    // If currently focused, always allow unfocusing
+    if (goal.isFocused) {
+      final updatedGoal = goal.copyWith(isFocused: false);
+      await updateGoal(updatedGoal);
+      return true;
+    }
+
+    // Check if we can focus (max 3 across goals + habits)
+    final totalFocused = focusedCount + totalFocusedHabits;
+    if (totalFocused >= 3) {
+      return false; // At limit
+    }
+
+    final updatedGoal = goal.copyWith(isFocused: true);
+    await updateGoal(updatedGoal);
+    return true;
+  }
+
+  /// Clear focus from all goals
+  Future<void> clearAllFocus() async {
+    for (final goal in focusedGoals) {
+      final updatedGoal = goal.copyWith(isFocused: false);
+      final index = _goals.indexWhere((g) => g.id == goal.id);
+      if (index != -1) {
+        _goals[index] = updatedGoal;
+      }
+    }
+    await _storage.saveGoals(_goals);
+    notifyListeners();
   }
 
   /// Get goals by status, sorted by sortOrder
