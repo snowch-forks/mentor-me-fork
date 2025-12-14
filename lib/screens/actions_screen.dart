@@ -526,41 +526,13 @@ class _ActionsScreenState extends State<ActionsScreen> {
   /// Toggle focus state for a goal
   Future<void> _toggleGoalFocus(BuildContext context, String goalId) async {
     final goalProvider = context.read<GoalProvider>();
-    final habitProvider = context.read<HabitProvider>();
-
-    final success = await goalProvider.toggleFocus(
-      goalId,
-      totalFocusedHabits: habitProvider.focusedCount,
-    );
-
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Maximum 3 focus items allowed. Remove one first.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
+    await goalProvider.toggleFocus(goalId);
   }
 
   /// Toggle focus state for a habit
   Future<void> _toggleHabitFocus(BuildContext context, String habitId) async {
-    final goalProvider = context.read<GoalProvider>();
     final habitProvider = context.read<HabitProvider>();
-
-    final success = await habitProvider.toggleFocus(
-      habitId,
-      totalFocusedGoals: goalProvider.focusedCount,
-    );
-
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Maximum 3 focus items allowed. Remove one first.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
+    await habitProvider.toggleFocus(habitId);
   }
 
   Widget _buildTodoCard(

@@ -32,6 +32,7 @@ import 'actions_screen.dart' show ActionFilter;
 import '../widgets/recent_wins_widget.dart';
 import '../widgets/food_log_widget.dart';
 import '../widgets/quick_capture_widget.dart';
+import '../widgets/todos_widget.dart';
 import '../widgets/hands_free_discovery_card.dart';
 
 class MentorScreen extends StatefulWidget {
@@ -730,6 +731,8 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
         return const FoodLogWidget();
       case 'quickCapture':
         return const QuickCaptureWidget();
+      case 'todos':
+        return const TodosWidget();
       case 'focus':
         return _buildFocusSection(context, goalProvider, habitProvider);
       case 'goals':
@@ -786,7 +789,7 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
     );
   }
 
-  /// Build the Focus section - shows up to 3 focused goals/habits
+  /// Build the Focus section - shows focused goals/habits
   Widget _buildFocusSection(
     BuildContext context,
     GoalProvider goalProvider,
@@ -824,7 +827,7 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
               ),
               const SizedBox(height: 12),
               Text(
-                'Choose up to 3 goals or habits to focus on right now.',
+                'Star the goals and habits you want to focus on.',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
                   fontSize: 14,
@@ -845,7 +848,152 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
       );
     }
 
-    // Show focused items
+    // Build the list of focused items
+    final focusedItems = <Widget>[];
+
+    // Add focused goals
+    for (final goal in focusedGoals) {
+      final progress = goal.currentProgress / 100.0;
+      focusedItems.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: InkWell(
+            onTap: () => widget.onNavigateToTab(2, filter: ActionFilter.goals),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.flag,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        goal.title,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary,
+                          ),
+                          minHeight: 6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${goal.currentProgress}%',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Add focused habits
+    for (final habit in focusedHabits) {
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      final completedToday = habit.completionDates.any((date) {
+        final completionDate = DateTime(date.year, date.month, date.day);
+        return completionDate == todayDate;
+      });
+
+      focusedItems.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: InkWell(
+            onTap: () async {
+              // Quick toggle from focus section
+              if (completedToday) {
+                await habitProvider.uncompleteHabit(habit.id, DateTime.now());
+              } else {
+                await habitProvider.completeHabit(habit.id, DateTime.now());
+              }
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    completedToday ? Icons.check_circle : Icons.circle_outlined,
+                    color: completedToday
+                        ? Colors.green
+                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      habit.title,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            decoration: completedToday ? TextDecoration.lineThrough : null,
+                            color: completedToday
+                                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
+                                : null,
+                          ),
+                    ),
+                  ),
+                  if (habit.currentStreak > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.local_fire_department,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${habit.currentStreak}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Show focused items with scrolling if many
     return Card(
       elevation: 1,
       color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
@@ -860,6 +1008,7 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
         padding: AppSpacing.cardPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Header
             Row(
@@ -872,153 +1021,33 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'My Focus ($totalFocused/3)',
+                    'My Focus',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                 ),
+                if (totalFocused > 0)
+                  Text(
+                    '$totalFocused items',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
 
-            // Focused goals
-            ...focusedGoals.map((goal) {
-              final progress = goal.currentProgress / 100.0;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: InkWell(
-                  onTap: () => widget.onNavigateToTab(2, filter: ActionFilter.goals),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.flag,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              goal.title,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: progress,
-                                backgroundColor: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Theme.of(context).colorScheme.primary,
-                                ),
-                                minHeight: 6,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${goal.currentProgress}%',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
-                  ),
+            // Scrollable list if more than 5 items
+            if (totalFocused > 5)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 250),
+                child: SingleChildScrollView(
+                  child: Column(children: focusedItems),
                 ),
-              );
-            }),
-
-            // Focused habits
-            ...focusedHabits.map((habit) {
-              final today = DateTime.now();
-              final todayDate = DateTime(today.year, today.month, today.day);
-              final completedToday = habit.completionDates.any((date) {
-                final completionDate = DateTime(date.year, date.month, date.day);
-                return completionDate == todayDate;
-              });
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: InkWell(
-                  onTap: () async {
-                    // Quick toggle from focus section
-                    if (completedToday) {
-                      await habitProvider.uncompleteHabit(habit.id, DateTime.now());
-                    } else {
-                      await habitProvider.completeHabit(habit.id, DateTime.now());
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Icon(
-                          completedToday ? Icons.check_circle : Icons.circle_outlined,
-                          color: completedToday
-                              ? Colors.green
-                              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                          size: 22,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            habit.title,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  decoration: completedToday ? TextDecoration.lineThrough : null,
-                                  color: completedToday
-                                      ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
-                                      : null,
-                                ),
-                          ),
-                        ),
-                        if (habit.currentStreak > 0)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.local_fire_department,
-                                  size: 14,
-                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${habit.currentStreak}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
+              )
+            else
+              ...focusedItems,
           ],
         ),
       ),

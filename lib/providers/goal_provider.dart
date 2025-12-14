@@ -299,26 +299,12 @@ class GoalProvider extends ChangeNotifier {
   }
 
   /// Toggle focus on a goal
-  /// Returns true if successful, false if limit reached (max 3 across goals+habits)
-  /// [totalFocusedHabits] should be passed from HabitProvider.focusedCount
-  Future<bool> toggleFocus(String goalId, {int totalFocusedHabits = 0}) async {
+  /// Returns true if successful
+  Future<bool> toggleFocus(String goalId) async {
     final goal = getGoalById(goalId);
     if (goal == null) return false;
 
-    // If currently focused, always allow unfocusing
-    if (goal.isFocused) {
-      final updatedGoal = goal.copyWith(isFocused: false);
-      await updateGoal(updatedGoal);
-      return true;
-    }
-
-    // Check if we can focus (max 3 across goals + habits)
-    final totalFocused = focusedCount + totalFocusedHabits;
-    if (totalFocused >= 3) {
-      return false; // At limit
-    }
-
-    final updatedGoal = goal.copyWith(isFocused: true);
+    final updatedGoal = goal.copyWith(isFocused: !goal.isFocused);
     await updateGoal(updatedGoal);
     return true;
   }

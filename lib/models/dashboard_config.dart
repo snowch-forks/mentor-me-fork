@@ -145,6 +145,13 @@ class DashboardWidgetRegistry {
       color: Colors.deepPurple,
     ),
     DashboardWidgetInfo(
+      id: 'todos',
+      name: 'Pending Todos',
+      description: 'View and complete your pending todos',
+      icon: Icons.checklist,
+      color: Colors.deepPurple,
+    ),
+    DashboardWidgetInfo(
       id: 'goals',
       name: 'Active Goals',
       description: 'Quick view of your current goals',
