@@ -682,9 +682,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         onDestinationSelected: _navigateToTab,
         destinations: [
           NavigationDestination(
-            icon: const Icon(Icons.psychology_outlined),
-            selectedIcon: const Icon(Icons.psychology),
-            label: AppStrings.featureMentor,
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home),
+            label: AppStrings.featureHome,
           ),
           NavigationDestination(
             icon: const Icon(Icons.book_outlined),
