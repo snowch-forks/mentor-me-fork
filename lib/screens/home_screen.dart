@@ -37,6 +37,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _selectedIndex = 0;
+  ActionFilter? _actionsFilter; // Filter for ActionsScreen when navigating from mentor
   final _notificationService = NotificationService();
   final _aiService = AIService();
   final _storage = StorageService();
@@ -348,9 +349,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _navigateToTab(int index) {
+  void _navigateToTab(int index, {ActionFilter? filter}) {
     setState(() {
       _selectedIndex = index;
+      // Set filter when navigating to Actions screen (index 2)
+      if (index == 2) {
+        _actionsFilter = filter;
+      }
     });
   }
 
@@ -667,7 +672,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onNavigateToTab: _navigateToTab,
           ),
           const JournalScreen(),
-          const ActionsScreen(),
+          ActionsScreen(initialFilter: _actionsFilter),
           const WellnessDashboardScreen(),
           const settings.SettingsScreen(),
         ],

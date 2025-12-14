@@ -28,13 +28,14 @@ import '../widgets/weight_widget.dart';
 import '../widgets/exercise_widget.dart';
 import '../providers/settings_provider.dart';
 import 'dashboard_settings_screen.dart';
+import 'actions_screen.dart' show ActionFilter;
 import '../widgets/recent_wins_widget.dart';
 import '../widgets/food_log_widget.dart';
 import '../widgets/quick_capture_widget.dart';
 import '../widgets/hands_free_discovery_card.dart';
 
 class MentorScreen extends StatefulWidget {
-  final Function(int) onNavigateToTab;
+  final void Function(int index, {ActionFilter? filter}) onNavigateToTab;
 
   const MentorScreen({
     super.key,
@@ -892,7 +893,7 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
                   ),
                 ),
                 TextButton(
-                  onPressed: () => widget.onNavigateToTab(3), // Navigate to Goals tab
+                  onPressed: () => widget.onNavigateToTab(2, filter: ActionFilter.goals),
                   child: const Text('View All'),
                 ),
               ],
@@ -907,7 +908,7 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: InkWell(
-                  onTap: () => widget.onNavigateToTab(3), // Navigate to Goals tab
+                  onTap: () => widget.onNavigateToTab(2, filter: ActionFilter.goals),
                   borderRadius: BorderRadius.circular(8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -964,6 +965,9 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
         .where((h) => h.status == HabitStatus.active)
         .toList();
 
+    // Limit displayed habits to 5 for manageable UX
+    final displayedHabits = activeHabits.take(5).toList();
+
     if (activeHabits.isEmpty) {
       return Card(
         elevation: 0,
@@ -1013,15 +1017,22 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
     final today = DateTime.now();
     final todayDate = DateTime(today.year, today.month, today.day);
 
-    final habitsWithStatus = activeHabits.map((habit) {
+    // Calculate completion count from all active habits (for header)
+    final allCompletedCount = activeHabits.where((habit) {
+      return habit.completionDates.any((date) {
+        final completionDate = DateTime(date.year, date.month, date.day);
+        return completionDate == todayDate;
+      });
+    }).length;
+
+    // Map displayed habits with their completion status
+    final habitsWithStatus = displayedHabits.map((habit) {
       final completedToday = habit.completionDates.any((date) {
         final completionDate = DateTime(date.year, date.month, date.day);
         return completionDate == todayDate;
       });
       return {'habit': habit, 'completed': completedToday};
     }).toList();
-
-    final completedCount = habitsWithStatus.where((h) => h['completed'] as bool).length;
 
     return Card(
       elevation: 0,
@@ -1042,14 +1053,14 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    "Today's Habits ($completedCount/${activeHabits.length})",
+                    "Today's Habits ($allCompletedCount/${activeHabits.length})",
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                 ),
                 TextButton(
-                  onPressed: () => widget.onNavigateToTab(2), // Navigate to Habits tab
+                  onPressed: () => widget.onNavigateToTab(2, filter: ActionFilter.habits),
                   child: const Text('View All'),
                 ),
               ],

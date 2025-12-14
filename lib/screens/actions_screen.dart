@@ -17,7 +17,9 @@ import '../widgets/goal_detail_sheet.dart';
 /// - Habits (recurring actions with streak tracking)
 /// - Todos (one-off action items with optional reminders)
 class ActionsScreen extends StatefulWidget {
-  const ActionsScreen({super.key});
+  final ActionFilter? initialFilter;
+
+  const ActionsScreen({super.key, this.initialFilter});
 
   @override
   State<ActionsScreen> createState() => _ActionsScreenState();
@@ -33,9 +35,15 @@ class ActionColors {
 }
 
 class _ActionsScreenState extends State<ActionsScreen> {
-  ActionFilter _filter = ActionFilter.all;
+  late ActionFilter _filter;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _filter = widget.initialFilter ?? ActionFilter.all;
+  }
 
   @override
   void dispose() {

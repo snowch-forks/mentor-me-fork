@@ -162,12 +162,15 @@ class DashboardWidgetRegistry {
     }
   }
 
-  /// Get default configuration (all widgets visible, in default order)
+  /// Get default configuration (most widgets visible, quickCapture hidden by default)
   static List<DashboardWidgetConfig> getDefaultConfig() {
+    // Widgets to hide by default (users can enable via dashboard settings)
+    const hiddenByDefault = {'quickCapture'};
+
     return availableWidgets.asMap().entries.map((entry) {
       return DashboardWidgetConfig(
         id: entry.value.id,
-        visible: true,
+        visible: !hiddenByDefault.contains(entry.value.id),
         order: entry.key,
       );
     }).toList();

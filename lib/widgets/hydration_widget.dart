@@ -4,6 +4,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../models/hydration_entry.dart';
 import '../providers/hydration_provider.dart';
 import '../theme/app_spacing.dart';
 
@@ -187,6 +189,12 @@ class HydrationWidget extends StatelessWidget {
                     ),
                   ),
                 ],
+
+                // Show drink times if any entries today
+                if (summary.entries.isNotEmpty) ...[
+                  AppSpacing.gapMd,
+                  _DrinkTimesSection(entries: summary.entries),
+                ],
               ],
             ),
           ),
@@ -352,6 +360,160 @@ class _AddGlassButtonState extends State<_AddGlassButton>
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Expandable section showing today's drink times
+class _DrinkTimesSection extends StatefulWidget {
+  final List<HydrationEntry> entries;
+
+  const _DrinkTimesSection({required this.entries});
+
+  @override
+  State<_DrinkTimesSection> createState() => _DrinkTimesSectionState();
+}
+
+class _DrinkTimesSectionState extends State<_DrinkTimesSection> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final timeFormat = DateFormat.jm(); // e.g., "2:30 PM"
+
+    // Sort entries by time (most recent first)
+    final sortedEntries = List<HydrationEntry>.from(widget.entries)
+      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    // Calculate evening intake (after 6 PM)
+    final eveningEntries = sortedEntries.where((e) => e.timestamp.hour >= 18).toList();
+    final eveningGlasses = eveningEntries.fold<int>(0, (sum, e) => sum + e.glasses);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Expandable header
+        InkWell(
+          onTap: () => setState(() => _isExpanded = !_isExpanded),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.schedule,
+                  size: 16,
+                  color: Colors.lightBlue.shade600,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Drink times',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.lightBlue.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  _isExpanded ? Icons.expand_less : Icons.expand_more,
+                  size: 18,
+                  color: Colors.lightBlue.shade600,
+                ),
+                const Spacer(),
+                // Evening intake indicator
+                if (eveningGlasses > 0) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.nightlight_round,
+                          size: 12,
+                          color: Colors.indigo.shade400,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'After 6pm: $eveningGlasses',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: Colors.indigo.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+
+        // Expanded times list
+        if (_isExpanded) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.lightBlue.shade50.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Time entries
+                ...sortedEntries.take(10).map((entry) {
+                  final isEvening = entry.timestamp.hour >= 18;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isEvening ? Icons.nightlight_round : Icons.wb_sunny,
+                          size: 14,
+                          color: isEvening
+                              ? Colors.indigo.shade400
+                              : Colors.amber.shade600,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          timeFormat.format(entry.timestamp),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (entry.glasses > 1) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '(${entry.glasses} glasses)',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }),
+                if (sortedEntries.length > 10) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '...and ${sortedEntries.length - 10} more',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
