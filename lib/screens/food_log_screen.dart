@@ -787,6 +787,10 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
   double? _gramsPerServing;
   final _portionController = TextEditingController();
 
+  // Linked food library template (for accurate portion-based recalculation)
+  FoodTemplate? _linkedTemplate;
+  bool _hasLoadedTemplate = false;
+
   @override
   void initState() {
     super.initState();
@@ -829,6 +833,17 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
 
     // Setup focus listener for search dropdown
     _searchFocusNode.addListener(_onSearchFocusChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Look up linked template if editing an entry with templateId
+    if (!_hasLoadedTemplate && widget.existingEntry?.templateId != null) {
+      _hasLoadedTemplate = true;
+      final libraryProvider = context.read<FoodLibraryProvider>();
+      _linkedTemplate = libraryProvider.getById(widget.existingEntry!.templateId!);
+    }
   }
 
   @override
@@ -1574,6 +1589,7 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
       description: description,
       nutrition: finalNutrition,
       imagePath: _imagePath,
+      templateId: widget.existingEntry?.templateId, // Preserve link to food library
       portionSize: _portionSize,
       portionUnit: _portionUnit,
       gramsConsumed: calculatedGrams,
@@ -2038,6 +2054,34 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
                   'Portion Size',
                   style: theme.textTheme.titleSmall,
                 ),
+                const Spacer(),
+                // Show linked library indicator
+                if (_linkedTemplate != null)
+                  Tooltip(
+                    message: 'Linked to "${_linkedTemplate!.name}" in Food Library\nNutrition recalculates from library data',
+                    child: Chip(
+                      avatar: Icon(Icons.link, size: 16, color: theme.colorScheme.primary),
+                      label: Text(
+                        'From Library',
+                        style: theme.textTheme.labelSmall,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      backgroundColor: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                    ),
+                  )
+                else if (widget.existingEntry?.templateId != null)
+                  // Template ID exists but template not found (may have been deleted)
+                  Tooltip(
+                    message: 'Original library item not found\nUsing stored nutrition data',
+                    child: Chip(
+                      avatar: Icon(Icons.link_off, size: 16, color: theme.colorScheme.outline),
+                      label: Text(
+                        'Unlinked',
+                        style: theme.textTheme.labelSmall,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
               ],
             ),
             AppSpacing.gapVerticalMd,
@@ -2156,58 +2200,71 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
   }
 
   void _recalculateNutritionFromPortion() {
-    if (_nutrition == null || _portionSize == null || widget.existingEntry == null) return;
+    if (_nutrition == null || _portionSize == null) return;
 
-    // Get original portion size from existing entry
-    final originalPortion = widget.existingEntry!.portionSize;
-    if (originalPortion == null || originalPortion == 0) return;
+    NutritionEstimate scaledNutrition;
 
-    // Calculate multiplier from original portion to new portion
-    final multiplier = _portionSize! / originalPortion;
+    // If we have a linked template, use its per-serving nutrition for accurate recalculation
+    if (_linkedTemplate != null) {
+      // Calculate nutrition directly from template's per-serving data
+      // The template's nutritionForAmount method handles scaling properly
+      scaledNutrition = _linkedTemplate!.nutritionForAmount(
+        _linkedTemplate!.defaultServingSize * _portionSize!,
+      );
+    } else if (widget.existingEntry != null) {
+      // Fallback: scale from original entry's nutrition
+      final originalPortion = widget.existingEntry!.portionSize;
+      if (originalPortion == null || originalPortion == 0) return;
 
-    // Get original nutrition values
-    final origNutrition = widget.existingEntry!.nutrition;
-    if (origNutrition == null) return;
+      // Calculate multiplier from original portion to new portion
+      final multiplier = _portionSize! / originalPortion;
 
-    // Scale nutrition by multiplier
-    final scaledNutrition = NutritionEstimate(
-      calories: (origNutrition.calories * multiplier).round(),
-      proteinGrams: (origNutrition.proteinGrams * multiplier).round(),
-      carbsGrams: (origNutrition.carbsGrams * multiplier).round(),
-      fatGrams: (origNutrition.fatGrams * multiplier).round(),
-      saturatedFatGrams: origNutrition.saturatedFatGrams != null
-          ? (origNutrition.saturatedFatGrams! * multiplier).round()
-          : null,
-      unsaturatedFatGrams: origNutrition.unsaturatedFatGrams != null
-          ? (origNutrition.unsaturatedFatGrams! * multiplier).round()
-          : null,
-      monoFatGrams: origNutrition.monoFatGrams != null
-          ? (origNutrition.monoFatGrams! * multiplier).round()
-          : null,
-      polyFatGrams: origNutrition.polyFatGrams != null
-          ? (origNutrition.polyFatGrams! * multiplier).round()
-          : null,
-      transFatGrams: origNutrition.transFatGrams != null
-          ? (origNutrition.transFatGrams! * multiplier).round()
-          : null,
-      fiberGrams: origNutrition.fiberGrams != null
-          ? (origNutrition.fiberGrams! * multiplier).round()
-          : null,
-      sugarGrams: origNutrition.sugarGrams != null
-          ? (origNutrition.sugarGrams! * multiplier).round()
-          : null,
-      sodiumMg: origNutrition.sodiumMg != null
-          ? (origNutrition.sodiumMg! * multiplier).round()
-          : null,
-      potassiumMg: origNutrition.potassiumMg != null
-          ? (origNutrition.potassiumMg! * multiplier).round()
-          : null,
-      cholesterolMg: origNutrition.cholesterolMg != null
-          ? (origNutrition.cholesterolMg! * multiplier).round()
-          : null,
-      confidence: origNutrition.confidence,
-      notes: origNutrition.notes,
-    );
+      // Get original nutrition values
+      final origNutrition = widget.existingEntry!.nutrition;
+      if (origNutrition == null) return;
+
+      // Scale nutrition by multiplier
+      scaledNutrition = NutritionEstimate(
+        calories: (origNutrition.calories * multiplier).round(),
+        proteinGrams: (origNutrition.proteinGrams * multiplier).round(),
+        carbsGrams: (origNutrition.carbsGrams * multiplier).round(),
+        fatGrams: (origNutrition.fatGrams * multiplier).round(),
+        saturatedFatGrams: origNutrition.saturatedFatGrams != null
+            ? (origNutrition.saturatedFatGrams! * multiplier).round()
+            : null,
+        unsaturatedFatGrams: origNutrition.unsaturatedFatGrams != null
+            ? (origNutrition.unsaturatedFatGrams! * multiplier).round()
+            : null,
+        monoFatGrams: origNutrition.monoFatGrams != null
+            ? (origNutrition.monoFatGrams! * multiplier).round()
+            : null,
+        polyFatGrams: origNutrition.polyFatGrams != null
+            ? (origNutrition.polyFatGrams! * multiplier).round()
+            : null,
+        transFatGrams: origNutrition.transFatGrams != null
+            ? (origNutrition.transFatGrams! * multiplier).round()
+            : null,
+        fiberGrams: origNutrition.fiberGrams != null
+            ? (origNutrition.fiberGrams! * multiplier).round()
+            : null,
+        sugarGrams: origNutrition.sugarGrams != null
+            ? (origNutrition.sugarGrams! * multiplier).round()
+            : null,
+        sodiumMg: origNutrition.sodiumMg != null
+            ? (origNutrition.sodiumMg! * multiplier).round()
+            : null,
+        potassiumMg: origNutrition.potassiumMg != null
+            ? (origNutrition.potassiumMg! * multiplier).round()
+            : null,
+        cholesterolMg: origNutrition.cholesterolMg != null
+            ? (origNutrition.cholesterolMg! * multiplier).round()
+            : null,
+        confidence: origNutrition.confidence,
+        notes: origNutrition.notes,
+      );
+    } else {
+      return;
+    }
 
     setState(() {
       _nutrition = scaledNutrition;
