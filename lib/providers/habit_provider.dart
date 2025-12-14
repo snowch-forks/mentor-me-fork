@@ -19,6 +19,8 @@ class HabitProvider extends ChangeNotifier {
 
   List<Habit> get habits => _habits;
   List<Habit> get activeHabits => _habits.where((h) => h.isActive).toList();
+  List<Habit> get focusedHabits => _habits.where((h) => h.isFocused).toList();
+  int get focusedCount => focusedHabits.length;
   bool get isLoading => _isLoading;
   String? get lastCelebrationMessage => _lastCelebrationMessage;
 
@@ -323,6 +325,30 @@ class HabitProvider extends ChangeNotifier {
         .where((h) => h.status == status)
         .toList()
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  }
+
+  /// Toggle focus on a habit
+  /// Returns true if successful
+  Future<bool> toggleFocus(String habitId) async {
+    final habit = getHabitById(habitId);
+    if (habit == null) return false;
+
+    final updatedHabit = habit.copyWith(isFocused: !habit.isFocused);
+    await updateHabit(updatedHabit);
+    return true;
+  }
+
+  /// Clear focus from all habits
+  Future<void> clearAllFocus() async {
+    for (final habit in focusedHabits) {
+      final updatedHabit = habit.copyWith(isFocused: false);
+      final index = _habits.indexWhere((h) => h.id == habit.id);
+      if (index != -1) {
+        _habits[index] = updatedHabit;
+      }
+    }
+    await _storage.saveHabits(_habits);
+    notifyListeners();
   }
 
   /// Ensure all habits have valid sortOrder (call this on data load/migration)

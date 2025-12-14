@@ -7,7 +7,7 @@ class AppStrings {
   static const String appTagline = 'Your AI-powered companion for personal growth';
 
   // Core Feature Names
-  static const String featureMentor = 'Mentor';
+  static const String featureHome = 'Home'; // Bottom nav - main dashboard/landing page
   static const String featureJournal = 'Reflect'; // Bottom nav - matches "Daily Reflection" terminology
   static const String featureHabits = 'Habits';
   static const String featureGoals = 'Goals';

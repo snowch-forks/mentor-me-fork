@@ -194,6 +194,13 @@ class FoodEntry {
   final int? fullnessAfter; // 1-5 scale: 1=still hungry, 5=overfull
   final List<String>? moodAfter; // Feelings after meal (multi-select)
 
+  // Portion tracking fields (for entries from food library)
+  final double? portionSize; // Number of servings (e.g., 1.5)
+  final String? portionUnit; // Unit name (e.g., "serving", "g", "oz")
+  final double? gramsConsumed; // Calculated weight in grams (if available)
+  final double? defaultServingSize; // Template's default serving size
+  final double? gramsPerServing; // Template's grams per serving (for conversion)
+
   FoodEntry({
     String? id,
     DateTime? timestamp,
@@ -210,6 +217,11 @@ class FoodEntry {
     this.moodBefore,
     this.fullnessAfter,
     this.moodAfter,
+    this.portionSize,
+    this.portionUnit,
+    this.gramsConsumed,
+    this.defaultServingSize,
+    this.gramsPerServing,
   })  : id = id ?? const Uuid().v4(),
         timestamp = timestamp ?? DateTime.now();
 
@@ -242,6 +254,11 @@ class FoodEntry {
     List<String>? moodBefore,
     int? fullnessAfter,
     List<String>? moodAfter,
+    double? portionSize,
+    String? portionUnit,
+    double? gramsConsumed,
+    double? defaultServingSize,
+    double? gramsPerServing,
   }) {
     return FoodEntry(
       id: id ?? this.id,
@@ -259,12 +276,55 @@ class FoodEntry {
       moodBefore: moodBefore ?? this.moodBefore,
       fullnessAfter: fullnessAfter ?? this.fullnessAfter,
       moodAfter: moodAfter ?? this.moodAfter,
+      portionSize: portionSize ?? this.portionSize,
+      portionUnit: portionUnit ?? this.portionUnit,
+      gramsConsumed: gramsConsumed ?? this.gramsConsumed,
+      defaultServingSize: defaultServingSize ?? this.defaultServingSize,
+      gramsPerServing: gramsPerServing ?? this.gramsPerServing,
     );
   }
 
   /// Get the date portion for grouping
   @JsonKey(includeFromJson: false, includeToJson: false)
   DateTime get date => DateTime(timestamp.year, timestamp.month, timestamp.day);
+
+  /// Get formatted portion info string (e.g., "1.5 servings (150g)")
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  String? get portionInfo {
+    if (portionSize == null || portionUnit == null) return null;
+
+    final sizeStr = portionSize == portionSize!.roundToDouble()
+        ? portionSize!.toInt().toString()
+        : portionSize!.toStringAsFixed(1);
+
+    // Format unit for singular/plural
+    String unitStr = portionUnit!;
+    if (portionSize != 1) {
+      // Simple pluralization for common units
+      if (unitStr == 'serving') unitStr = 'servings';
+      else if (unitStr == 'piece') unitStr = 'pieces';
+      else if (unitStr == 'slice') unitStr = 'slices';
+      else if (unitStr == 'cup') unitStr = 'cups';
+      else if (unitStr == 'scoop') unitStr = 'scoops';
+      // Weight/volume units don't change (g, oz, ml, etc.)
+    }
+
+    String result = '$sizeStr $unitStr';
+
+    // Add grams consumed if available and different from unit
+    if (gramsConsumed != null && portionUnit != 'g') {
+      final gramsStr = gramsConsumed == gramsConsumed!.roundToDouble()
+          ? gramsConsumed!.toInt().toString()
+          : gramsConsumed!.toStringAsFixed(1);
+      result += ' (${gramsStr}g)';
+    }
+
+    return result;
+  }
+
+  /// Check if this entry has portion tracking data
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  bool get hasPortionData => portionSize != null && portionUnit != null;
 }
 
 /// Daily nutrition goal for tracking

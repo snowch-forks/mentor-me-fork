@@ -28,13 +28,15 @@ import '../widgets/weight_widget.dart';
 import '../widgets/exercise_widget.dart';
 import '../providers/settings_provider.dart';
 import 'dashboard_settings_screen.dart';
+import 'actions_screen.dart' show ActionFilter;
 import '../widgets/recent_wins_widget.dart';
 import '../widgets/food_log_widget.dart';
 import '../widgets/quick_capture_widget.dart';
+import '../widgets/todos_widget.dart';
 import '../widgets/hands_free_discovery_card.dart';
 
 class MentorScreen extends StatefulWidget {
-  final Function(int) onNavigateToTab;
+  final void Function(int index, {ActionFilter? filter}) onNavigateToTab;
 
   const MentorScreen({
     super.key,
@@ -729,6 +731,10 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
         return const FoodLogWidget();
       case 'quickCapture':
         return const QuickCaptureWidget();
+      case 'todos':
+        return const TodosWidget();
+      case 'focus':
+        return _buildFocusSection(context, goalProvider, habitProvider);
       case 'goals':
         return _buildGlanceableGoals(context, goalProvider);
       case 'habits':
@@ -780,6 +786,271 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
           ),
         ),
       ],
+    );
+  }
+
+  /// Build the Focus section - shows focused goals/habits
+  Widget _buildFocusSection(
+    BuildContext context,
+    GoalProvider goalProvider,
+    HabitProvider habitProvider,
+  ) {
+    final focusedGoals = goalProvider.focusedGoals;
+    final focusedHabits = habitProvider.focusedHabits;
+    final totalFocused = focusedGoals.length + focusedHabits.length;
+
+    // If nothing is focused, show a call-to-action
+    if (totalFocused == 0) {
+      return Card(
+        elevation: 0,
+        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+        child: Padding(
+          padding: AppSpacing.cardPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.star_outline,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'My Focus',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Star the goals and habits you want to focus on.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tap the star icon on any goal or habit to add it here.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Build the list of focused items
+    final focusedItems = <Widget>[];
+
+    // Add focused goals
+    for (final goal in focusedGoals) {
+      final progress = goal.currentProgress / 100.0;
+      focusedItems.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: InkWell(
+            onTap: () => widget.onNavigateToTab(2, filter: ActionFilter.goals),
+            borderRadius: BorderRadius.circular(8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.flag,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        goal.title,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary,
+                          ),
+                          minHeight: 6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${goal.currentProgress}%',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Add focused habits
+    for (final habit in focusedHabits) {
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      final completedToday = habit.completionDates.any((date) {
+        final completionDate = DateTime(date.year, date.month, date.day);
+        return completionDate == todayDate;
+      });
+
+      focusedItems.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: InkWell(
+            onTap: () async {
+              // Quick toggle from focus section
+              if (completedToday) {
+                await habitProvider.uncompleteHabit(habit.id, DateTime.now());
+              } else {
+                await habitProvider.completeHabit(habit.id, DateTime.now());
+              }
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    completedToday ? Icons.check_circle : Icons.circle_outlined,
+                    color: completedToday
+                        ? Colors.green
+                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      habit.title,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            decoration: completedToday ? TextDecoration.lineThrough : null,
+                            color: completedToday
+                                ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)
+                                : null,
+                          ),
+                    ),
+                  ),
+                  if (habit.currentStreak > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.local_fire_department,
+                            size: 14,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${habit.currentStreak}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Show focused items with scrolling if many
+    return Card(
+      elevation: 1,
+      color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: AppSpacing.cardPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(
+                  Icons.star,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'My Focus',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+                if (totalFocused > 0)
+                  Text(
+                    '$totalFocused items',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Scrollable list if more than 5 items
+            if (totalFocused > 5)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 250),
+                child: SingleChildScrollView(
+                  child: Column(children: focusedItems),
+                ),
+              )
+            else
+              ...focusedItems,
+          ],
+        ),
+      ),
     );
   }
 
@@ -839,7 +1110,7 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Current Goals',
+                    'Active Goals',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -885,14 +1156,14 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Current Goals (${activeGoals.length}/${goalProvider.goals.length})',
+                    'Active Goals (${activeGoals.length})',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                 ),
                 TextButton(
-                  onPressed: () => widget.onNavigateToTab(3), // Navigate to Goals tab
+                  onPressed: () => widget.onNavigateToTab(2, filter: ActionFilter.goals),
                   child: const Text('View All'),
                 ),
               ],
@@ -907,7 +1178,7 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: InkWell(
-                  onTap: () => widget.onNavigateToTab(3), // Navigate to Goals tab
+                  onTap: () => widget.onNavigateToTab(2, filter: ActionFilter.goals),
                   borderRadius: BorderRadius.circular(8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -964,6 +1235,9 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
         .where((h) => h.status == HabitStatus.active)
         .toList();
 
+    // Limit displayed habits to 5 for manageable UX
+    final displayedHabits = activeHabits.take(5).toList();
+
     if (activeHabits.isEmpty) {
       return Card(
         elevation: 0,
@@ -982,7 +1256,7 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    "Today's Habits",
+                    'Active Habits',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -1013,15 +1287,22 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
     final today = DateTime.now();
     final todayDate = DateTime(today.year, today.month, today.day);
 
-    final habitsWithStatus = activeHabits.map((habit) {
+    // Calculate completion count from all active habits (for header)
+    final allCompletedCount = activeHabits.where((habit) {
+      return habit.completionDates.any((date) {
+        final completionDate = DateTime(date.year, date.month, date.day);
+        return completionDate == todayDate;
+      });
+    }).length;
+
+    // Map displayed habits with their completion status
+    final habitsWithStatus = displayedHabits.map((habit) {
       final completedToday = habit.completionDates.any((date) {
         final completionDate = DateTime(date.year, date.month, date.day);
         return completionDate == todayDate;
       });
       return {'habit': habit, 'completed': completedToday};
     }).toList();
-
-    final completedCount = habitsWithStatus.where((h) => h['completed'] as bool).length;
 
     return Card(
       elevation: 0,
@@ -1042,14 +1323,14 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    "Today's Habits ($completedCount/${activeHabits.length})",
+                    'Active Habits ($allCompletedCount/${activeHabits.length})',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                 ),
                 TextButton(
-                  onPressed: () => widget.onNavigateToTab(2), // Navigate to Habits tab
+                  onPressed: () => widget.onNavigateToTab(2, filter: ActionFilter.habits),
                   child: const Text('View All'),
                 ),
               ],

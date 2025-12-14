@@ -75,6 +75,13 @@ class DashboardWidgetRegistry {
       canHide: true, // Can be hidden via dashboard customization
     ),
     DashboardWidgetInfo(
+      id: 'focus',
+      name: 'My Focus',
+      description: 'Your top 3 priority goals and habits',
+      icon: Icons.star,
+      color: Colors.amber,
+    ),
+    DashboardWidgetInfo(
       id: 'actionButtons',
       name: 'Quick Actions',
       description: 'Chat and reflection session buttons',
@@ -138,6 +145,13 @@ class DashboardWidgetRegistry {
       color: Colors.deepPurple,
     ),
     DashboardWidgetInfo(
+      id: 'todos',
+      name: 'Pending Todos',
+      description: 'View and complete your pending todos',
+      icon: Icons.checklist,
+      color: Colors.deepPurple,
+    ),
+    DashboardWidgetInfo(
       id: 'goals',
       name: 'Active Goals',
       description: 'Quick view of your current goals',
@@ -162,12 +176,15 @@ class DashboardWidgetRegistry {
     }
   }
 
-  /// Get default configuration (all widgets visible, in default order)
+  /// Get default configuration (most widgets visible, quickCapture hidden by default)
   static List<DashboardWidgetConfig> getDefaultConfig() {
+    // Widgets to hide by default (users can enable via dashboard settings)
+    const hiddenByDefault = {'quickCapture'};
+
     return availableWidgets.asMap().entries.map((entry) {
       return DashboardWidgetConfig(
         id: entry.value.id,
-        visible: true,
+        visible: !hiddenByDefault.contains(entry.value.id),
         order: entry.key,
       );
     }).toList();

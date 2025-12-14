@@ -35,6 +35,7 @@ class Goal {
   final GoalStatus status;
   final int sortOrder; // For drag-and-drop reordering
   final List<String>? linkedValueIds; // Values this goal serves (optional)
+  final bool isFocused; // User's current focus item (max 3 across goals/habits)
 
   Goal({
     String? id,
@@ -51,6 +52,7 @@ class Goal {
     this.status = GoalStatus.active,
     this.sortOrder = 0,
     this.linkedValueIds,
+    this.isFocused = false,
   })  : id = id ?? const Uuid().v4(),
         createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? createdAt ?? DateTime.now(),
@@ -74,6 +76,7 @@ class Goal {
       'status': status.toString(),
       'sortOrder': sortOrder,
       'linkedValueIds': linkedValueIds,
+      'isFocused': isFocused,
     };
   }
 
@@ -114,6 +117,7 @@ class Goal {
       linkedValueIds: json['linkedValueIds'] != null
           ? List<String>.from(json['linkedValueIds'])
           : null,
+      isFocused: json['isFocused'] ?? false,
     );
   }
 
@@ -129,6 +133,7 @@ class Goal {
     GoalStatus? status,
     int? sortOrder,
     List<String>? linkedValueIds,
+    bool? isFocused,
   }) {
     // Auto-sync isActive with status if status is provided but isActive is not
     final newStatus = status ?? this.status;
@@ -150,6 +155,7 @@ class Goal {
       status: newStatus,
       sortOrder: sortOrder ?? this.sortOrder,
       linkedValueIds: linkedValueIds ?? this.linkedValueIds,
+      isFocused: isFocused ?? this.isFocused,
     );
   }
 }

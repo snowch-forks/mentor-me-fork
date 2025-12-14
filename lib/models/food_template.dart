@@ -725,6 +725,15 @@ class FoodTemplate {
       entryDescription = '$displayName ($servings $unitText)';
     }
 
+    // Calculate grams consumed if we have grams per serving info
+    double? gramsConsumed;
+    if (gramsPerServing != null) {
+      gramsConsumed = gramsPerServing! * multiplier;
+    } else if (servingUnit.isWeightUnit) {
+      // If serving unit is already weight-based, calculate grams
+      gramsConsumed = servingUnit.toGrams(defaultServingSize * multiplier);
+    }
+
     return FoodEntry(
       timestamp: timestamp,
       mealType: mealType,
@@ -732,6 +741,12 @@ class FoodTemplate {
       nutrition: nutrition,
       notes: notes,
       isManualEntry: false,
+      templateId: id,
+      portionSize: multiplier,
+      portionUnit: servingUnit.displayName,
+      gramsConsumed: gramsConsumed,
+      defaultServingSize: defaultServingSize,
+      gramsPerServing: gramsPerServing,
     );
   }
 }
