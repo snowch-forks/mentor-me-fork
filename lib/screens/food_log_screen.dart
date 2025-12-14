@@ -519,15 +519,25 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
               ),
           ],
         ),
-        trailing: entry.nutrition != null
-            ? Text(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (entry.nutrition != null)
+              Text(
                 '${entry.nutrition!.calories} cal',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: theme.colorScheme.primary,
                 ),
-              )
-            : null,
+              ),
+            const SizedBox(width: 8),
+            Icon(
+              Icons.edit_outlined,
+              size: 20,
+              color: theme.colorScheme.outline,
+            ),
+          ],
+        ),
         onTap: () => _showEditFoodDialog(context, entry),
       ),
     );
