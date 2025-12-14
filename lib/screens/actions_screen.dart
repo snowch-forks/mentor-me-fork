@@ -19,8 +19,15 @@ import '../widgets/goal_detail_sheet.dart';
 /// - Todos (one-off action items with optional reminders)
 class ActionsScreen extends StatefulWidget {
   final ActionFilter? initialFilter;
+  final bool openAddTodoDialog;
+  final VoidCallback? onAddTodoDialogOpened;
 
-  const ActionsScreen({super.key, this.initialFilter});
+  const ActionsScreen({
+    super.key,
+    this.initialFilter,
+    this.openAddTodoDialog = false,
+    this.onAddTodoDialogOpened,
+  });
 
   @override
   State<ActionsScreen> createState() => _ActionsScreenState();
@@ -47,6 +54,25 @@ class _ActionsScreenState extends State<ActionsScreen> {
   void initState() {
     super.initState();
     _typeFilter = widget.initialFilter ?? ActionFilter.all;
+    // Check if we should open the add todo dialog immediately
+    if (widget.openAddTodoDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAddTodoDialog(context);
+        widget.onAddTodoDialogOpened?.call();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(ActionsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Open add todo dialog if flag changed from false to true
+    if (widget.openAddTodoDialog && !oldWidget.openAddTodoDialog) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showAddTodoDialog(context);
+        widget.onAddTodoDialogOpened?.call();
+      });
+    }
   }
 
   @override
