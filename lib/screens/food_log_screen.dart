@@ -497,14 +497,28 @@ class _FoodLogScreenState extends State<FoodLogScreen> {
           ],
         ),
         title: Text(entry.description),
-        subtitle: entry.nutrition != null
-            ? Text(
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Show portion info if available
+            if (entry.portionInfo != null)
+              Text(
+                entry.portionInfo!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            // Show nutrition summary
+            if (entry.nutrition != null)
+              Text(
                 entry.nutrition!.summary,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.outline,
                 ),
-              )
-            : null,
+              ),
+          ],
+        ),
         trailing: entry.nutrition != null
             ? Text(
                 '${entry.nutrition!.calories} cal',
@@ -765,6 +779,14 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
   final _fatController = TextEditingController();
   bool _nutritionEdited = false; // Track if user has edited values
 
+  // Portion editing state (for entries with portion data)
+  double? _portionSize;
+  String? _portionUnit;
+  double? _gramsConsumed;
+  double? _defaultServingSize;
+  double? _gramsPerServing;
+  final _portionController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -774,6 +796,17 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
       _nutrition = widget.existingEntry!.nutrition;
       _selectedTime = TimeOfDay.fromDateTime(widget.existingEntry!.timestamp);
       _imagePath = widget.existingEntry!.imagePath;
+      // Load portion data if available
+      _portionSize = widget.existingEntry!.portionSize;
+      _portionUnit = widget.existingEntry!.portionUnit;
+      _gramsConsumed = widget.existingEntry!.gramsConsumed;
+      _defaultServingSize = widget.existingEntry!.defaultServingSize;
+      _gramsPerServing = widget.existingEntry!.gramsPerServing;
+      if (_portionSize != null) {
+        _portionController.text = _portionSize == _portionSize!.roundToDouble()
+            ? _portionSize!.toInt().toString()
+            : _portionSize!.toStringAsFixed(2);
+      }
       // Populate nutrition controllers if we have existing nutrition
       if (_nutrition != null) {
         _populateNutritionControllers(_nutrition!);
@@ -809,6 +842,7 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
     _proteinController.dispose();
     _carbsController.dispose();
     _fatController.dispose();
+    _portionController.dispose();
     super.dispose();
   }
 
@@ -1527,6 +1561,12 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
     // Use _getCurrentNutrition() to capture any user edits
     final finalNutrition = _getCurrentNutrition();
 
+    // Calculate grams consumed if portion data is available
+    double? calculatedGrams = _gramsConsumed;
+    if (_portionSize != null && _gramsPerServing != null) {
+      calculatedGrams = _gramsPerServing! * _portionSize!;
+    }
+
     final entry = FoodEntry(
       id: widget.existingEntry?.id,
       timestamp: timestamp,
@@ -1534,6 +1574,11 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
       description: description,
       nutrition: finalNutrition,
       imagePath: _imagePath,
+      portionSize: _portionSize,
+      portionUnit: _portionUnit,
+      gramsConsumed: calculatedGrams,
+      defaultServingSize: _defaultServingSize,
+      gramsPerServing: _gramsPerServing,
     );
 
     try {
@@ -1724,6 +1769,12 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
               textCapitalization: TextCapitalization.sentences,
               onChanged: (_) => setState(() {}), // Rebuild to show/hide AI button
             ),
+
+            // Portion editing section (only show for entries with portion data)
+            if (_portionSize != null && _portionUnit != null) ...[
+              AppSpacing.gapVerticalMd,
+              _buildPortionEditingSection(theme),
+            ],
 
             // AI Estimate button - only show as fallback when no nutrition
             if (_nutrition == null && _descriptionController.text.isNotEmpty) ...[
@@ -1960,6 +2011,208 @@ class _AddFoodBottomSheetState extends State<_AddFoodBottomSheet> {
         ),
       ],
     );
+  }
+
+  /// Build the portion editing section for entries with portion data
+  Widget _buildPortionEditingSection(ThemeData theme) {
+    // Calculate current consumed amount display
+    String consumedDisplay = '';
+    if (_gramsConsumed != null && _portionUnit != 'g') {
+      final gramsStr = _gramsConsumed == _gramsConsumed!.roundToDouble()
+          ? _gramsConsumed!.toInt().toString()
+          : _gramsConsumed!.toStringAsFixed(1);
+      consumedDisplay = '= ${gramsStr}g';
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.straighten, size: 18, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Portion Size',
+                  style: theme.textTheme.titleSmall,
+                ),
+              ],
+            ),
+            AppSpacing.gapVerticalMd,
+            Row(
+              children: [
+                // Portion stepper
+                IconButton.filled(
+                  onPressed: (_portionSize ?? 1) > 0.25
+                      ? () {
+                          setState(() {
+                            _portionSize = (_portionSize ?? 1) - 0.25;
+                            _portionController.text = _formatPortionSize(_portionSize!);
+                            _updateGramsConsumed();
+                            _recalculateNutritionFromPortion();
+                          });
+                        }
+                      : null,
+                  icon: const Icon(Icons.remove),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: _portionController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    decoration: InputDecoration(
+                      suffixText: _portionUnit ?? 'servings',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    onChanged: (value) {
+                      final parsed = double.tryParse(value);
+                      if (parsed != null && parsed > 0) {
+                        setState(() {
+                          _portionSize = parsed;
+                          _updateGramsConsumed();
+                          _recalculateNutritionFromPortion();
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                IconButton.filled(
+                  onPressed: () {
+                    setState(() {
+                      _portionSize = (_portionSize ?? 1) + 0.25;
+                      _portionController.text = _formatPortionSize(_portionSize!);
+                      _updateGramsConsumed();
+                      _recalculateNutritionFromPortion();
+                    });
+                  },
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            if (consumedDisplay.isNotEmpty) ...[
+              AppSpacing.gapVerticalSm,
+              Center(
+                child: Text(
+                  consumedDisplay,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+            // Quick portion buttons
+            AppSpacing.gapVerticalSm,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [0.5, 1.0, 1.5, 2.0].map((value) {
+                final isSelected = _portionSize == value;
+                return ChoiceChip(
+                  label: Text(value == value.roundToDouble()
+                      ? value.toInt().toString()
+                      : value.toString()),
+                  selected: isSelected,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() {
+                        _portionSize = value;
+                        _portionController.text = _formatPortionSize(value);
+                        _updateGramsConsumed();
+                        _recalculateNutritionFromPortion();
+                      });
+                    }
+                  },
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatPortionSize(double size) {
+    return size == size.roundToDouble()
+        ? size.toInt().toString()
+        : size.toStringAsFixed(2);
+  }
+
+  void _updateGramsConsumed() {
+    if (_portionSize != null && _gramsPerServing != null) {
+      _gramsConsumed = _gramsPerServing! * _portionSize!;
+    }
+  }
+
+  void _recalculateNutritionFromPortion() {
+    if (_nutrition == null || _portionSize == null || widget.existingEntry == null) return;
+
+    // Get original portion size from existing entry
+    final originalPortion = widget.existingEntry!.portionSize;
+    if (originalPortion == null || originalPortion == 0) return;
+
+    // Calculate multiplier from original portion to new portion
+    final multiplier = _portionSize! / originalPortion;
+
+    // Get original nutrition values
+    final origNutrition = widget.existingEntry!.nutrition;
+    if (origNutrition == null) return;
+
+    // Scale nutrition by multiplier
+    final scaledNutrition = NutritionEstimate(
+      calories: (origNutrition.calories * multiplier).round(),
+      proteinGrams: (origNutrition.proteinGrams * multiplier).round(),
+      carbsGrams: (origNutrition.carbsGrams * multiplier).round(),
+      fatGrams: (origNutrition.fatGrams * multiplier).round(),
+      saturatedFatGrams: origNutrition.saturatedFatGrams != null
+          ? (origNutrition.saturatedFatGrams! * multiplier).round()
+          : null,
+      unsaturatedFatGrams: origNutrition.unsaturatedFatGrams != null
+          ? (origNutrition.unsaturatedFatGrams! * multiplier).round()
+          : null,
+      monoFatGrams: origNutrition.monoFatGrams != null
+          ? (origNutrition.monoFatGrams! * multiplier).round()
+          : null,
+      polyFatGrams: origNutrition.polyFatGrams != null
+          ? (origNutrition.polyFatGrams! * multiplier).round()
+          : null,
+      transFatGrams: origNutrition.transFatGrams != null
+          ? (origNutrition.transFatGrams! * multiplier).round()
+          : null,
+      fiberGrams: origNutrition.fiberGrams != null
+          ? (origNutrition.fiberGrams! * multiplier).round()
+          : null,
+      sugarGrams: origNutrition.sugarGrams != null
+          ? (origNutrition.sugarGrams! * multiplier).round()
+          : null,
+      sodiumMg: origNutrition.sodiumMg != null
+          ? (origNutrition.sodiumMg! * multiplier).round()
+          : null,
+      potassiumMg: origNutrition.potassiumMg != null
+          ? (origNutrition.potassiumMg! * multiplier).round()
+          : null,
+      cholesterolMg: origNutrition.cholesterolMg != null
+          ? (origNutrition.cholesterolMg! * multiplier).round()
+          : null,
+      confidence: origNutrition.confidence,
+      notes: origNutrition.notes,
+    );
+
+    setState(() {
+      _nutrition = scaledNutrition;
+      _populateNutritionControllers(scaledNutrition);
+    });
   }
 
   /// Build an editable nutrition text field

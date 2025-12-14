@@ -74,6 +74,11 @@ FoodEntry _$FoodEntryFromJson(Map<String, dynamic> json) => FoodEntry(
       moodAfter: (json['moodAfter'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
+      portionSize: (json['portionSize'] as num?)?.toDouble(),
+      portionUnit: json['portionUnit'] as String?,
+      gramsConsumed: (json['gramsConsumed'] as num?)?.toDouble(),
+      defaultServingSize: (json['defaultServingSize'] as num?)?.toDouble(),
+      gramsPerServing: (json['gramsPerServing'] as num?)?.toDouble(),
     );
 
 Map<String, dynamic> _$FoodEntryToJson(FoodEntry instance) => <String, dynamic>{
@@ -92,6 +97,11 @@ Map<String, dynamic> _$FoodEntryToJson(FoodEntry instance) => <String, dynamic>{
       'moodBefore': instance.moodBefore,
       'fullnessAfter': instance.fullnessAfter,
       'moodAfter': instance.moodAfter,
+      'portionSize': instance.portionSize,
+      'portionUnit': instance.portionUnit,
+      'gramsConsumed': instance.gramsConsumed,
+      'defaultServingSize': instance.defaultServingSize,
+      'gramsPerServing': instance.gramsPerServing,
     };
 
 const _$MealTypeEnumMap = {
