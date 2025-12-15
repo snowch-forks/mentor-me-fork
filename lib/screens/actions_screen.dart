@@ -108,53 +108,30 @@ class _ActionsScreenState extends State<ActionsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : CustomScrollView(
               slivers: [
-                // Search bar with reorder toggle
+                // Search bar
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: SearchBar(
-                            controller: _searchController,
-                            hintText: 'Search goals, habits, todos...',
-                            leading: const Icon(Icons.search),
-                            trailing: _searchQuery.isNotEmpty
-                                ? [
-                                    IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        setState(() => _searchQuery = '');
-                                      },
-                                    ),
-                                  ]
-                                : null,
-                            onChanged: (value) => setState(() => _searchQuery = value),
-                            elevation: WidgetStateProperty.all(0),
-                            backgroundColor: WidgetStateProperty.all(
-                              Theme.of(context).colorScheme.surfaceContainerHighest,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Reorder mode toggle
-                        IconButton(
-                          icon: Icon(
-                            _isReorderMode ? Icons.done : Icons.swap_vert,
-                            color: _isReorderMode
-                                ? Theme.of(context).colorScheme.primary
-                                : null,
-                          ),
-                          tooltip: _isReorderMode ? 'Done reordering' : 'Reorder items',
-                          onPressed: () => setState(() => _isReorderMode = !_isReorderMode),
-                          style: IconButton.styleFrom(
-                            backgroundColor: _isReorderMode
-                                ? Theme.of(context).colorScheme.primaryContainer
-                                : Theme.of(context).colorScheme.surfaceContainerHighest,
-                          ),
-                        ),
-                      ],
+                    child: SearchBar(
+                      controller: _searchController,
+                      hintText: 'Search goals, habits, todos...',
+                      leading: const Icon(Icons.search),
+                      trailing: _searchQuery.isNotEmpty
+                          ? [
+                              IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              ),
+                            ]
+                          : null,
+                      onChanged: (value) => setState(() => _searchQuery = value),
+                      elevation: WidgetStateProperty.all(0),
+                      backgroundColor: WidgetStateProperty.all(
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                      ),
                     ),
                   ),
                 ),
@@ -500,6 +477,23 @@ class _ActionsScreenState extends State<ActionsScreen> {
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Spacer(),
+          // Reorder mode toggle
+          IconButton(
+            icon: Icon(
+              _isReorderMode ? Icons.done : Icons.swap_vert,
+              color: _isReorderMode
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+            ),
+            tooltip: _isReorderMode ? 'Done reordering' : 'Reorder items',
+            onPressed: () => setState(() => _isReorderMode = !_isReorderMode),
+            style: IconButton.styleFrom(
+              backgroundColor: _isReorderMode
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
           ),
         ],
