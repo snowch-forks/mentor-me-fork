@@ -311,8 +311,18 @@ class _ChatScreenState extends State<ChatScreen> {
               builder: (context, chatProvider, child) {
                 final messages = chatProvider.messages;
 
+                // Show empty state when no messages
                 if (messages.isEmpty) {
                   return _buildEmptyState(context);
+                }
+
+                // Check if this is a new conversation (only welcome message from mentor)
+                final isNewConversation = messages.length == 1 &&
+                    messages.first.sender == MessageSender.mentor;
+
+                // For new conversations, show welcome message + suggestion prompts
+                if (isNewConversation && !chatProvider.isTyping) {
+                  return _buildNewConversationState(context, messages.first);
                 }
 
                 return ListView.builder(
@@ -374,6 +384,168 @@ class _ChatScreenState extends State<ChatScreen> {
             textAlign: TextAlign.center,
           ),
           AppSpacing.gapXl,
+
+          // General coaching
+          _buildPromptCategory(
+            context,
+            icon: Icons.lightbulb_outline,
+            title: 'Coaching',
+            prompts: const [
+              SuggestionPrompt('How am I doing overall?'),
+              SuggestionPrompt('What should I focus on today?'),
+              SuggestionPrompt('Help me reflect on my week'),
+            ],
+          ),
+
+          // Weight & Body
+          _buildPromptCategory(
+            context,
+            icon: Icons.monitor_weight_outlined,
+            title: 'Weight Tracking',
+            prompts: const [
+              SuggestionPrompt(
+                'Chart my weight progress this year',
+                emphasis: ContextEmphasis.weight,
+                systemHint: 'User wants to see their weight data visualized. Describe trends, patterns, and progress toward any weight goals.',
+              ),
+              SuggestionPrompt(
+                'How is my weight trending?',
+                emphasis: ContextEmphasis.weight,
+                systemHint: 'Analyze the weight trend direction and rate of change.',
+              ),
+              SuggestionPrompt(
+                'Am I on track to reach my weight goal?',
+                emphasis: ContextEmphasis.weight,
+                systemHint: 'Compare current progress against their weight goal if set.',
+              ),
+            ],
+          ),
+
+          // Nutrition
+          _buildPromptCategory(
+            context,
+            icon: Icons.restaurant_outlined,
+            title: 'Nutrition',
+            prompts: const [
+              SuggestionPrompt(
+                'Analyze my eating patterns this week',
+                emphasis: ContextEmphasis.nutrition,
+                systemHint: 'Look for meal timing patterns, food choices, and nutritional balance.',
+              ),
+              SuggestionPrompt(
+                'Am I hitting my protein goals?',
+                emphasis: ContextEmphasis.nutrition,
+                systemHint: 'Focus on protein intake across meals and days.',
+              ),
+              SuggestionPrompt(
+                'What are my calorie trends?',
+                emphasis: ContextEmphasis.nutrition,
+                systemHint: 'Analyze calorie intake patterns over time, including daily and weekly trends.',
+              ),
+            ],
+          ),
+
+          // Exercise
+          _buildPromptCategory(
+            context,
+            icon: Icons.fitness_center_outlined,
+            title: 'Exercise',
+            prompts: const [
+              SuggestionPrompt(
+                'Summarize my workouts this month',
+                emphasis: ContextEmphasis.exercise,
+                systemHint: 'Provide a comprehensive summary of workout frequency, types, and duration.',
+              ),
+              SuggestionPrompt(
+                'Am I exercising consistently?',
+                emphasis: ContextEmphasis.exercise,
+                systemHint: 'Analyze workout consistency and identify any patterns or gaps.',
+              ),
+              SuggestionPrompt(
+                'What exercise patterns do you see?',
+                emphasis: ContextEmphasis.exercise,
+                systemHint: 'Look for patterns in workout types, timing, and intensity.',
+              ),
+            ],
+          ),
+
+          // Mood & Wellness
+          _buildPromptCategory(
+            context,
+            icon: Icons.mood_outlined,
+            title: 'Mood & Wellness',
+            prompts: const [
+              SuggestionPrompt(
+                'How has my mood been lately?',
+                emphasis: ContextEmphasis.mood,
+                systemHint: 'Analyze mood trends from pulse entries and journal reflections.',
+              ),
+              SuggestionPrompt(
+                'What affects my energy levels?',
+                emphasis: ContextEmphasis.mood,
+                systemHint: 'Look for correlations between energy levels and other factors like sleep, exercise, or food.',
+              ),
+              SuggestionPrompt(
+                'Explore my stress patterns',
+                emphasis: ContextEmphasis.mood,
+                systemHint: 'Identify stress patterns and potential triggers from wellness data.',
+              ),
+            ],
+          ),
+
+          // Goals & Habits
+          _buildPromptCategory(
+            context,
+            icon: Icons.flag_outlined,
+            title: 'Goals & Habits',
+            prompts: const [
+              SuggestionPrompt(
+                'Which goals need attention?',
+                emphasis: ContextEmphasis.goals,
+                systemHint: 'Identify stalled or at-risk goals that need focus.',
+              ),
+              SuggestionPrompt(
+                'How are my habit streaks doing?',
+                emphasis: ContextEmphasis.habits,
+                systemHint: 'Review habit completion rates and streak status.',
+              ),
+              SuggestionPrompt(
+                'Why am I not making progress?',
+                emphasis: ContextEmphasis.goals,
+                systemHint: 'Analyze potential blockers and suggest ways to overcome them.',
+              ),
+            ],
+          ),
+
+          AppSpacing.gapXl,
+        ],
+      ),
+    );
+  }
+
+  /// Build state for new conversation: welcome message + suggestion prompts
+  Widget _buildNewConversationState(BuildContext context, ChatMessage welcomeMessage) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      padding: AppSpacing.screenPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome message bubble
+          _buildMessageBubble(context, welcomeMessage),
+
+          AppSpacing.gapLg,
+
+          // Suggestion prompts header
+          Center(
+            child: Text(
+              'Try asking about...',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+            ),
+          ),
+          AppSpacing.gapMd,
 
           // General coaching
           _buildPromptCategory(
