@@ -537,92 +537,21 @@ class _ActionsScreenState extends State<ActionsScreen> {
             ),
           ),
           const Spacer(),
-          PopupMenuButton<SortOption>(
+          // Reorder mode toggle (same as header)
+          IconButton(
             icon: Icon(
-              Icons.sort,
-              color: _sortOption != SortOption.manual
+              _isReorderMode ? Icons.done : Icons.swap_vert,
+              color: _isReorderMode
                   ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            tooltip: 'Sort by',
-            onSelected: (value) => setState(() => _sortOption = value),
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: SortOption.manual,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.swap_vert,
-                      color: _sortOption == SortOption.manual
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Manual Order'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: SortOption.nameAsc,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.sort_by_alpha,
-                      color: _sortOption == SortOption.nameAsc
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Name (A-Z)'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: SortOption.nameDesc,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.sort_by_alpha,
-                      color: _sortOption == SortOption.nameDesc
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Name (Z-A)'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: SortOption.dateCreated,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      color: _sortOption == SortOption.dateCreated
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Oldest First'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: SortOption.dateCreatedDesc,
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      color: _sortOption == SortOption.dateCreatedDesc
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('Newest First'),
-                  ],
-                ),
-              ),
-            ],
+            tooltip: _isReorderMode ? 'Done reordering' : 'Reorder items',
+            onPressed: () => setState(() => _isReorderMode = !_isReorderMode),
+            style: IconButton.styleFrom(
+              backgroundColor: _isReorderMode
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : null,
+            ),
           ),
         ],
       ),

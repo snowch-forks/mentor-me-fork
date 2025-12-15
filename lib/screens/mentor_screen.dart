@@ -732,7 +732,9 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
       case 'quickCapture':
         return const QuickCaptureWidget();
       case 'todos':
-        return const TodosWidget();
+        return TodosWidget(
+          onViewAll: () => widget.onNavigateToTab(2, filter: ActionFilter.todos),
+        );
       case 'focus':
         return _buildFocusSection(context, goalProvider, habitProvider);
       case 'goals':
