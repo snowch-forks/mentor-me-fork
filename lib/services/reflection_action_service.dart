@@ -8,6 +8,8 @@ import 'package:mentor_me/models/journal_template.dart';
 import 'package:mentor_me/models/template_field.dart';
 import 'package:mentor_me/models/template_schedule.dart';
 import 'package:mentor_me/models/todo.dart';
+import 'package:mentor_me/models/experiment.dart';
+import 'package:mentor_me/services/experiment_analysis_service.dart';
 import 'package:mentor_me/providers/goal_provider.dart';
 import 'package:mentor_me/providers/habit_provider.dart';
 import 'package:mentor_me/providers/journal_provider.dart';
@@ -15,6 +17,7 @@ import 'package:mentor_me/providers/journal_template_provider.dart';
 import 'package:mentor_me/providers/checkin_template_provider.dart';
 import 'package:mentor_me/providers/win_provider.dart';
 import 'package:mentor_me/providers/todo_provider.dart';
+import 'package:mentor_me/providers/experiment_provider.dart';
 import 'package:mentor_me/models/win.dart';
 import 'package:mentor_me/services/notification_service.dart';
 import 'package:mentor_me/services/debug_service.dart';
@@ -62,9 +65,11 @@ class ReflectionActionService {
   final CheckInTemplateProvider templateProvider; // Legacy - for backward compatibility
   final WinProvider winProvider;
   final TodoProvider todoProvider;
+  final ExperimentProvider experimentProvider;
   final NotificationService notificationService;
   final DebugService _debug = DebugService();
   final Uuid _uuid = const Uuid();
+  final ExperimentAnalysisService _analysisService = ExperimentAnalysisService();
 
   ReflectionActionService({
     required this.goalProvider,
@@ -74,6 +79,7 @@ class ReflectionActionService {
     required this.templateProvider,
     required this.winProvider,
     required this.todoProvider,
+    required this.experimentProvider,
     required this.notificationService,
   });
 
@@ -1819,6 +1825,345 @@ class ReflectionActionService {
         stackTrace: stackTrace.toString(),
       );
       return ActionResult.failure('Failed to convert todo to habit: $e');
+    }
+  }
+
+  // =============================================================================
+  // EXPERIMENT TOOLS (Lab - N-of-1 Experiments)
+  // =============================================================================
+
+  /// Create a new experiment
+  ///
+  /// Parameters from tool schema are mapped to model fields:
+  /// - hypothesis → hypothesis
+  /// - interventionDescription → interventionName + interventionDescription
+  /// - outcomeDescription → outcomeName
+  /// - linkedPulseMetric → pulseTypeName
+  Future<ActionResult> createExperiment({
+    required String hypothesis,
+    required String interventionDescription,
+    required String outcomeDescription,
+    String? linkedHabitId,
+    String? linkedPulseMetric,
+    int baselineDays = 7,
+    int interventionDays = 14,
+  }) async {
+    try {
+      // Generate title from hypothesis (truncate if too long)
+      final title = hypothesis.length > 50
+          ? '${hypothesis.substring(0, 47)}...'
+          : hypothesis;
+
+      // Use intervention description as both name and description
+      // Extract a short name if description is long
+      final interventionName = interventionDescription.length > 30
+          ? interventionDescription.substring(0, 30).trim()
+          : interventionDescription;
+
+      final experiment = Experiment(
+        id: _uuid.v4(),
+        title: title,
+        hypothesis: hypothesis,
+        interventionName: interventionName,
+        interventionDescription: interventionDescription,
+        outcomeName: outcomeDescription,
+        linkedHabitId: linkedHabitId,
+        pulseTypeName: linkedPulseMetric,
+        design: ExperimentDesign.baselineIntervention,
+        baselineDays: baselineDays,
+        interventionDays: interventionDays,
+        status: ExperimentStatus.draft,
+      );
+
+      await experimentProvider.addExperiment(experiment);
+
+      await _debug.info(
+        'ReflectionActionService',
+        'Created experiment via tool: ${experiment.title}',
+        metadata: {'experimentId': experiment.id},
+      );
+
+      return ActionResult.success(
+        'Created experiment: "$title"',
+        resultId: experiment.id,
+        data: experiment,
+      );
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'ReflectionActionService',
+        'Failed to create experiment: $e',
+        stackTrace: stackTrace.toString(),
+      );
+      return ActionResult.failure('Failed to create experiment: $e');
+    }
+  }
+
+  /// Update an existing experiment (only allowed in draft status)
+  ///
+  /// Parameters from tool schema are mapped to model fields:
+  /// - interventionDescription → interventionDescription (and interventionName if provided)
+  /// - outcomeDescription → outcomeName
+  Future<ActionResult> updateExperiment({
+    required String experimentId,
+    String? hypothesis,
+    String? interventionDescription,
+    String? outcomeDescription,
+    int? baselineDays,
+    int? interventionDays,
+  }) async {
+    try {
+      final experiment = experimentProvider.getExperimentById(experimentId);
+      if (experiment == null) {
+        return ActionResult.failure('Experiment not found: $experimentId');
+      }
+
+      if (experiment.status != ExperimentStatus.draft) {
+        return ActionResult.failure('Can only update experiments in draft status');
+      }
+
+      // Update title if hypothesis changed
+      String? newTitle;
+      if (hypothesis != null) {
+        newTitle = hypothesis.length > 50
+            ? '${hypothesis.substring(0, 47)}...'
+            : hypothesis;
+      }
+
+      // Update intervention name if description changed
+      String? newInterventionName;
+      if (interventionDescription != null) {
+        newInterventionName = interventionDescription.length > 30
+            ? interventionDescription.substring(0, 30).trim()
+            : interventionDescription;
+      }
+
+      final updated = experiment.copyWith(
+        title: newTitle,
+        hypothesis: hypothesis,
+        interventionName: newInterventionName,
+        interventionDescription: interventionDescription,
+        outcomeName: outcomeDescription,
+        baselineDays: baselineDays,
+        interventionDays: interventionDays,
+      );
+
+      await experimentProvider.updateExperiment(updated);
+
+      await _debug.info(
+        'ReflectionActionService',
+        'Updated experiment via tool: ${updated.title}',
+        metadata: {'experimentId': experimentId},
+      );
+
+      return ActionResult.success(
+        'Updated experiment',
+        resultId: experimentId,
+        data: updated,
+      );
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'ReflectionActionService',
+        'Failed to update experiment: $e',
+        stackTrace: stackTrace.toString(),
+      );
+      return ActionResult.failure('Failed to update experiment: $e');
+    }
+  }
+
+  /// Delete an experiment
+  Future<ActionResult> deleteExperiment({
+    required String experimentId,
+  }) async {
+    try {
+      final experiment = experimentProvider.getExperimentById(experimentId);
+      if (experiment == null) {
+        return ActionResult.failure('Experiment not found: $experimentId');
+      }
+
+      await experimentProvider.deleteExperiment(experimentId);
+
+      await _debug.info(
+        'ReflectionActionService',
+        'Deleted experiment via tool: ${experiment.hypothesis}',
+        metadata: {'experimentId': experimentId},
+      );
+
+      return ActionResult.success(
+        'Deleted experiment: "${experiment.hypothesis}"',
+        resultId: experimentId,
+      );
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'ReflectionActionService',
+        'Failed to delete experiment: $e',
+        stackTrace: stackTrace.toString(),
+      );
+      return ActionResult.failure('Failed to delete experiment: $e');
+    }
+  }
+
+  /// Start baseline phase of an experiment
+  Future<ActionResult> startExperimentBaseline({
+    required String experimentId,
+  }) async {
+    try {
+      final experiment = experimentProvider.getExperimentById(experimentId);
+      if (experiment == null) {
+        return ActionResult.failure('Experiment not found: $experimentId');
+      }
+
+      if (experiment.status != ExperimentStatus.draft) {
+        return ActionResult.failure('Experiment must be in draft status to start baseline');
+      }
+
+      await experimentProvider.startBaseline(experimentId);
+
+      await _debug.info(
+        'ReflectionActionService',
+        'Started baseline via tool: ${experiment.hypothesis}',
+        metadata: {'experimentId': experimentId},
+      );
+
+      return ActionResult.success(
+        'Started baseline phase for experiment',
+        resultId: experimentId,
+      );
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'ReflectionActionService',
+        'Failed to start baseline: $e',
+        stackTrace: stackTrace.toString(),
+      );
+      return ActionResult.failure('Failed to start baseline: $e');
+    }
+  }
+
+  /// Start intervention phase of an experiment
+  Future<ActionResult> startExperimentIntervention({
+    required String experimentId,
+  }) async {
+    try {
+      final experiment = experimentProvider.getExperimentById(experimentId);
+      if (experiment == null) {
+        return ActionResult.failure('Experiment not found: $experimentId');
+      }
+
+      if (experiment.status != ExperimentStatus.baseline) {
+        return ActionResult.failure('Experiment must be in baseline phase to start intervention');
+      }
+
+      await experimentProvider.startIntervention(experimentId);
+
+      await _debug.info(
+        'ReflectionActionService',
+        'Started intervention via tool: ${experiment.hypothesis}',
+        metadata: {'experimentId': experimentId},
+      );
+
+      return ActionResult.success(
+        'Started intervention phase for experiment',
+        resultId: experimentId,
+      );
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'ReflectionActionService',
+        'Failed to start intervention: $e',
+        stackTrace: stackTrace.toString(),
+      );
+      return ActionResult.failure('Failed to start intervention: $e');
+    }
+  }
+
+  /// Complete an experiment
+  ///
+  /// Analyzes the experiment data and generates results before completing.
+  Future<ActionResult> completeExperiment({
+    required String experimentId,
+  }) async {
+    try {
+      final experiment = experimentProvider.getExperimentById(experimentId);
+      if (experiment == null) {
+        return ActionResult.failure('Experiment not found: $experimentId');
+      }
+
+      if (experiment.status != ExperimentStatus.active) {
+        return ActionResult.failure('Experiment must be in intervention (active) phase to complete');
+      }
+
+      // Get entries for analysis
+      final entries = experimentProvider.getEntriesForExperiment(experimentId);
+
+      // Analyze the experiment
+      final results = await _analysisService.analyzeExperiment(
+        experiment: experiment,
+        entries: entries,
+      );
+
+      if (results == null) {
+        return ActionResult.failure(
+          'Cannot complete experiment: insufficient data for analysis. '
+          'Please ensure you have at least ${experiment.minimumDataPoints} entries in both phases.',
+        );
+      }
+
+      await experimentProvider.completeExperiment(experimentId, results);
+
+      await _debug.info(
+        'ReflectionActionService',
+        'Completed experiment via tool: ${experiment.title}',
+        metadata: {
+          'experimentId': experimentId,
+          'effectSize': results.effectSize.toStringAsFixed(2),
+          'direction': results.direction.name,
+        },
+      );
+
+      return ActionResult.success(
+        'Completed experiment: "${experiment.title}". ${results.summaryStatement}',
+        resultId: experimentId,
+        data: results,
+      );
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'ReflectionActionService',
+        'Failed to complete experiment: $e',
+        stackTrace: stackTrace.toString(),
+      );
+      return ActionResult.failure('Failed to complete experiment: $e');
+    }
+  }
+
+  /// Abandon an experiment
+  Future<ActionResult> abandonExperiment({
+    required String experimentId,
+    String? reason,
+  }) async {
+    try {
+      final experiment = experimentProvider.getExperimentById(experimentId);
+      if (experiment == null) {
+        return ActionResult.failure('Experiment not found: $experimentId');
+      }
+
+      // Abandon with optional reason (provider handles adding the note)
+      await experimentProvider.abandonExperiment(experimentId, reason: reason);
+
+      await _debug.info(
+        'ReflectionActionService',
+        'Abandoned experiment via tool: ${experiment.title}',
+        metadata: {'experimentId': experimentId, 'reason': reason},
+      );
+
+      return ActionResult.success(
+        'Abandoned experiment: "${experiment.title}"',
+        resultId: experimentId,
+      );
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'ReflectionActionService',
+        'Failed to abandon experiment: $e',
+        stackTrace: stackTrace.toString(),
+      );
+      return ActionResult.failure('Failed to abandon experiment: $e');
     }
   }
 
