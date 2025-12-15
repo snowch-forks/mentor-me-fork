@@ -309,6 +309,15 @@ enum ActionType {
 
   // Win tracking actions
   recordWin,
+
+  // Experiment actions (Lab)
+  createExperiment,
+  updateExperiment,
+  deleteExperiment,
+  startExperimentBaseline,
+  startExperimentIntervention,
+  completeExperiment,
+  abandonExperiment,
 }
 
 extension ActionTypeExtension on ActionType {
@@ -364,6 +373,20 @@ extension ActionTypeExtension on ActionType {
         return 'Schedule Follow-Up';
       case ActionType.recordWin:
         return 'Record Win';
+      case ActionType.createExperiment:
+        return 'Create Experiment';
+      case ActionType.updateExperiment:
+        return 'Update Experiment';
+      case ActionType.deleteExperiment:
+        return 'Delete Experiment';
+      case ActionType.startExperimentBaseline:
+        return 'Start Baseline Phase';
+      case ActionType.startExperimentIntervention:
+        return 'Start Intervention Phase';
+      case ActionType.completeExperiment:
+        return 'Complete Experiment';
+      case ActionType.abandonExperiment:
+        return 'Abandon Experiment';
     }
   }
 
@@ -410,6 +433,18 @@ extension ActionTypeExtension on ActionType {
         return '🔔';
       case ActionType.recordWin:
         return '🏆';
+      case ActionType.createExperiment:
+      case ActionType.updateExperiment:
+        return '🔬';
+      case ActionType.deleteExperiment:
+      case ActionType.abandonExperiment:
+        return '🗑️';
+      case ActionType.startExperimentBaseline:
+        return '📊';
+      case ActionType.startExperimentIntervention:
+        return '💊';
+      case ActionType.completeExperiment:
+        return '✅';
     }
   }
 }

@@ -125,6 +125,13 @@ const _$ActionTypeEnumMap = {
   ActionType.saveSessionAsJournal: 'saveSessionAsJournal',
   ActionType.scheduleFollowUp: 'scheduleFollowUp',
   ActionType.recordWin: 'recordWin',
+  ActionType.createExperiment: 'createExperiment',
+  ActionType.updateExperiment: 'updateExperiment',
+  ActionType.deleteExperiment: 'deleteExperiment',
+  ActionType.startExperimentBaseline: 'startExperimentBaseline',
+  ActionType.startExperimentIntervention: 'startExperimentIntervention',
+  ActionType.completeExperiment: 'completeExperiment',
+  ActionType.abandonExperiment: 'abandonExperiment',
 };
 
 ExecutedAction _$ExecutedActionFromJson(Map<String, dynamic> json) =>

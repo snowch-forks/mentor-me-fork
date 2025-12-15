@@ -28,6 +28,7 @@ import 'fasting_screen.dart';
 import 'exercise_plans_screen.dart';
 import 'medication_screen.dart';
 import 'symptom_tracker_screen.dart';
+import 'lab_home_screen.dart';
 
 class WellnessDashboardScreen extends StatefulWidget {
   const WellnessDashboardScreen({super.key});
@@ -490,6 +491,14 @@ class _WellnessDashboardScreenState extends State<WellnessDashboardScreen> {
                 description: 'View your progress, patterns, and wellness insights',
                 color: Colors.blueGrey,
                 onTap: () => _navigate(context, const AnalyticsScreen()),
+              ),
+              _buildFeatureCard(
+                context,
+                icon: Icons.science_outlined,
+                title: 'Lab',
+                description: 'Run personal experiments to discover what works for you',
+                color: Colors.deepPurple,
+                onTap: () => _navigate(context, const LabHomeScreen()),
               ),
             ],
           ),

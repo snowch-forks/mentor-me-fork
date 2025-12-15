@@ -36,6 +36,7 @@ import 'providers/food_library_provider.dart';
 import 'providers/mindful_eating_provider.dart';
 import 'providers/medication_provider.dart';
 import 'providers/symptom_provider.dart';
+import 'providers/experiment_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/notification_service.dart';
@@ -225,6 +226,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MindfulEatingProvider()),
         ChangeNotifierProvider(create: (_) => MedicationProvider()),
         ChangeNotifierProvider(create: (_) => SymptomProvider()),
+        ChangeNotifierProvider(create: (_) => ExperimentProvider()),
         ChangeNotifierProvider(create: (_) {
           final provider = JournalTemplateProvider();
           // Initialize system templates

@@ -54,6 +54,15 @@ class ReflectionFunctionSchemas {
     convertGoalToTodoTool,
     convertTodoToGoalTool,
     convertTodoToHabitTool,
+
+    // Experiment tools (Lab)
+    createExperimentTool,
+    updateExperimentTool,
+    deleteExperimentTool,
+    startExperimentBaselineTool,
+    startExperimentInterventionTool,
+    completeExperimentTool,
+    abandonExperimentTool,
   ];
 
   // ==========================================================================
@@ -788,6 +797,136 @@ class ReflectionFunctionSchemas {
         },
       },
       'required': ['todoId'],
+    },
+  };
+
+  // ==========================================================================
+  // EXPERIMENT TOOLS (Lab - N-of-1 Experiments)
+  // ==========================================================================
+
+  static const Map<String, dynamic> createExperimentTool = {
+    'name': 'create_experiment',
+    'description': 'Creates a new personal experiment (N-of-1 trial) to test a hypothesis. '
+        'Use when the user wants to scientifically test whether an intervention affects an outcome. '
+        'Example: "Does morning exercise improve my focus?"',
+    'input_schema': {
+      'type': 'object',
+      'properties': {
+        'hypothesis': {
+          'type': 'string',
+          'description': 'The hypothesis being tested (e.g., "Morning exercise improves my afternoon focus")',
+        },
+        'interventionDescription': {
+          'type': 'string',
+          'description': 'Description of the intervention/change to test (e.g., "30 minutes of exercise before 9am")',
+        },
+        'outcomeDescription': {
+          'type': 'string',
+          'description': 'What outcome will be measured (e.g., "Afternoon focus level")',
+        },
+        'linkedHabitId': {
+          'type': 'string',
+          'description': 'Optional ID of an existing habit to use as the intervention tracker',
+        },
+        'linkedPulseMetric': {
+          'type': 'string',
+          'description': 'Optional name of a Pulse metric to use for outcome measurement (e.g., "Focus", "Energy")',
+        },
+        'baselineDays': {
+          'type': 'integer',
+          'description': 'Number of days for baseline phase (default: 7)',
+        },
+        'interventionDays': {
+          'type': 'integer',
+          'description': 'Number of days for intervention phase (default: 14)',
+        },
+      },
+      'required': ['hypothesis', 'interventionDescription', 'outcomeDescription'],
+    },
+  };
+
+  static const Map<String, dynamic> updateExperimentTool = {
+    'name': 'update_experiment',
+    'description': 'Updates an existing experiment (only allowed while in draft status)',
+    'input_schema': {
+      'type': 'object',
+      'properties': {
+        'experimentId': {'type': 'string', 'description': 'ID of the experiment to update'},
+        'hypothesis': {'type': 'string', 'description': 'New hypothesis'},
+        'interventionDescription': {'type': 'string', 'description': 'New intervention description'},
+        'outcomeDescription': {'type': 'string', 'description': 'New outcome description'},
+        'baselineDays': {'type': 'integer', 'description': 'New baseline duration in days'},
+        'interventionDays': {'type': 'integer', 'description': 'New intervention duration in days'},
+      },
+      'required': ['experimentId'],
+    },
+  };
+
+  static const Map<String, dynamic> deleteExperimentTool = {
+    'name': 'delete_experiment',
+    'description': 'Permanently deletes an experiment',
+    'input_schema': {
+      'type': 'object',
+      'properties': {
+        'experimentId': {'type': 'string', 'description': 'ID of the experiment to delete'},
+      },
+      'required': ['experimentId'],
+    },
+  };
+
+  static const Map<String, dynamic> startExperimentBaselineTool = {
+    'name': 'start_experiment_baseline',
+    'description': 'Starts the baseline phase of an experiment. '
+        'During baseline, the user tracks their normal behavior without the intervention.',
+    'input_schema': {
+      'type': 'object',
+      'properties': {
+        'experimentId': {'type': 'string', 'description': 'ID of the experiment to start'},
+      },
+      'required': ['experimentId'],
+    },
+  };
+
+  static const Map<String, dynamic> startExperimentInterventionTool = {
+    'name': 'start_experiment_intervention',
+    'description': 'Starts the intervention phase of an experiment. '
+        'The baseline phase must be complete first. During intervention, the user applies the change being tested.',
+    'input_schema': {
+      'type': 'object',
+      'properties': {
+        'experimentId': {'type': 'string', 'description': 'ID of the experiment'},
+      },
+      'required': ['experimentId'],
+    },
+  };
+
+  static const Map<String, dynamic> completeExperimentTool = {
+    'name': 'complete_experiment',
+    'description': 'Marks an experiment as complete and triggers result analysis. '
+        'The intervention phase must be complete first.',
+    'input_schema': {
+      'type': 'object',
+      'properties': {
+        'experimentId': {'type': 'string', 'description': 'ID of the experiment to complete'},
+      },
+      'required': ['experimentId'],
+    },
+  };
+
+  static const Map<String, dynamic> abandonExperimentTool = {
+    'name': 'abandon_experiment',
+    'description': 'Abandons an experiment without completing it. '
+        'Use when the user decides not to continue with the experiment.',
+    'input_schema': {
+      'type': 'object',
+      'properties': {
+        'experimentId': {'type': 'string', 'description': 'ID of the experiment to abandon'},
+        'reason': {
+          'type': 'string',
+          'description': 'Optional reason for abandoning the experiment',
+        },
+      },
+      'required': ['experimentId'],
     },
   };
 }

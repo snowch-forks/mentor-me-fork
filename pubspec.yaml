@@ -34,6 +34,9 @@ dependencies:
   # Markdown rendering for AI-generated text
   flutter_markdown: ^0.7.4+1
 
+  # Charts for data visualization
+  fl_chart: ^0.69.0
+
   # File system access
   path_provider: ^2.1.2
 
