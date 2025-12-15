@@ -136,7 +136,7 @@ class _ActionsScreenState extends State<ActionsScreen> {
                   ),
                 ),
 
-                // Status filter chips (Active/Backlog) with reorder toggle
+                // Status filter chips (Active/Backlog)
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -160,23 +160,6 @@ class _ActionsScreenState extends State<ActionsScreen> {
                             ),
                           );
                         }),
-                        const Spacer(),
-                        // Reorder mode toggle
-                        IconButton(
-                          icon: Icon(
-                            _isReorderMode ? Icons.done : Icons.swap_vert,
-                            color: _isReorderMode
-                                ? Theme.of(context).colorScheme.primary
-                                : null,
-                          ),
-                          tooltip: _isReorderMode ? 'Done reordering' : 'Reorder items',
-                          onPressed: () => setState(() => _isReorderMode = !_isReorderMode),
-                          style: IconButton.styleFrom(
-                            backgroundColor: _isReorderMode
-                                ? Theme.of(context).colorScheme.primaryContainer
-                                : Theme.of(context).colorScheme.surfaceContainerHighest,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -494,6 +477,23 @@ class _ActionsScreenState extends State<ActionsScreen> {
             title,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Spacer(),
+          // Reorder mode toggle
+          IconButton(
+            icon: Icon(
+              _isReorderMode ? Icons.done : Icons.swap_vert,
+              color: _isReorderMode
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+            ),
+            tooltip: _isReorderMode ? 'Done reordering' : 'Reorder items',
+            onPressed: () => setState(() => _isReorderMode = !_isReorderMode),
+            style: IconButton.styleFrom(
+              backgroundColor: _isReorderMode
+                  ? Theme.of(context).colorScheme.primaryContainer
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
           ),
         ],
