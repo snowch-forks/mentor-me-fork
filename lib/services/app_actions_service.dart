@@ -17,6 +17,12 @@ typedef OpenLogExerciseCallback = void Function();
 /// Callback for when the workout plans screen should be opened
 typedef OpenStartWorkoutCallback = void Function();
 
+/// Callback for when the reflect/journal tab should be opened
+typedef OpenReflectCallback = void Function();
+
+/// Callback for when the chat with mentor screen should be opened
+typedef OpenChatMentorCallback = void Function();
+
 /// Service for handling Google Assistant App Actions
 ///
 /// Listens for CREATE_TASK intents from Google Assistant and
@@ -35,6 +41,8 @@ class AppActionsService {
   OpenLogFoodCallback? _onLogFood;
   OpenLogExerciseCallback? _onLogExercise;
   OpenStartWorkoutCallback? _onStartWorkout;
+  OpenReflectCallback? _onOpenReflect;
+  OpenChatMentorCallback? _onOpenChatMentor;
 
   /// Initialize the App Actions service
   Future<void> initialize({
@@ -43,6 +51,8 @@ class AppActionsService {
     OpenLogFoodCallback? onLogFood,
     OpenLogExerciseCallback? onLogExercise,
     OpenStartWorkoutCallback? onStartWorkout,
+    OpenReflectCallback? onOpenReflect,
+    OpenChatMentorCallback? onOpenChatMentor,
   }) async {
     if (kIsWeb) {
       await _debug.info('AppActionsService', 'App Actions not available on web');
@@ -54,6 +64,8 @@ class AppActionsService {
     _onLogFood = onLogFood;
     _onLogExercise = onLogExercise;
     _onStartWorkout = onStartWorkout;
+    _onOpenReflect = onOpenReflect;
+    _onOpenChatMentor = onOpenChatMentor;
 
     _channel.setMethodCallHandler(_handleMethodCall);
 
@@ -119,6 +131,22 @@ class AppActionsService {
         _onStartWorkout?.call();
         return null;
 
+      case 'openReflect':
+        await _debug.info(
+          'AppActionsService',
+          'Open reflect/journal requested from shortcut',
+        );
+        _onOpenReflect?.call();
+        return null;
+
+      case 'openChatMentor':
+        await _debug.info(
+          'AppActionsService',
+          'Open chat with mentor requested from shortcut',
+        );
+        _onOpenChatMentor?.call();
+        return null;
+
       default:
         await _debug.warning(
           'AppActionsService',
@@ -136,5 +164,7 @@ class AppActionsService {
     _onLogFood = null;
     _onLogExercise = null;
     _onStartWorkout = null;
+    _onOpenReflect = null;
+    _onOpenChatMentor = null;
   }
 }
