@@ -7,4 +7,8 @@
     <string name="shortcut_add_todo_long">Add a new todo with voice</string>
     <string name="shortcut_log_food">Log Food</string>
     <string name="shortcut_log_food_long">Log food and track nutrition</string>
+    <string name="shortcut_log_exercise">Log Exercise</string>
+    <string name="shortcut_log_exercise_long">Quick log an exercise</string>
+    <string name="shortcut_start_workout">Start Workout</string>
+    <string name="shortcut_start_workout_long">View workout plans</string>
 </resources>

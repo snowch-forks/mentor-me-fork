@@ -366,6 +366,8 @@ class MainActivity : FlutterActivity() {
             val actionType = actionData["action"] as? String
             when (actionType) {
                 "log_food" -> appActionsChannel?.invokeMethod("logFood", actionData)
+                "log_exercise" -> appActionsChannel?.invokeMethod("logExercise", actionData)
+                "start_workout" -> appActionsChannel?.invokeMethod("startWorkout", actionData)
                 else -> appActionsChannel?.invokeMethod("createTodo", actionData)
             }
             pendingAppAction = null
@@ -442,6 +444,46 @@ class MainActivity : FlutterActivity() {
             }
 
             // Clear the intent extras to prevent re-processing
+            intent.removeExtra("action")
+        }
+
+        // Check if this is a log_exercise shortcut action
+        if (action == "log_exercise") {
+            Log.d(TAG, "Log Exercise shortcut action received")
+
+            val actionData = mapOf(
+                "action" to "log_exercise",
+                "source" to "shortcut"
+            )
+
+            if (appActionsChannel != null) {
+                Log.d(TAG, "Sending Log Exercise action to Flutter immediately")
+                appActionsChannel?.invokeMethod("logExercise", actionData)
+            } else {
+                Log.d(TAG, "Flutter not ready, storing Log Exercise action for later")
+                pendingAppAction = actionData
+            }
+
+            intent.removeExtra("action")
+        }
+
+        // Check if this is a start_workout shortcut action
+        if (action == "start_workout") {
+            Log.d(TAG, "Start Workout shortcut action received")
+
+            val actionData = mapOf(
+                "action" to "start_workout",
+                "source" to "shortcut"
+            )
+
+            if (appActionsChannel != null) {
+                Log.d(TAG, "Sending Start Workout action to Flutter immediately")
+                appActionsChannel?.invokeMethod("startWorkout", actionData)
+            } else {
+                Log.d(TAG, "Flutter not ready, storing Start Workout action for later")
+                pendingAppAction = actionData
+            }
+
             intent.removeExtra("action")
         }
     }
