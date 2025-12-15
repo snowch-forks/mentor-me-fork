@@ -55,6 +55,8 @@ import '../models/medication.dart';
 import '../models/symptom.dart';
 import '../models/food_template.dart';
 import '../models/todo.dart';
+import '../models/experiment.dart';
+import '../models/experiment_entry.dart';
 import '../config/build_info.dart';
 
 // Conditional import: web implementation when dart:html is available, stub otherwise
@@ -143,6 +145,10 @@ class BackupService {
 
     // Safety plan
     final safetyPlan = await _storage.getSafetyPlan();
+
+    // Lab (Experiment tracking)
+    final experiments = await _storage.loadExperiments();
+    final experimentEntries = await _storage.loadExperimentEntries();
 
     // Remove sensitive/installation-specific data from export
     // Note: Auto-backup location settings (autoBackupLocation, autoBackupCustomPath)
@@ -246,6 +252,10 @@ class BackupService {
       'symptom_types': json.encode(symptomTypes.map((t) => t.toJson()).toList()),
       'symptom_entries': json.encode(symptomEntries.map((e) => e.toJson()).toList()),
 
+      // Lab (Experiment tracking)
+      'experiments': json.encode(experiments.map((e) => e.toJson()).toList()),
+      'experiment_entries': json.encode(experimentEntries.map((e) => e.toJson()).toList()),
+
       // Statistics for UI display
       'statistics': {
         'totalGoals': goals.length,
@@ -298,6 +308,9 @@ class BackupService {
         // Symptom tracking
         'totalSymptomTypes': symptomTypes.length,
         'totalSymptomEntries': symptomEntries.length,
+        // Lab experiments
+        'totalExperiments': experiments.length,
+        'totalExperimentEntries': experimentEntries.length,
       },
     };
 
@@ -2547,6 +2560,72 @@ class BackupService {
       );
       results.add(ImportItemResult(
         dataType: 'Symptom Entries',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import experiments
+    try {
+      if (data.containsKey('experiments') && data['experiments'] != null) {
+        final experimentsJson = json.decode(data['experiments'] as String) as List;
+        final experiments = experimentsJson.map((j) => Experiment.fromJson(j)).toList();
+        await _storage.saveExperiments(experiments);
+        await _debug.info('BackupService', 'Imported ${experiments.length} experiments');
+        results.add(ImportItemResult(
+          dataType: 'Experiments',
+          success: true,
+          count: experiments.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Experiments',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import experiments: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Experiments',
+        success: false,
+        count: 0,
+        errorMessage: e.toString(),
+      ));
+    }
+
+    // Import experiment entries
+    try {
+      if (data.containsKey('experiment_entries') && data['experiment_entries'] != null) {
+        final entriesJson = json.decode(data['experiment_entries'] as String) as List;
+        final entries = entriesJson.map((j) => ExperimentEntry.fromJson(j)).toList();
+        await _storage.saveExperimentEntries(entries);
+        await _debug.info('BackupService', 'Imported ${entries.length} experiment entries');
+        results.add(ImportItemResult(
+          dataType: 'Experiment Entries',
+          success: true,
+          count: entries.length,
+        ));
+      } else {
+        results.add(ImportItemResult(
+          dataType: 'Experiment Entries',
+          success: true,
+          count: 0,
+        ));
+      }
+    } catch (e, stackTrace) {
+      await _debug.error(
+        'BackupService',
+        'Failed to import experiment entries: ${e.toString()}',
+        stackTrace: stackTrace.toString(),
+      );
+      results.add(ImportItemResult(
+        dataType: 'Experiment Entries',
         success: false,
         count: 0,
         errorMessage: e.toString(),
