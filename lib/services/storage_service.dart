@@ -22,6 +22,8 @@ import '../models/medication.dart';
 import '../models/symptom.dart';
 import '../models/todo.dart';
 import '../models/fasting_entry.dart';
+import '../models/experiment.dart';
+import '../models/experiment_entry.dart';
 import 'package:mentor_me/services/migration_service.dart';
 import 'package:mentor_me/services/debug_service.dart';
 
@@ -103,6 +105,10 @@ class StorageService {
   static const String _fastingEntriesKey = 'fasting_entries';
   static const String _fastingGoalKey = 'fasting_goal';
 
+  // Lab (Experiment tracking)
+  static const String _experimentsKey = 'experiments';
+  static const String _experimentEntriesKey = 'experiment_entries';
+
   /// All storage keys that contain USER DATA and should be backed up.
   /// This is the SINGLE SOURCE OF TRUTH for backup coverage.
   ///
@@ -183,6 +189,10 @@ class StorageService {
 
     // Safety plan
     'safety_plan',
+
+    // Lab (Experiment tracking)
+    'experiments',
+    'experiment_entries',
   };
 
   /// Keys that are explicitly NOT backed up (security/internal).
@@ -1671,5 +1681,47 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString(_deviceBoundariesKey);
     return data != null ? json.decode(data) : null;
+  }
+
+  // Lab - Experiments
+  Future<void> saveExperiments(List<Experiment> experiments) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = experiments.map((e) => e.toJson()).toList();
+    await prefs.setString(_experimentsKey, json.encode(jsonList));
+    await _notifyPersistence('experiments');
+  }
+
+  Future<List<Experiment>> loadExperiments() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_experimentsKey);
+    if (data == null) return [];
+    try {
+      final jsonList = json.decode(data) as List;
+      return jsonList.map((e) => Experiment.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      await _debug.error('StorageService', 'Failed to load experiments: $e');
+      return [];
+    }
+  }
+
+  // Lab - Experiment Entries
+  Future<void> saveExperimentEntries(List<ExperimentEntry> entries) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = entries.map((e) => e.toJson()).toList();
+    await prefs.setString(_experimentEntriesKey, json.encode(jsonList));
+    await _notifyPersistence('experiment_entries');
+  }
+
+  Future<List<ExperimentEntry>> loadExperimentEntries() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_experimentEntriesKey);
+    if (data == null) return [];
+    try {
+      final jsonList = json.decode(data) as List;
+      return jsonList.map((e) => ExperimentEntry.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      await _debug.error('StorageService', 'Failed to load experiment entries: $e');
+      return [];
+    }
   }
 }

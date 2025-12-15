@@ -970,6 +970,20 @@ Keep it genuine and warm.''';
         return ActionType.scheduleFollowUp;
       case 'record_win':
         return ActionType.recordWin;
+      case 'create_experiment':
+        return ActionType.createExperiment;
+      case 'update_experiment':
+        return ActionType.updateExperiment;
+      case 'delete_experiment':
+        return ActionType.deleteExperiment;
+      case 'start_experiment_baseline':
+        return ActionType.startExperimentBaseline;
+      case 'start_experiment_intervention':
+        return ActionType.startExperimentIntervention;
+      case 'complete_experiment':
+        return ActionType.completeExperiment;
+      case 'abandon_experiment':
+        return ActionType.abandonExperiment;
       default:
         _debug.warning(
           'ReflectionSessionService',
@@ -1043,6 +1057,25 @@ Keep it genuine and warm.''';
             ? '${description.substring(0, 47)}...'
             : description;
         return 'Record win: "$truncated"';
+      case ActionType.createExperiment:
+        final hypothesis = parameters['hypothesis'] as String? ?? 'new experiment';
+        final truncatedHypothesis = hypothesis.length > 50
+            ? '${hypothesis.substring(0, 47)}...'
+            : hypothesis;
+        return 'Create experiment: "$truncatedHypothesis"';
+      case ActionType.updateExperiment:
+        return 'Update experiment';
+      case ActionType.deleteExperiment:
+        return 'Delete experiment';
+      case ActionType.startExperimentBaseline:
+        return 'Start baseline phase';
+      case ActionType.startExperimentIntervention:
+        return 'Start intervention phase';
+      case ActionType.completeExperiment:
+        return 'Complete experiment';
+      case ActionType.abandonExperiment:
+        final reason = parameters['reason'] as String?;
+        return reason != null ? 'Abandon experiment: $reason' : 'Abandon experiment';
     }
   }
 }

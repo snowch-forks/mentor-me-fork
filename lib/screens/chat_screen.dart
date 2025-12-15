@@ -18,6 +18,7 @@ import '../providers/journal_template_provider.dart';
 import '../providers/checkin_template_provider.dart';
 import '../providers/hydration_provider.dart';
 import '../providers/todo_provider.dart';
+import '../providers/experiment_provider.dart';
 import '../models/chat_message.dart';
 import '../models/journal_entry.dart';
 import '../models/mentor_message.dart';
@@ -121,6 +122,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final hydrationProvider = context.read<HydrationProvider>();
 
     // Set providers for tool execution (habit/goal creation, etc.)
+    final experimentProvider = context.read<ExperimentProvider>();
     chatProvider.setProviders(
       goalProvider: goalProvider,
       habitProvider: habitProvider,
@@ -129,6 +131,7 @@ class _ChatScreenState extends State<ChatScreen> {
       templateProvider: templateProvider,
       winProvider: winProvider,
       todoProvider: todoProvider,
+      experimentProvider: experimentProvider,
     );
 
     // Ensure food log data is loaded before accessing (async constructor issue)
@@ -311,8 +314,18 @@ class _ChatScreenState extends State<ChatScreen> {
               builder: (context, chatProvider, child) {
                 final messages = chatProvider.messages;
 
+                // Show empty state when no messages
                 if (messages.isEmpty) {
                   return _buildEmptyState(context);
+                }
+
+                // Check if this is a new conversation (only welcome message from mentor)
+                final isNewConversation = messages.length == 1 &&
+                    messages.first.sender == MessageSender.mentor;
+
+                // For new conversations, show welcome message + suggestion prompts
+                if (isNewConversation && !chatProvider.isTyping) {
+                  return _buildNewConversationState(context, messages.first);
                 }
 
                 return ListView.builder(
@@ -507,6 +520,212 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
           ),
 
+          // Experiments
+          _buildPromptCategory(
+            context,
+            icon: Icons.science_outlined,
+            title: 'Experiments',
+            prompts: const [
+              SuggestionPrompt(
+                'Suggest an experiment to improve my sleep',
+                systemHint: 'Design a concrete 1-2 week self-experiment with clear hypothesis, metrics to track, and success criteria for improving sleep quality.',
+              ),
+              SuggestionPrompt(
+                'Design an experiment for my goal',
+                emphasis: ContextEmphasis.goals,
+                systemHint: 'Look at their active goals and design a time-boxed experiment to test an approach or break through a blocker.',
+              ),
+              SuggestionPrompt(
+                'What should I test to boost my productivity?',
+                systemHint: 'Suggest a specific productivity experiment based on their habits and patterns, with measurable outcomes.',
+              ),
+            ],
+          ),
+
+          AppSpacing.gapXl,
+        ],
+      ),
+    );
+  }
+
+  /// Build state for new conversation: welcome message + suggestion prompts
+  Widget _buildNewConversationState(BuildContext context, ChatMessage welcomeMessage) {
+    return SingleChildScrollView(
+      controller: _scrollController,
+      padding: AppSpacing.screenPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Welcome message bubble
+          _buildMessageBubble(context, welcomeMessage),
+
+          AppSpacing.gapLg,
+
+          // Suggestion prompts header
+          Center(
+            child: Text(
+              'Try asking about...',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+            ),
+          ),
+          AppSpacing.gapMd,
+
+          // General coaching
+          _buildPromptCategory(
+            context,
+            icon: Icons.lightbulb_outline,
+            title: 'Coaching',
+            prompts: const [
+              SuggestionPrompt('How am I doing overall?'),
+              SuggestionPrompt('What should I focus on today?'),
+              SuggestionPrompt('Help me reflect on my week'),
+            ],
+          ),
+
+          // Weight & Body
+          _buildPromptCategory(
+            context,
+            icon: Icons.monitor_weight_outlined,
+            title: 'Weight Tracking',
+            prompts: const [
+              SuggestionPrompt(
+                'Chart my weight progress this year',
+                emphasis: ContextEmphasis.weight,
+                systemHint: 'User wants to see their weight data visualized. Describe trends, patterns, and progress toward any weight goals.',
+              ),
+              SuggestionPrompt(
+                'How is my weight trending?',
+                emphasis: ContextEmphasis.weight,
+                systemHint: 'Analyze the weight trend direction and rate of change.',
+              ),
+              SuggestionPrompt(
+                'Am I on track to reach my weight goal?',
+                emphasis: ContextEmphasis.weight,
+                systemHint: 'Compare current progress against their weight goal if set.',
+              ),
+            ],
+          ),
+
+          // Nutrition
+          _buildPromptCategory(
+            context,
+            icon: Icons.restaurant_outlined,
+            title: 'Nutrition',
+            prompts: const [
+              SuggestionPrompt(
+                'Analyze my eating patterns this week',
+                emphasis: ContextEmphasis.nutrition,
+                systemHint: 'Look for meal timing patterns, food choices, and nutritional balance.',
+              ),
+              SuggestionPrompt(
+                'Am I hitting my protein goals?',
+                emphasis: ContextEmphasis.nutrition,
+                systemHint: 'Focus on protein intake across meals and days.',
+              ),
+              SuggestionPrompt(
+                'What are my calorie trends?',
+                emphasis: ContextEmphasis.nutrition,
+                systemHint: 'Analyze calorie intake patterns over time, including daily and weekly trends.',
+              ),
+            ],
+          ),
+
+          // Exercise
+          _buildPromptCategory(
+            context,
+            icon: Icons.fitness_center_outlined,
+            title: 'Exercise',
+            prompts: const [
+              SuggestionPrompt(
+                'Summarize my workouts this month',
+                emphasis: ContextEmphasis.exercise,
+                systemHint: 'Provide a comprehensive summary of workout frequency, types, and duration.',
+              ),
+              SuggestionPrompt(
+                'Am I exercising consistently?',
+                emphasis: ContextEmphasis.exercise,
+                systemHint: 'Analyze workout consistency and identify any patterns or gaps.',
+              ),
+              SuggestionPrompt(
+                'What exercise patterns do you see?',
+                emphasis: ContextEmphasis.exercise,
+                systemHint: 'Look for patterns in workout types, timing, and intensity.',
+              ),
+            ],
+          ),
+
+          // Mood & Wellness
+          _buildPromptCategory(
+            context,
+            icon: Icons.mood_outlined,
+            title: 'Mood & Wellness',
+            prompts: const [
+              SuggestionPrompt(
+                'How has my mood been lately?',
+                emphasis: ContextEmphasis.mood,
+                systemHint: 'Analyze mood trends from pulse entries and journal reflections.',
+              ),
+              SuggestionPrompt(
+                'What affects my energy levels?',
+                emphasis: ContextEmphasis.mood,
+                systemHint: 'Look for correlations between energy levels and other factors like sleep, exercise, or food.',
+              ),
+              SuggestionPrompt(
+                'Explore my stress patterns',
+                emphasis: ContextEmphasis.mood,
+                systemHint: 'Identify stress patterns and potential triggers from wellness data.',
+              ),
+            ],
+          ),
+
+          // Goals & Habits
+          _buildPromptCategory(
+            context,
+            icon: Icons.flag_outlined,
+            title: 'Goals & Habits',
+            prompts: const [
+              SuggestionPrompt(
+                'Which goals need attention?',
+                emphasis: ContextEmphasis.goals,
+                systemHint: 'Identify stalled or at-risk goals that need focus.',
+              ),
+              SuggestionPrompt(
+                'How are my habit streaks doing?',
+                emphasis: ContextEmphasis.habits,
+                systemHint: 'Review habit completion rates and streak status.',
+              ),
+              SuggestionPrompt(
+                'Why am I not making progress?',
+                emphasis: ContextEmphasis.goals,
+                systemHint: 'Analyze potential blockers and suggest ways to overcome them.',
+              ),
+            ],
+          ),
+
+          // Experiments
+          _buildPromptCategory(
+            context,
+            icon: Icons.science_outlined,
+            title: 'Experiments',
+            prompts: const [
+              SuggestionPrompt(
+                'Suggest an experiment to improve my sleep',
+                systemHint: 'Design a concrete 1-2 week self-experiment with clear hypothesis, metrics to track, and success criteria for improving sleep quality.',
+              ),
+              SuggestionPrompt(
+                'Design an experiment for my goal',
+                emphasis: ContextEmphasis.goals,
+                systemHint: 'Look at their active goals and design a time-boxed experiment to test an approach or break through a blocker.',
+              ),
+              SuggestionPrompt(
+                'What should I test to boost my productivity?',
+                systemHint: 'Suggest a specific productivity experiment based on their habits and patterns, with measurable outcomes.',
+              ),
+            ],
+          ),
+
           AppSpacing.gapXl,
         ],
       ),
@@ -577,6 +796,25 @@ class _ChatScreenState extends State<ChatScreen> {
     final foodLogProvider = context.read<FoodLogProvider>();
     final winProvider = context.read<WinProvider>();
     final hydrationProvider = context.read<HydrationProvider>();
+    final todoProvider = context.read<TodoProvider>();
+    final journalTemplateProvider = context.read<JournalTemplateProvider>();
+    final templateProvider = context.read<CheckInTemplateProvider>();
+    final experimentProvider = context.read<ExperimentProvider>();
+
+    // Set providers for tool execution (habit/goal creation, etc.)
+    chatProvider.setProviders(
+      goalProvider: goalProvider,
+      habitProvider: habitProvider,
+      journalProvider: journalProvider,
+      journalTemplateProvider: journalTemplateProvider,
+      templateProvider: templateProvider,
+      winProvider: winProvider,
+      todoProvider: todoProvider,
+      experimentProvider: experimentProvider,
+    );
+
+    // Ensure food log data is loaded
+    await foodLogProvider.ensureLoaded();
 
     // Prepare message with optional system hint
     String messageToSend = prompt.text;
@@ -584,6 +822,11 @@ class _ChatScreenState extends State<ChatScreen> {
       // Prepend hint as context instruction for the AI
       messageToSend = '[Analysis Focus: ${prompt.systemHint}]\n\n${prompt.text}';
     }
+
+    // Send user message (adds to conversation, sets typing state)
+    // Use the display text (without system hint) for what user sees
+    await chatProvider.sendUserMessage(prompt.text, skipAutoResponse: true);
+    _scrollToBottom();
 
     // Determine extended data limits based on emphasis
     int foodLimit = 50;     // Default
@@ -609,7 +852,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     try {
-      await chatProvider.generateContextualResponse(
+      final response = await chatProvider.generateContextualResponse(
         userMessage: messageToSend,
         goals: goalProvider.goals,
         habits: habitProvider.habits,
@@ -626,6 +869,7 @@ class _ChatScreenState extends State<ChatScreen> {
         hydrationGoal: hydrationProvider.dailyGoal,
       );
 
+      await chatProvider.addMentorMessage(response);
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
