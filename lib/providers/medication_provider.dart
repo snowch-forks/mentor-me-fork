@@ -267,18 +267,68 @@ class MedicationProvider extends ChangeNotifier {
     );
   }
 
-  /// Get medications that haven't been logged today
+  /// Get medications that are due based on their frequency
   List<Medication> get pendingMedications {
-    final today = DateTime.now();
-    final todayLogs = logsForDate(today);
-    final loggedMedicationIds = todayLogs.map((l) => l.medicationId).toSet();
+    final now = DateTime.now();
 
     return activeMedications.where((m) {
-      // Skip "as needed" medications - they're not expected daily
+      // Skip "as needed" medications - they're not expected on a schedule
       if (m.frequency == MedicationFrequency.asNeeded) return false;
 
-      return !loggedMedicationIds.contains(m.id);
+      // Skip "other" frequency - we don't know when it's due
+      if (m.frequency == MedicationFrequency.other) return false;
+
+      // Check if medication is due based on frequency
+      return _isMedicationDue(m, now);
     }).toList();
+  }
+
+  /// Check if a medication is due based on its frequency and last log
+  bool _isMedicationDue(Medication medication, DateTime now) {
+    final logs = logsForMedication(medication.id)
+        .where((l) => l.status == MedicationLogStatus.taken)
+        .toList();
+
+    // If never taken, it's due
+    if (logs.isEmpty) return true;
+
+    // Get the most recent "taken" log
+    final lastTaken = logs.first; // logs are already sorted by timestamp desc
+    final daysSinceLastTaken = now.difference(lastTaken.timestamp).inDays;
+    final hoursSinceLastTaken = now.difference(lastTaken.timestamp).inHours;
+
+    switch (medication.frequency) {
+      // Daily medications - due if not taken today
+      case MedicationFrequency.onceDaily:
+      case MedicationFrequency.twiceDaily:
+      case MedicationFrequency.threeTimesDaily:
+      case MedicationFrequency.fourTimesDaily:
+        // Check if last taken was today
+        final lastTakenDate = DateTime(
+          lastTaken.timestamp.year,
+          lastTaken.timestamp.month,
+          lastTaken.timestamp.day,
+        );
+        final todayDate = DateTime(now.year, now.month, now.day);
+        return lastTakenDate.isBefore(todayDate);
+
+      // Every other day - due if taken 2+ days ago or yesterday and it's been 24+ hours
+      case MedicationFrequency.everyOtherDay:
+        return daysSinceLastTaken >= 1 && hoursSinceLastTaken >= 24;
+
+      // Weekly - due if taken 7+ days ago
+      case MedicationFrequency.weekly:
+        return daysSinceLastTaken >= 7;
+
+      // Monthly - due if taken 30+ days ago
+      case MedicationFrequency.monthly:
+        return daysSinceLastTaken >= 30;
+
+      // Should not reach here due to filter above
+      case MedicationFrequency.asNeeded:
+      case MedicationFrequency.other:
+        return false;
+    }
   }
 
   /// Get count of medications taken today
