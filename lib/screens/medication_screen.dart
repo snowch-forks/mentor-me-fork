@@ -1080,7 +1080,7 @@ class _AddMedicationSheetState extends State<_AddMedicationSheet> {
         left: 24,
         right: 24,
         top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 100, // Keyboard + bottom nav (80px) + spacing (20px)
       ),
       child: Form(
         key: _formKey,
