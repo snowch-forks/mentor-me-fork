@@ -45,7 +45,6 @@ class _FastingWidgetState extends State<FastingWidget> {
     return Consumer<FastingProvider>(
       builder: (context, provider, child) {
         final theme = Theme.of(context);
-        final colorScheme = theme.colorScheme;
         final goal = provider.goal;
         final currentPhase = goal.getCurrentPhase();
         final isFasting = currentPhase == FastingPhase.fasting;
@@ -53,10 +52,15 @@ class _FastingWidgetState extends State<FastingWidget> {
 
         return Card(
           elevation: 0,
+          color: isFasting
+              ? Colors.red.shade50
+              : Colors.green.shade50,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(compact ? 12 : 16),
             side: BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+              color: isFasting
+                  ? Colors.red.shade200
+                  : Colors.green.shade200,
             ),
           ),
           child: InkWell(
