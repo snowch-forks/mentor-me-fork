@@ -9,7 +9,6 @@ import '../models/fasting_entry.dart';
 import '../providers/fasting_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/fasting_screen.dart';
-import '../theme/app_spacing.dart';
 import 'fasting_clock_painter.dart';
 
 class FastingWidget extends StatefulWidget {
