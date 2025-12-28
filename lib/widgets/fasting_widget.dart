@@ -188,6 +188,41 @@ class _FastingWidgetState extends State<FastingWidget> {
 
     return Column(
       children: [
+        // Hour markers above the bar
+        if (!compact)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              // Hour markers at 3-hour intervals: 12a, 3a, 6a, 9a, 12p, 3p, 6p, 9p
+              final hours = [0, 3, 6, 9, 12, 15, 18, 21];
+
+              return SizedBox(
+                height: 14,
+                child: Stack(
+                  children: hours.map((hour) {
+                    final position = (hour * 60) / (24 * 60) * width;
+                    final label = hour == 0 ? '12a'
+                        : hour < 12 ? '${hour}a'
+                        : hour == 12 ? '12p'
+                        : '${hour - 12}p';
+
+                    return Positioned(
+                      left: position - 10, // Center the text
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              );
+            },
+          ),
+
         // Timeline bar
         SizedBox(
           height: compact ? 32 : 40,
@@ -243,32 +278,25 @@ class _FastingWidgetState extends State<FastingWidget> {
           ),
         ),
         const SizedBox(height: 4),
-        // Time labels
+        // Current time and status
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              goal.eatingWindowStart!.format(),
+              'now',
               style: TextStyle(
-                fontSize: compact ? 10 : 11,
-                color: Colors.green.shade700,
-                fontWeight: FontWeight.w600,
+                fontSize: compact ? 9 : 10,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.w500,
               ),
             ),
+            const SizedBox(width: 4),
             Text(
-              _formatTime(now),
+              '(${_formatTime(now)})',
               style: TextStyle(
-                fontSize: compact ? 10 : 11,
+                fontSize: compact ? 9 : 10,
                 color: isFasting ? Colors.red.shade700 : Colors.green.shade700,
                 fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              goal.eatingWindowEnd!.format(),
-              style: TextStyle(
-                fontSize: compact ? 10 : 11,
-                color: Colors.green.shade700,
-                fontWeight: FontWeight.w600,
               ),
             ),
           ],
