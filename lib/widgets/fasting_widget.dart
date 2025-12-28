@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../models/fasting_entry.dart';
 import '../providers/fasting_provider.dart';
 import '../providers/settings_provider.dart';
+import '../screens/fasting_screen.dart';
 import '../theme/app_spacing.dart';
 
 class FastingWidget extends StatefulWidget {
@@ -58,11 +59,21 @@ class _FastingWidgetState extends State<FastingWidget> {
               color: colorScheme.outlineVariant.withValues(alpha: 0.5),
             ),
           ),
-          child: Padding(
-            padding: EdgeInsets.all(compact ? 12.0 : 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FastingScreen(),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(compact ? 12 : 16),
+            child: Padding(
+              padding: EdgeInsets.all(compact ? 12.0 : 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 // Header row
                 Row(
                   children: [
@@ -122,6 +133,7 @@ class _FastingWidgetState extends State<FastingWidget> {
               ],
             ),
           ),
+            ),
         );
       },
     );
