@@ -125,19 +125,10 @@ class _FastingWidgetState extends State<FastingWidget> {
                       ),
                     ),
 
-                  SizedBox(height: compact ? 8 : 12),
+                  SizedBox(height: compact ? 4 : 8),
 
-                  // Status text
-                  if (goal.eatingWindowStart != null && goal.eatingWindowEnd != null) ...[
-                    Text(
-                      isFasting ? 'FASTING' : 'EATING WINDOW',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: isFasting ? Colors.red.shade700 : Colors.green.shade700,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
+                  // Countdown only (no redundant status text)
+                  if (goal.eatingWindowStart != null && goal.eatingWindowEnd != null)
                     Text(
                       isFasting
                           ? '${_formatDuration(timeUntilChange)} until eating'
@@ -147,7 +138,6 @@ class _FastingWidgetState extends State<FastingWidget> {
                         fontSize: compact ? 11 : 12,
                       ),
                     ),
-                  ],
                 ],
               ),
             ),
@@ -225,7 +215,7 @@ class _FastingWidgetState extends State<FastingWidget> {
 
         // Timeline bar
         SizedBox(
-          height: compact ? 32 : 40,
+          height: compact ? 16 : 20,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
@@ -258,7 +248,7 @@ class _FastingWidgetState extends State<FastingWidget> {
                     left: markerPosition - 1.5,
                     child: Container(
                       width: 3,
-                      height: compact ? 32 : 40,
+                      height: compact ? 16 : 20,
                       decoration: BoxDecoration(
                         color: isFasting ? Colors.red.shade700 : Colors.green.shade700,
                         borderRadius: BorderRadius.circular(1.5),
