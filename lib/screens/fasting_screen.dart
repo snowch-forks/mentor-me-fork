@@ -2,10 +2,11 @@
 // Full fasting tracker screen with timer, history, and settings
 
 import 'dart:async';
+import 'package:flutter/material.dart' as flutter_material;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../models/fasting_entry.dart';
+import '../models/fasting_entry.dart' as fasting;
 import '../providers/fasting_provider.dart';
 import '../theme/app_spacing.dart';
 
@@ -111,7 +112,7 @@ class _FastingScreenState extends State<FastingScreen> {
   Widget _buildActiveFastContent(
     BuildContext context,
     FastingProvider provider,
-    FastingEntry fast,
+    fasting.FastingEntry fast,
   ) {
     final theme = Theme.of(context);
     final duration = fast.duration;
@@ -610,7 +611,7 @@ class _FastingScreenState extends State<FastingScreen> {
 
   Widget _buildHistoryItem(
     BuildContext context,
-    FastingEntry entry,
+    fasting.FastingEntry entry,
     FastingProvider provider,
   ) {
     final theme = Theme.of(context);
@@ -695,7 +696,7 @@ class _FastingScreenState extends State<FastingScreen> {
 
   void _showEntryDetails(
     BuildContext context,
-    FastingEntry entry,
+    fasting.FastingEntry entry,
     FastingProvider provider,
   ) {
     final theme = Theme.of(context);
@@ -795,7 +796,7 @@ class _FastingScreenState extends State<FastingScreen> {
   void _confirmEndFast(
     BuildContext context,
     FastingProvider provider,
-    FastingEntry fast,
+    fasting.FastingEntry fast,
   ) {
     final goalMet = fast.goalMet;
     final noteController = TextEditingController();
@@ -886,7 +887,7 @@ class _FastingScreenState extends State<FastingScreen> {
 
   void _confirmDeleteEntry(
     BuildContext context,
-    FastingEntry entry,
+    fasting.FastingEntry entry,
     FastingProvider provider,
   ) {
     showDialog(
@@ -953,9 +954,11 @@ class _FastingSettingsSheet extends StatefulWidget {
 }
 
 class _FastingSettingsSheetState extends State<_FastingSettingsSheet> {
-  late FastingProtocol _selectedProtocol;
+  late fasting.FastingProtocol _selectedProtocol;
   late int _customHours;
   late int _weeklyGoal;
+  late fasting.TimeOfDay? _eatingWindowStart;
+  late fasting.TimeOfDay? _eatingWindowEnd;
 
   @override
   void initState() {
@@ -963,6 +966,66 @@ class _FastingSettingsSheetState extends State<_FastingSettingsSheet> {
     _selectedProtocol = widget.provider.goal.protocol;
     _customHours = widget.provider.goal.customTargetHours;
     _weeklyGoal = widget.provider.goal.weeklyFastingDays;
+    _eatingWindowStart = widget.provider.goal.eatingWindowStart;
+    _eatingWindowEnd = widget.provider.goal.eatingWindowEnd;
+  }
+
+  Future<void> _pickEatingWindowStart(BuildContext context) async {
+    final initialTime = _eatingWindowStart != null
+        ? flutter_material.TimeOfDay(
+            hour: _eatingWindowStart!.hour,
+            minute: _eatingWindowStart!.minute,
+          )
+        : const flutter_material.TimeOfDay(hour: 12, minute: 0);
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+
+    if (picked != null) {
+      final newStart = fasting.TimeOfDay(hour: picked.hour, minute: picked.minute);
+      setState(() {
+        _eatingWindowStart = newStart;
+      });
+
+      // Only save if both start and end are set
+      if (_eatingWindowEnd != null) {
+        widget.provider.setEatingWindow(
+          start: newStart,
+          end: _eatingWindowEnd!,
+        );
+      }
+    }
+  }
+
+  Future<void> _pickEatingWindowEnd(BuildContext context) async {
+    final initialTime = _eatingWindowEnd != null
+        ? flutter_material.TimeOfDay(
+            hour: _eatingWindowEnd!.hour,
+            minute: _eatingWindowEnd!.minute,
+          )
+        : const flutter_material.TimeOfDay(hour: 20, minute: 0);
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+
+    if (picked != null) {
+      final newEnd = fasting.TimeOfDay(hour: picked.hour, minute: picked.minute);
+      setState(() {
+        _eatingWindowEnd = newEnd;
+      });
+
+      // Only save if both start and end are set
+      if (_eatingWindowStart != null) {
+        widget.provider.setEatingWindow(
+          start: _eatingWindowStart!,
+          end: newEnd,
+        );
+      }
+    }
   }
 
   @override
@@ -1041,6 +1104,66 @@ class _FastingSettingsSheetState extends State<_FastingSettingsSheet> {
             ),
             const Divider(height: 32),
 
+            // Eating window times
+            Text(
+              'Eating Window',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Set your daily eating window to track when you fast',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _TimePickerButton(
+                    label: 'Start',
+                    time: _eatingWindowStart,
+                    onTap: () => _pickEatingWindowStart(context),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _TimePickerButton(
+                    label: 'End',
+                    time: _eatingWindowEnd,
+                    onTap: () => _pickEatingWindowEnd(context),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_eatingWindowStart != null && _eatingWindowEnd != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.green.shade700),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'You can eat from ${_eatingWindowStart!.format()} to ${_eatingWindowEnd!.format()}',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.green.shade900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const Divider(height: 32),
+
             // Protocol selection
             Text(
               'Fasting Protocol',
@@ -1051,7 +1174,7 @@ class _FastingSettingsSheetState extends State<_FastingSettingsSheet> {
             const SizedBox(height: 12),
 
             // Protocol options
-            ...FastingProtocol.values.where((p) => p != FastingProtocol.custom).map(
+            ...fasting.FastingProtocol.values.where((p) => p != fasting.FastingProtocol.custom).map(
               (protocol) => _ProtocolOption(
                 protocol: protocol,
                 isSelected: _selectedProtocol == protocol,
@@ -1064,16 +1187,16 @@ class _FastingSettingsSheetState extends State<_FastingSettingsSheet> {
 
             // Custom option
             _ProtocolOption(
-              protocol: FastingProtocol.custom,
-              isSelected: _selectedProtocol == FastingProtocol.custom,
+              protocol: fasting.FastingProtocol.custom,
+              isSelected: _selectedProtocol == fasting.FastingProtocol.custom,
               onTap: () {
-                setState(() => _selectedProtocol = FastingProtocol.custom);
+                setState(() => _selectedProtocol = fasting.FastingProtocol.custom);
                 widget.provider.setCustomTargetHours(_customHours);
               },
             ),
 
             // Custom hours slider
-            if (_selectedProtocol == FastingProtocol.custom) ...[
+            if (_selectedProtocol == fasting.FastingProtocol.custom) ...[
               const SizedBox(height: 16),
               Text(
                 'Custom Duration: $_customHours hours',
@@ -1105,7 +1228,7 @@ class _FastingSettingsSheetState extends State<_FastingSettingsSheet> {
 }
 
 class _ProtocolOption extends StatelessWidget {
-  final FastingProtocol protocol;
+  final fasting.FastingProtocol protocol;
   final bool isSelected;
   final VoidCallback onTap;
 
@@ -1165,6 +1288,68 @@ class _ProtocolOption extends StatelessWidget {
                 Icons.check_circle,
                 color: Colors.orange.shade600,
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Time picker button widget
+class _TimePickerButton extends StatelessWidget {
+  final String label;
+  final fasting.TimeOfDay? time;
+  final VoidCallback onTap;
+
+  const _TimePickerButton({
+    required this.label,
+    required this.time,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.access_time,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  time?.format() ?? 'Not set',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: time != null ? null : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
