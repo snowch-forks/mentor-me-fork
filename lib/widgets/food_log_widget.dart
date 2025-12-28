@@ -41,11 +41,21 @@ class FoodLogWidget extends StatelessWidget {
               color: colorScheme.outlineVariant.withValues(alpha: 0.5),
             ),
           ),
-          child: Padding(
-            padding: EdgeInsets.all(compact ? 12.0 : 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child: InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FoodLogScreen(),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(compact ? 12 : 16),
+            child: Padding(
+              padding: EdgeInsets.all(compact ? 12.0 : 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 // Header row
                 Row(
                   children: [
@@ -251,6 +261,7 @@ class FoodLogWidget extends StatelessWidget {
               ],
             ),
           ),
+            ),
         );
       },
     );
