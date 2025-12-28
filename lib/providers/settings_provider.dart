@@ -51,6 +51,7 @@ class SettingsProvider extends ChangeNotifier {
   DisplayMode _displayMode = DisplayMode.simple; // Default: simple mode
   bool _showExperimentalFeatures = false; // Default: hide Lab features
   bool _compactWidgets = false; // Default: normal widget size
+  bool _gridLayout = false; // Default: list layout
 
   // Dashboard Layout Settings
   DashboardLayout _dashboardLayout = DashboardLayout.defaultLayout();
@@ -68,6 +69,7 @@ class SettingsProvider extends ChangeNotifier {
   DisplayMode get displayMode => _displayMode;
   bool get showExperimentalFeatures => _showExperimentalFeatures;
   bool get compactWidgets => _compactWidgets;
+  bool get gridLayout => _gridLayout;
   DashboardLayout get dashboardLayout => _dashboardLayout;
 
   // Derived getters for feature visibility
@@ -119,6 +121,7 @@ class SettingsProvider extends ChangeNotifier {
       }
       _showExperimentalFeatures = settings['showExperimentalFeatures'] as bool? ?? false;
       _compactWidgets = settings['compactWidgets'] as bool? ?? false;
+      _gridLayout = settings['gridLayout'] as bool? ?? false;
 
       // Load dashboard layout
       final dashboardLayoutJson = settings['dashboardLayout'] as Map<String, dynamic>?;
@@ -425,6 +428,26 @@ class SettingsProvider extends ChangeNotifier {
     await _debug.info(
       'SettingsProvider',
       'Compact widgets ${enabled ? "enabled" : "disabled"}',
+      metadata: {'enabled': enabled},
+    );
+  }
+
+  /// Set grid layout mode and notify listeners
+  Future<void> setGridLayout(bool enabled) async {
+    if (_gridLayout == enabled) return;
+
+    _gridLayout = enabled;
+
+    // Update storage
+    final settings = await _storage.loadSettings();
+    settings['gridLayout'] = enabled;
+    await _storage.saveSettings(settings);
+
+    notifyListeners();
+
+    await _debug.info(
+      'SettingsProvider',
+      'Grid layout ${enabled ? "enabled" : "disabled"}',
       metadata: {'enabled': enabled},
     );
   }

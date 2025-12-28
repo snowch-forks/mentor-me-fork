@@ -27,6 +27,7 @@ import '../widgets/hydration_widget.dart';
 import '../widgets/weight_widget.dart';
 import '../widgets/exercise_widget.dart';
 import '../providers/settings_provider.dart';
+import '../models/dashboard_config.dart';
 import 'dashboard_settings_screen.dart';
 import 'actions_screen.dart' show ActionFilter;
 import '../widgets/recent_wins_widget.dart';
@@ -651,6 +652,7 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
     final habitProvider = context.watch<HabitProvider>();
     final settings = context.watch<SettingsProvider>();
     final layout = settings.dashboardLayout;
+    final useGridLayout = settings.gridLayout;
 
     // Build widgets based on dashboard layout ORDER (not hardcoded)
     final widgets = <Widget>[];
@@ -669,18 +671,29 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
       widgets.add(AppSpacing.gapMd);
     }
 
-    // Iterate through visible widgets in their configured order
-    for (final config in layout.visibleWidgets) {
-      final widget = _buildWidgetById(
-        config.id,
+    if (useGridLayout) {
+      // Grid layout: Group stat widgets in grid, keep list widgets full-width
+      widgets.addAll(_buildGridLayout(
         context,
+        layout,
         goalProvider,
         habitProvider,
         journalProvider,
-      );
-      if (widget != null) {
-        widgets.add(widget);
-        widgets.add(AppSpacing.gapLg);
+      ));
+    } else {
+      // Standard list layout
+      for (final config in layout.visibleWidgets) {
+        final widget = _buildWidgetById(
+          config.id,
+          context,
+          goalProvider,
+          habitProvider,
+          journalProvider,
+        );
+        if (widget != null) {
+          widgets.add(widget);
+          widgets.add(AppSpacing.gapLg);
+        }
       }
     }
 
@@ -696,6 +709,102 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
       ),
       children: widgets,
     );
+  }
+
+  /// Build grid layout with stat widgets in grid and list widgets full-width
+  List<Widget> _buildGridLayout(
+    BuildContext context,
+    DashboardLayout layout,
+    GoalProvider goalProvider,
+    HabitProvider habitProvider,
+    JournalProvider journalProvider,
+  ) {
+    final widgets = <Widget>[];
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // Determine column count based on screen width
+    final crossAxisCount = screenWidth > 900 ? 3 : (screenWidth > 600 ? 2 : 2);
+
+    // Stat widgets that work well in grid
+    const gridFriendlyWidgets = {
+      'hydration',
+      'weight',
+      'exercise',
+      'foodLog',
+      'fasting',
+    };
+
+    // Group consecutive grid-friendly widgets
+    final List<List<String>> groups = [];
+    List<String> currentGridGroup = [];
+
+    for (final config in layout.visibleWidgets) {
+      if (gridFriendlyWidgets.contains(config.id)) {
+        currentGridGroup.add(config.id);
+      } else {
+        // End current grid group if any
+        if (currentGridGroup.isNotEmpty) {
+          groups.add([...currentGridGroup]);
+          currentGridGroup.clear();
+        }
+        // Add full-width widget as its own group
+        groups.add([config.id]);
+      }
+    }
+    // Don't forget the last group
+    if (currentGridGroup.isNotEmpty) {
+      groups.add(currentGridGroup);
+    }
+
+    // Build widgets for each group
+    for (final group in groups) {
+      if (group.length == 1 && !gridFriendlyWidgets.contains(group[0])) {
+        // Full-width widget
+        final widget = _buildWidgetById(
+          group[0],
+          context,
+          goalProvider,
+          habitProvider,
+          journalProvider,
+        );
+        if (widget != null) {
+          widgets.add(widget);
+          widgets.add(AppSpacing.gapLg);
+        }
+      } else {
+        // Grid of stat widgets
+        final gridChildren = <Widget>[];
+        for (final id in group) {
+          final widget = _buildWidgetById(
+            id,
+            context,
+            goalProvider,
+            habitProvider,
+            journalProvider,
+          );
+          if (widget != null) {
+            gridChildren.add(widget);
+          }
+        }
+
+        if (gridChildren.isNotEmpty) {
+          widgets.add(
+            GridView.count(
+              crossAxisCount: crossAxisCount,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: AppSpacing.md,
+              mainAxisSpacing: AppSpacing.md,
+              childAspectRatio: 1.1, // Slightly wider than square
+              children: gridChildren,
+            ),
+          );
+          widgets.add(AppSpacing.gapLg);
+        }
+      }
+    }
+
+    return widgets;
   }
 
   /// Build a widget by its ID

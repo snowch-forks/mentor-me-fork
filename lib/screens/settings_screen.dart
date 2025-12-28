@@ -437,6 +437,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           AppSpacing.gapMd,
 
+          // Grid Layout Toggle
+          Card(
+            child: Consumer<SettingsProvider>(
+              builder: (context, settingsProvider, child) {
+                return SwitchListTile(
+                  secondary: Icon(
+                    Icons.grid_view,
+                    color: settingsProvider.gridLayout
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                  title: const Text('Grid Layout'),
+                  subtitle: Text(
+                    settingsProvider.gridLayout
+                        ? 'Stat widgets displayed in grid (2-3 columns)'
+                        : 'Display stat widgets in a multi-column grid',
+                  ),
+                  value: settingsProvider.gridLayout,
+                  onChanged: (value) async {
+                    await settingsProvider.setGridLayout(value);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            value
+                                ? 'Grid layout enabled - stat widgets will display in columns'
+                                : 'List layout enabled - widgets will display vertically',
+                          ),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+
+          AppSpacing.gapMd,
+
           // Dashboard Customization
           Card(
             child: ListTile(
