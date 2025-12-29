@@ -22,7 +22,7 @@ class _MedicationScreenState extends State<MedicationScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -41,6 +41,7 @@ class _MedicationScreenState extends State<MedicationScreen>
           tabs: const [
             Tab(text: 'Today', icon: Icon(Icons.today)),
             Tab(text: 'All Medications', icon: Icon(Icons.medication)),
+            Tab(text: 'History', icon: Icon(Icons.history)),
           ],
         ),
       ),
@@ -55,6 +56,7 @@ class _MedicationScreenState extends State<MedicationScreen>
             children: [
               _TodayTab(provider: provider),
               _AllMedicationsTab(provider: provider),
+              _HistoryTab(provider: provider),
             ],
           );
         },
@@ -575,6 +577,331 @@ class _AllMedicationsTab extends StatelessWidget {
         ],
         AppSpacing.gapXl,
       ],
+    );
+  }
+}
+
+/// Tab showing medication history
+class _HistoryTab extends StatelessWidget {
+  final MedicationProvider provider;
+
+  const _HistoryTab({required this.provider});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final logs = provider.logs;
+
+    if (logs.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.history,
+                size: 64,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+              AppSpacing.gapMd,
+              Text(
+                'No medication history',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              AppSpacing.gapSm,
+              Text(
+                'Log medications from the Today tab to build your history',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Group logs by date
+    final groupedLogs = <DateTime, List<MedicationLog>>{};
+    for (final log in logs) {
+      final date = DateTime(
+        log.timestamp.year,
+        log.timestamp.month,
+        log.timestamp.day,
+      );
+      groupedLogs.putIfAbsent(date, () => []).add(log);
+    }
+
+    // Sort dates descending (most recent first)
+    final sortedDates = groupedLogs.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Stats summary card
+          _buildStatsSummary(context, logs),
+          AppSpacing.gapMd,
+
+          // History grouped by date
+          ...sortedDates.map((date) {
+            final dateLogs = groupedLogs[date]!;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDateHeader(context, date),
+                AppSpacing.gapSm,
+                ...dateLogs.map((log) => _buildHistoryLogCard(context, log)),
+                AppSpacing.gapMd,
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsSummary(BuildContext context, List<MedicationLog> logs) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    // Calculate stats for last 30 days
+    final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
+    final recentLogs = logs.where((l) => l.timestamp.isAfter(thirtyDaysAgo)).toList();
+
+    final taken = recentLogs.where((l) => l.status == MedicationLogStatus.taken).length;
+    final skipped = recentLogs.where((l) => l.status == MedicationLogStatus.skipped).length;
+    final total = recentLogs.length;
+
+    final adherenceRate = total > 0 ? (taken / total * 100).round() : 0;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.analytics_outlined,
+                  color: colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Last 30 Days',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatItem(
+                    context,
+                    '$adherenceRate%',
+                    'Adherence',
+                    Colors.green,
+                  ),
+                ),
+                Expanded(
+                  child: _buildStatItem(
+                    context,
+                    '$taken',
+                    'Taken',
+                    Colors.blue,
+                  ),
+                ),
+                Expanded(
+                  child: _buildStatItem(
+                    context,
+                    '$skipped',
+                    'Skipped',
+                    Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(
+    BuildContext context,
+    String value,
+    String label,
+    Color color,
+  ) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Text(
+          value,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDateHeader(BuildContext context, DateTime date) {
+    final theme = Theme.of(context);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    String dateText;
+    if (date == today) {
+      dateText = 'Today';
+    } else if (date == yesterday) {
+      dateText = 'Yesterday';
+    } else {
+      dateText = DateFormat('EEEE, MMMM d').format(date);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      child: Text(
+        dateText,
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryLogCard(BuildContext context, MedicationLog log) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    Color statusColor;
+    IconData statusIcon;
+    switch (log.status) {
+      case MedicationLogStatus.taken:
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        break;
+      case MedicationLogStatus.skipped:
+        statusColor = Colors.orange;
+        statusIcon = Icons.cancel;
+        break;
+      case MedicationLogStatus.delayed:
+        statusColor = Colors.blue;
+        statusIcon = Icons.access_time;
+        break;
+    }
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: colorScheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // Status icon
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                statusIcon,
+                color: statusColor,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // Medication info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    log.medicationName,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        DateFormat('h:mm a').format(log.timestamp),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        '•',
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        log.status.displayName,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (log.notes != null || log.skipReason != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      log.skipReason ?? log.notes ?? '',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
