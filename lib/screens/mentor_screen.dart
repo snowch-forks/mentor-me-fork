@@ -39,7 +39,7 @@ import '../widgets/todos_widget.dart';
 import '../widgets/hands_free_discovery_card.dart';
 import '../widgets/habits_compact_widget.dart';
 import '../widgets/goals_compact_widget.dart';
-import '../widgets/wellness_menu_widget.dart';
+import '../widgets/wellness_recommendation_card.dart';
 
 class MentorScreen extends StatefulWidget {
   final void Function(int index, {ActionFilter? filter}) onNavigateToTab;
@@ -686,8 +686,6 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
       ));
     } else {
       // Standard list layout
-      bool wellnessMenuAdded = false;
-
       for (final config in layout.visibleWidgets) {
         final widget = _buildWidgetById(
           config.id,
@@ -699,16 +697,6 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
         if (widget != null) {
           widgets.add(widget);
           widgets.add(AppSpacing.gapLg);
-        }
-
-        // Add wellness menu right after action buttons
-        if (config.id == 'actionButtons' && !wellnessMenuAdded) {
-          widgets.add(const WellnessMenuWidget(
-            showHeader: true,
-            showHelpMeChoose: false,
-          ));
-          widgets.add(AppSpacing.gapLg);
-          wellnessMenuAdded = true;
         }
       }
     }
@@ -776,8 +764,6 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
     }
 
     // Build widgets for each group
-    bool wellnessMenuAdded = false;
-
     for (final group in groups) {
       if (group.length == 1 && !gridFriendlyWidgets.contains(group[0])) {
         // Full-width widget
@@ -791,16 +777,6 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
         if (widget != null) {
           widgets.add(widget);
           widgets.add(AppSpacing.gapLg);
-        }
-
-        // Add wellness menu right after action buttons (grid layout)
-        if (group[0] == 'actionButtons' && !wellnessMenuAdded) {
-          widgets.add(const WellnessMenuWidget(
-            showHeader: true,
-            showHelpMeChoose: false,
-          ));
-          widgets.add(AppSpacing.gapLg);
-          wellnessMenuAdded = true;
         }
       } else {
         // Grid of stat widgets
@@ -894,6 +870,8 @@ class _MentorScreenState extends State<MentorScreen> with WidgetsBindingObserver
         return GoalsCompactWidget(
           onTap: () => widget.onNavigateToTab(2, filter: ActionFilter.goals),
         );
+      case 'wellnessRecommendation':
+        return const WellnessRecommendationCard();
       default:
         return null;
     }

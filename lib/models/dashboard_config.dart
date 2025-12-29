@@ -193,6 +193,13 @@ class DashboardWidgetRegistry {
       icon: Icons.flag,
       color: Colors.green,
     ),
+    DashboardWidgetInfo(
+      id: 'wellnessRecommendation',
+      name: 'Wellness Tools',
+      description: 'Get personalized wellness tool recommendations',
+      icon: Icons.spa,
+      color: Colors.teal,
+    ),
   ];
 
   /// Get widget info by ID
