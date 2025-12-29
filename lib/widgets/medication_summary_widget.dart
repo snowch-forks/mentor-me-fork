@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/medication.dart';
 import '../providers/medication_provider.dart';
 import '../providers/settings_provider.dart';
 import '../screens/medication_screen.dart';
