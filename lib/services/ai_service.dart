@@ -47,8 +47,13 @@ class AIService {
   // Direct API for mobile
   static const String _apiUrl = 'https://api.anthropic.com/v1/messages';
 
-  // Proxy server for web (run locally during development)
-  static const String _proxyUrl = 'http://localhost:3000/api/claude/messages';
+  // Cloud deployment flag - set via --dart-define=CLOUD_DEPLOYED=true at build time
+  static const bool _isCloudDeployed = bool.fromEnvironment('CLOUD_DEPLOYED');
+
+  // Proxy server for web: relative URL when cloud-deployed, localhost for local dev
+  static const String _proxyUrl = _isCloudDeployed
+      ? '/api/claude/messages'
+      : 'http://localhost:3000/api/claude/messages';
 
   // Default model (can be overridden by user settings)
   static const String _defaultModel = 'claude-sonnet-4-20250514';
@@ -122,6 +127,23 @@ class AIService {
     debugPrint('✅ Local AI configured: $localAvailable');
   }
 
+  /// Builds HTTP headers for Claude API requests.
+  ///
+  /// When cloud-deployed on web, the API key is handled server-side by the
+  /// proxy, so no x-api-key header is sent from the browser.
+  Map<String, String> _buildApiHeaders() {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'anthropic-version': '2023-06-01',
+    };
+    // Only send API key from client when NOT cloud-deployed
+    // (cloud proxy injects the key server-side from Secret Manager)
+    if (!(kIsWeb && _isCloudDeployed)) {
+      headers['x-api-key'] = _apiKey!;
+    }
+    return headers;
+  }
+
   /// Sets the AI model to use for requests.
   ///
   /// [model] should be a valid Claude model ID (e.g., 'claude-sonnet-4-20250514').
@@ -181,7 +203,9 @@ class AIService {
   /// Checks if an API key has been configured.
   ///
   /// Returns `true` if a non-empty API key is set, `false` otherwise.
+  /// When cloud-deployed on web, always returns true (proxy handles the key).
   bool hasApiKey() {
+    if (kIsWeb && _isCloudDeployed) return true;
     return _apiKey != null && _apiKey!.isNotEmpty;
   }
 
@@ -517,11 +541,7 @@ IMPORTANT GUIDELINES:
 
       final response = await http.post(
         Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': _apiKey!,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: _buildApiHeaders(),
         body: json.encode({
           'model': _selectedModel, // Use selected model
           'max_tokens': 1024,
@@ -826,11 +846,7 @@ Provide supportive, thoughtful guidance. Use tools judiciously to help the user 
 
       final response = await http.post(
         Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': _apiKey!,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: _buildApiHeaders(),
         body: json.encode({
           'model': _selectedModel,
           'max_tokens': 4096,
@@ -1480,11 +1496,7 @@ JSON:''';
 
       final response = await http.post(
         Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': _apiKey!,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: _buildApiHeaders(),
         body: json.encode({
           'model': _selectedModel,
           'max_tokens': 1024,
@@ -1649,11 +1661,7 @@ JSON:''',
 
       final response = await http.post(
         Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': _apiKey!,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: _buildApiHeaders(),
         body: json.encode({
           'model': _selectedModel,
           'max_tokens': 512,
@@ -1760,11 +1768,7 @@ JSON:''',
 
       final response = await http.post(
         Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': _apiKey!,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: _buildApiHeaders(),
         body: json.encode({
           'model': _selectedModel,
           'max_tokens': 1024,

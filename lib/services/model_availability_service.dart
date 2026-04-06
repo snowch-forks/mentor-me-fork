@@ -24,7 +24,10 @@ class ModelInfo {
 
 class ModelAvailabilityService {
   static const String _apiUrl = 'https://api.anthropic.com/v1/messages';
-  static const String _proxyUrl = 'http://localhost:3000/api/claude/messages';
+  static const bool _isCloudDeployed = bool.fromEnvironment('CLOUD_DEPLOYED');
+  static const String _proxyUrl = _isCloudDeployed
+      ? '/api/claude/messages'
+      : 'http://localhost:3000/api/claude/messages';
 
   final DebugService _debug = DebugService();
 
@@ -113,13 +116,18 @@ class ModelAvailabilityService {
 
       final startTime = DateTime.now();
 
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+      };
+      // Only send API key from client when NOT cloud-deployed on web
+      if (!(kIsWeb && _isCloudDeployed)) {
+        headers['x-api-key'] = apiKey;
+      }
+
       final response = await http.post(
         Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: headers,
         body: json.encode({
           'model': modelId,
           'max_tokens': 10,

@@ -1,0 +1,30 @@
+# Build artifacts
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Git
+.git/
+.github/
+
+# Android (not needed for web build)
+android/.gradle/
+android/app/build/
+
+# iOS (not needed)
+ios/
+
+# Tests (not needed in container)
+test/
+
+# Dev files
+*.md
+!deploy/SETUP.md
+.claude/
+node_modules/
