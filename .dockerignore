@@ -1,5 +1,4 @@
-# Build artifacts
-build/
+# Build artifacts (excluded for full Dockerfile, but build/web needed for Dockerfile.dev)
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies

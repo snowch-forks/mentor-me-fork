@@ -1,5 +1,15 @@
 # Stage 1: Build Flutter web app
-FROM ghcr.io/cirruslabs/flutter:3.27.1 AS flutter-build
+# Using official Dart + Flutter SDK install (ghcr.io/cirruslabs images may have availability issues)
+FROM debian:bookworm-slim AS flutter-build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl git unzip xz-utils ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Flutter SDK
+RUN git clone --depth 1 --branch 3.27.1 https://github.com/flutter/flutter.git /flutter
+ENV PATH="/flutter/bin:/flutter/bin/cache/dart-sdk/bin:${PATH}"
+RUN flutter precache --web && flutter config --enable-web
 
 WORKDIR /app
 COPY pubspec.yaml pubspec.lock ./

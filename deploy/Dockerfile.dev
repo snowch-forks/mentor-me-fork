@@ -1,0 +1,27 @@
+# Runtime-only Dockerfile for local testing
+# (Flutter web already built on host)
+FROM node:20-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nginx \
+    supervisor \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy pre-built Flutter web app
+COPY build/web /usr/share/nginx/html
+
+# Copy nginx config
+COPY deploy/nginx.conf /etc/nginx/sites-available/default
+
+# Set up proxy server
+WORKDIR /app/proxy
+COPY deploy/proxy-server.js ./server.js
+COPY deploy/proxy-package.json ./package.json
+RUN npm install --production
+
+# Supervisor config
+COPY deploy/supervisord.conf /etc/supervisor/conf.d/mentorme.conf
+
+EXPOSE 8080
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/mentorme.conf"]
